@@ -9,6 +9,7 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Índice de fases](fases/README.md)
 - [Fase 00 — Planificación general](fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](fases/01-revision-normalizacion-spring-boot.md)
+- [Fase 02 — Configuración PostgreSQL y Flyway](fases/02-configuracion-postgresql-flyway.md)
 - [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
 - [Documentación de base de datos](database/README.md)
 

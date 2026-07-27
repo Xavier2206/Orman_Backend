@@ -4,7 +4,29 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
-No hay cambios adicionales registrados fuera de fases cerradas.
+No hay cambios adicionales registrados fuera de la Fase 02 bloqueada.
+
+## Fase 02 — 2026-07-27
+
+### Agregado
+
+- Configuración de datasource PostgreSQL mediante variables de entorno.
+- Configuración inicial de Hibernate en modo `validate` y Flyway con migraciones en `classpath:db/migration`.
+- `.env.example` sin credenciales reales y reglas para ignorar `.env`.
+
+### Modificado
+
+- README, plan, índices, teoría de la Etapa 1 y documentación de base de datos para registrar el bloqueo de la Fase 02.
+
+### Documentación
+
+- Registrado que PostgreSQL local responde, pero faltan credenciales válidas para validar conexión, Flyway y `contextLoads`.
+
+### Verificación
+
+- Compilación principal y de pruebas correcta.
+- El árbol de dependencias confirma JPA, driver PostgreSQL, Flyway Core y `flyway-database-postgresql`.
+- `contextLoads` llega al datasource y falla por autenticación ante credenciales de entorno ausentes.
 
 ## Fase 00 — 2026-07-27
 

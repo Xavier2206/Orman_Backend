@@ -24,9 +24,10 @@ Las fases posteriores dependen de las bases establecidas por las anteriores. No 
 ## Estado actual
 
 - Etapa activa: **ETAPA 1 — Fundación técnica**
-- Última fase cerrada: **Fase 01 — Revisión y normalización del proyecto Spring Boot**
-- Estado de la Fase 01: **COMPLETADA**
-- Siguiente fase recomendada: **Fase 02 — Configuración de PostgreSQL y Flyway**, pendiente de autorización
+- Etapa activa: **ETAPA 1 — Fundación técnica**
+- Fase activa: **Fase 02 — Configuración de PostgreSQL y Flyway**
+- Estado de la Fase 02: **BLOQUEADA**
+- Bloqueo: faltan `DB_USERNAME` y `DB_PASSWORD` válidas para una instancia PostgreSQL accesible.
 - Fecha de actualización: **2026-07-27**
 
 ## Etapas y fases previstas
@@ -39,7 +40,7 @@ Teoría: [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
 |---|---|---|---|
 | 00 — Planificación general y estructura documental | `COMPLETADA` | Ninguna | [Documento de Fase 00](fases/00-planificacion-general.md) |
 | 01 — Revisión y normalización del proyecto Spring Boot | `COMPLETADA` | Fase 00 | [Documento de Fase 01](fases/01-revision-normalizacion-spring-boot.md) |
-| 02 — Configuración de PostgreSQL y Flyway | `PENDIENTE` | Fase 01 | Documento pendiente de creación |
+| 02 — Configuración de PostgreSQL y Flyway | `BLOQUEADA` | Fase 01 | [Documento de Fase 02](fases/02-configuracion-postgresql-flyway.md) |
 | 03 — Infraestructura común y manejo de errores | `PENDIENTE` | Fases 01 y 02 | Documento pendiente de creación |
 
 ### ETAPA 2 — Personas, usuarios y roles

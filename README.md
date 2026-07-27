@@ -4,9 +4,9 @@ Backend de ORMAN construido con Java y Spring Boot. El proyecto se encuentra en 
 
 ## Estado actual
 
-**Fase 01 — Revisión y normalización del proyecto Spring Boot: COMPLETADA**
+**Fase 02 — Configuración de PostgreSQL y Flyway: BLOQUEADA**
 
-La estructura técnica inicial está normalizada: el proyecto usa el nombre lógico ORMAN-BACKEND, Java 21, configuración YAML y un Maven Wrapper funcional. La compilación principal y de pruebas pasa; la carga del contexto permanece pendiente de la configuración de datasource de la Fase 02.
+El datasource, Hibernate y Flyway están configurados para PostgreSQL mediante variables de entorno. La compilación pasa, pero falta proporcionar credenciales válidas para completar la conexión, inicializar Flyway y cargar el contexto.
 
 ## Stack confirmado
 
@@ -21,14 +21,33 @@ La estructura técnica inicial está normalizada: el proyecto usa el nombre lóg
 - Empaquetado JAR
 - IntelliJ IDEA y Codex CLI como herramientas de trabajo
 
-El servidor se configura para usar el puerto `9090`. PostgreSQL aún no está configurado y no existe una API disponible.
+El servidor se configura para usar el puerto `9090`. No existe una API disponible.
 
 ## Requisitos
 
 - JDK 21
 - Una terminal compatible con el Maven Wrapper
 
-PostgreSQL será necesario a partir de la fase dedicada a su configuración, no para interpretar la documentación de esta fase.
+Para iniciar la aplicación o ejecutar las pruebas de contexto se requiere acceso a PostgreSQL y las variables `DB_USERNAME` y `DB_PASSWORD`.
+
+## Configuración local de PostgreSQL
+
+La aplicación obtiene la conexión de estas variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` y `DB_PASSWORD`. Los valores no sensibles de host, puerto y base tienen valores predeterminados en `application.yml`; usuario y contraseña son obligatorios.
+
+Usa [.env.example](.env.example) como referencia. Puede versionarse, pero `.env` real está ignorado y Spring Boot no lo carga automáticamente.
+
+En PowerShell, configura las variables solo para la sesión actual antes de ejecutar Maven:
+
+```powershell
+$env:DB_HOST = "localhost"
+$env:DB_PORT = "5432"
+$env:DB_NAME = "orman"
+$env:DB_USERNAME = "<usuario>"
+$env:DB_PASSWORD = "<contraseña>"
+.\mvnw.cmd test
+```
+
+En IntelliJ IDEA, abre la configuración de ejecución o prueba, agrega las cinco variables en **Environment variables** y ejecuta la configuración. No guardes contraseñas en Git, documentación ni archivos versionados.
 
 ## Comandos Maven
 
@@ -48,7 +67,7 @@ En Linux o macOS:
 ./mvnw spring-boot:run
 ```
 
-El arranque puede requerir configuración adicional mientras las dependencias de persistencia estén presentes y PostgreSQL todavía no esté configurado. Esa configuración pertenece a las siguientes fases.
+Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema; las tablas del dominio aún no existen.
 
 ## Documentación
 
@@ -59,5 +78,6 @@ El arranque puede requerir configuración adicional mientras las dependencias de
 - [Etapa 1 — Fundación técnica](docs/etapas/etapa-01-fundacion-tecnica.md)
 - [Fase 00 — Planificación general](docs/fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](docs/fases/01-revision-normalizacion-spring-boot.md)
+- [Fase 02 — Configuración PostgreSQL y Flyway](docs/fases/02-configuracion-postgresql-flyway.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

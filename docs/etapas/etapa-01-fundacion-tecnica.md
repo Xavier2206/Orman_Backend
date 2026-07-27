@@ -43,6 +43,12 @@ La indentación debe ser consistente y no se deben incluir secretos reales. En f
 
 PostgreSQL es el sistema gestor de base de datos relacional elegido. Aporta integridad referencial, transacciones y tipos de datos robustos. Su conexión, credenciales y esquema todavía no pertenecen a la Fase 00; se configurarán y verificarán en la Fase 02.
 
+### Datasource y JDBC
+
+El datasource es el componente que administra conexiones para JPA, Hibernate y Flyway. En este proyecto su URL usa el formato JDBC de PostgreSQL y obtiene host, puerto, base, usuario y contraseña de variables de entorno. Host, puerto y nombre pueden tener valores locales no sensibles; usuario y contraseña no deben tener valores predeterminados ni entrar al repositorio.
+
+Spring Boot no carga un archivo `.env` por sí solo. El entorno de ejecución, IntelliJ IDEA, PowerShell o CMD deben proporcionar las variables. Sin credenciales válidas, la aplicación no puede inicializar Flyway ni cargar el contexto.
+
 ## JPA e Hibernate
 
 JPA define una especificación Java para mapear objetos a datos relacionales. Hibernate es una implementación habitual de esa especificación y se encarga de materializar consultas, gestionar el contexto de persistencia y convertir entre entidades y filas.
@@ -58,6 +64,8 @@ Flyway versiona cambios de esquema mediante migraciones ordenadas. Cada migraci�
 Una migración es un cambio explícito, revisable y versionado. La generación automática con `ddl-auto=create` o `update` permite que Hibernate altere el esquema a partir de entidades, pero sus efectos pueden ser implícitos, difíciles de revisar y peligrosos para datos existentes.
 
 Por esta razón, Flyway creará y modificará el esquema. Cuando el esquema exista, Hibernate podrá usar `ddl-auto=validate` para comprobar correspondencia sin alterarlo.
+
+En la Fase 02 se configura `ddl-auto=validate` y `open-in-view=false`. La validación comprueba el modelo contra el esquema, pero no crea ni modifica tablas. Flyway busca migraciones en `classpath:db/migration`, las valida al iniciar y mantiene deshabilitado `clean` para evitar borrados accidentales.
 
 ## Lombok y sus riesgos
 

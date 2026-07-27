@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: ORMAN-BACKEND
+
+server:
+  port: 9090

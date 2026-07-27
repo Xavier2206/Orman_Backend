@@ -1,0 +1,23 @@
+# Documentación de ORMAN-BACKEND
+
+Este directorio concentra la planificación, la teoría por etapa, el historial por fase, las decisiones arquitectónicas y el análisis inicial del modelo de datos.
+
+## Navegación
+
+- [Plan general del desarrollo](PLAN_GENERAL.md)
+- [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
+- [Índice de fases](fases/README.md)
+- [Fase 00 — Planificación general](fases/00-planificacion-general.md)
+- [Fase 01 — Revisión y normalización Spring Boot](fases/01-revision-normalizacion-spring-boot.md)
+- [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
+- [Documentación de base de datos](database/README.md)
+
+## Decisiones arquitectónicas
+
+- [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)
+- [ADR-002 — Flyway controla el esquema](decisiones/ADR-002-flyway-controla-esquema.md)
+- [ADR-003 — Git manual](decisiones/ADR-003-git-manual.md)
+- [ADR-004 — Configuración YAML](decisiones/ADR-004-configuracion-yaml.md)
+- [ADR-005 — Uso controlado de Lombok](decisiones/ADR-005-uso-controlado-lombok.md)
+
+La teoría se documenta por etapa. Cada fase registra únicamente su alcance, ejecución, validaciones, decisiones y resultado.

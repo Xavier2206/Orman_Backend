@@ -105,6 +105,8 @@ Las fases con lógica deberán añadir pruebas de comportamiento relevantes. Una
 
 Una API necesita traducir errores técnicos y de negocio a respuestas consistentes. Spring permite centralizar esta traducción, por ejemplo mediante mecanismos de manejo global de excepciones. La Fase 03 definirá el contrato, las categorías de error y el registro apropiado; no se implementará de forma anticipada.
 
+La Fase 03 usa `ProblemDetail` y RFC 9457 como contrato HTTP. Además de los campos estándar (`status`, `title`, `detail` e `instance`), el contrato expone un código interno estable, instante, identificador local de trazabilidad y, cuando corresponde, errores de campo ordenados. Las respuestas no incluyen trazas, clases internas, SQL ni credenciales. Un `@RestControllerAdvice` concentra la traducción de excepciones y evita que cada módulo implemente su propio formato.
+
 ## Relación entre las fases 00, 01, 02 y 03
 
 1. La **Fase 00** define el mapa, las reglas permanentes y las decisiones iniciales.

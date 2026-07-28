@@ -23,6 +23,7 @@ Una estructura ilustrativa futura podría contener paquetes como `persona` o `us
 - Los módulos no deben formar dependencias circulares.
 - Las entidades de persistencia no serán contratos directos de las APIs.
 - Los componentes comunes solo se crearán cuando resuelvan una necesidad compartida real.
+- La infraestructura transversal de errores reside en `common.error` y `common.exception`; no contiene reglas ni tipos de un dominio concreto.
 
 ## Datos y esquema
 

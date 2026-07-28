@@ -1,6 +1,9 @@
 spring:
   application:
     name: ORMAN-BACKEND
+  mvc:
+    problemdetails:
+      enabled: true
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orman}
     username: ${DB_USERNAME}

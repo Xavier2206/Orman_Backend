@@ -4,9 +4,9 @@ Backend de ORMAN construido con Java y Spring Boot. El proyecto se encuentra en 
 
 ## Estado actual
 
-**Fase 02 — Configuración de PostgreSQL y Flyway: COMPLETADA**
+**Fase 03 — Infraestructura común y manejo global de errores: COMPLETADA**
 
-El datasource, Hibernate y Flyway están configurados para PostgreSQL mediante variables de entorno. La conexión, Flyway y la prueba de contexto fueron validadas correctamente sin almacenar credenciales en el repositorio.
+El backend incorpora un contrato uniforme RFC 9457 para errores HTTP, con códigos internos, validación de campos, trazabilidad local y respuestas seguras. Todavía no existen endpoints ni funcionalidades de negocio.
 
 ## Stack confirmado
 
@@ -79,5 +79,6 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 00 — Planificación general](docs/fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](docs/fases/01-revision-normalizacion-spring-boot.md)
 - [Fase 02 — Configuración PostgreSQL y Flyway](docs/fases/02-configuracion-postgresql-flyway.md)
+- [Fase 03 — Infraestructura común y manejo global de errores](docs/fases/03-infraestructura-comun-manejo-errores.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

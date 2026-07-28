@@ -6,6 +6,30 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 03 — 2026-07-27
+
+### Agregado
+
+- Contrato de errores RFC 9457 basado en `ProblemDetail`, con código interno, instante, ruta y trazabilidad local.
+- Excepciones reutilizables para recurso inexistente, conflicto y regla de negocio.
+- Manejo global de validación, JSON inválido y errores inesperados sin exponer detalles internos.
+- Pruebas MVC aisladas para los casos principales del contrato de error.
+
+### Modificado
+
+- Habilitada la propiedad oficial `spring.mvc.problemdetails.enabled`.
+- Actualizados README, plan, índices, arquitectura y teoría de la Etapa 1.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 7 pruebas, 0 fallos y 0 errores.
+- `contextLoads` sigue validando PostgreSQL, Hikari, Flyway e Hibernate.
+- Confirmado que no se agregaron migraciones SQL, tablas de negocio ni dependencias.
+
+### Corregido
+
+- El primer intento de pruebas reveló que el manejador integrado de Spring tenía prioridad para validación y JSON inválido. Se aplicó `@Order(Ordered.HIGHEST_PRECEDENCE)` al consejo global y la validación final pasó.
+
 ## Fase 02 — 2026-07-27
 
 ### Agregado

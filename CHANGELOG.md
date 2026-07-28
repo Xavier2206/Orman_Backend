@@ -4,7 +4,7 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
-No hay cambios adicionales registrados fuera de la Fase 02 bloqueada.
+No hay cambios adicionales registrados fuera de las fases cerradas.
 
 ## Fase 02 — 2026-07-27
 
@@ -16,17 +16,22 @@ No hay cambios adicionales registrados fuera de la Fase 02 bloqueada.
 
 ### Modificado
 
-- README, plan, índices, teoría de la Etapa 1 y documentación de base de datos para registrar el bloqueo de la Fase 02.
+- `.env.example` ahora usa un marcador de contraseña y no contiene una credencial concreta.
+- README, plan e índice de fases actualizados para registrar el cierre de la Fase 02.
 
 ### Documentación
 
-- Registrado que PostgreSQL local responde, pero faltan credenciales válidas para validar conexión, Flyway y `contextLoads`.
+- Registrada la causa del placeholder literal y su corrección mediante importación de variables de usuario al proceso que ejecuta Maven.
+- Confirmado que las credenciales siguen siendo externas y no se almacenan en el repositorio.
 
 ### Verificación
 
 - Compilación principal y de pruebas correcta.
 - El árbol de dependencias confirma JPA, driver PostgreSQL, Flyway Core y `flyway-database-postgresql`.
-- `contextLoads` llega al datasource y falla por autenticación ante credenciales de entorno ausentes.
+- `.\mvnw.cmd clean`: **BUILD SUCCESS**.
+- `.\mvnw.cmd test`: **BUILD SUCCESS**; `contextLoads` ejecutó 1 prueba, 0 fallos y 0 errores.
+- PostgreSQL aceptó la conexión; HikariPool inició; Flyway validó 0 migraciones y creó `flyway_schema_history`.
+- La consulta JDBC de solo lectura confirmó que `flyway_schema_history` es la única tabla pública y que no hay tablas de negocio.
 
 ## Fase 00 — 2026-07-27
 

@@ -4,9 +4,9 @@ Backend de ORMAN construido con Java y Spring Boot. El proyecto se encuentra en 
 
 ## Estado actual
 
-**Fase 02 — Configuración de PostgreSQL y Flyway: BLOQUEADA**
+**Fase 02 — Configuración de PostgreSQL y Flyway: COMPLETADA**
 
-El datasource, Hibernate y Flyway están configurados para PostgreSQL mediante variables de entorno. La compilación pasa, pero falta proporcionar credenciales válidas para completar la conexión, inicializar Flyway y cargar el contexto.
+El datasource, Hibernate y Flyway están configurados para PostgreSQL mediante variables de entorno. La conexión, Flyway y la prueba de contexto fueron validadas correctamente sin almacenar credenciales en el repositorio.
 
 ## Stack confirmado
 

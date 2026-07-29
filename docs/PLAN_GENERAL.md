@@ -24,10 +24,10 @@ Las fases posteriores dependen de las bases establecidas por las anteriores. No 
 ## Estado actual
 
 - Etapa activa: **ETAPA 1 — Fundación técnica**
-- Fase activa: **Fase 03 — Infraestructura común y manejo global de errores**
-- Estado de la Fase 03: **COMPLETADA**
-- Resultado: contrato RFC 9457, manejo global, validaciones, trazabilidad local y pruebas MVC implementados sin componentes de negocio.
-- Fecha de actualización: **2026-07-27**
+- Fase activa: **Fase 04 — Modelo y migración de personas**
+- Estado de la Fase 04: **COMPLETADA**
+- Resultado: V1 creó `personas`, V2 corrigió la nulabilidad de `fecha_registro`; entidad, repositorio y pruebas se validaron contra PostgreSQL.
+- Fecha de actualización: **2026-07-29**
 
 ## Etapas y fases previstas
 
@@ -48,7 +48,7 @@ Teoría: Documento pendiente de creación.
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 04 — Modelo y migración de personas | `PENDIENTE` | Fases 02 y 03 | Documento pendiente de creación |
+| 04 — Modelo y migración de personas | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
 | 05 — API CRUD de personas | `PENDIENTE` | Fase 04 | Documento pendiente de creación |
 | 06 — Modelo de usuarios | `PENDIENTE` | Fases 04 y 05 | Documento pendiente de creación |
 | 07 — Gestión administrativa de usuarios | `PENDIENTE` | Fase 06 | Documento pendiente de creación |

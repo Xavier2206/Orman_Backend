@@ -6,6 +6,24 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 04 — 2026-07-29
+
+### Agregado
+
+- Entidad `Persona` y `PersonaRepository` en el módulo `person`.
+- Pruebas de persistencia y restricciones contra PostgreSQL real.
+- Migración V2 para hacer obligatorio `personas.fecha_registro`.
+
+### Corregido
+
+- V1 había creado `fecha_registro` nullable; tras confirmar que no existían valores nulos, V2 aplicó la nulabilidad aprobada sin modificar la migración ya aplicada.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**, 17 pruebas, 0 fallos y 0 errores.
+- Flyway registró V1 y V2; Hibernate validó el esquema sin DDL y `contextLoads` pasó.
+- El esquema público final contiene únicamente `flyway_schema_history` y `personas`.
+
 ## Fase 03 — 2026-07-27
 
 ### Agregado

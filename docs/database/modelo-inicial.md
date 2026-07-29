@@ -44,4 +44,4 @@ La primera relación requiere una restricción de unicidad apropiada en la futur
 
 ## Estado de implementación
 
-No se implementa ninguna tabla, migración, entidad o repositorio en la Fase 00.
+La Fase 00 no implementó tablas, migraciones, entidades ni repositorios. La definición de `personas` se completó y aplicó posteriormente en la Fase 04 con V1 y V2; su modelo definitivo está documentado en `docs/fases/04-modelo-migracion-persona.md`.

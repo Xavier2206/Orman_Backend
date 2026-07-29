@@ -4,9 +4,9 @@ Backend de ORMAN construido con Java y Spring Boot. El proyecto se encuentra en 
 
 ## Estado actual
 
-**Fase 03 — Infraestructura común y manejo global de errores: COMPLETADA**
+**Fase 04 — Modelo y migración de Persona: COMPLETADA**
 
-El backend incorpora un contrato uniforme RFC 9457 para errores HTTP, con códigos internos, validación de campos, trazabilidad local y respuestas seguras. Todavía no existen endpoints ni funcionalidades de negocio.
+El backend incorpora un contrato uniforme RFC 9457 para errores HTTP y la persistencia inicial de `personas`, gestionada por Flyway y validada con PostgreSQL. Todavía no existen endpoints ni funcionalidades de negocio.
 
 ## Stack confirmado
 
@@ -67,7 +67,7 @@ En Linux o macOS:
 ./mvnw spring-boot:run
 ```
 
-Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema; las tablas del dominio aún no existen.
+Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema y aplicará las migraciones de `personas` cuando corresponda.
 
 ## Documentación
 
@@ -80,5 +80,6 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 01 — Revisión y normalización Spring Boot](docs/fases/01-revision-normalizacion-spring-boot.md)
 - [Fase 02 — Configuración PostgreSQL y Flyway](docs/fases/02-configuracion-postgresql-flyway.md)
 - [Fase 03 — Infraestructura común y manejo global de errores](docs/fases/03-infraestructura-comun-manejo-errores.md)
+- [Fase 04 — Modelo y migración de Persona](docs/fases/04-modelo-migracion-persona.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

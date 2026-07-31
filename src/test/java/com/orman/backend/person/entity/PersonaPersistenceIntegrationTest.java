@@ -32,15 +32,15 @@ class PersonaPersistenceIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayAppliesBothVersionsAndCreatesOnlyPersonas() {
+    void flywayAppliesThreeVersionsAndCreatesPersonasAndUsuarios() {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
 
-        assertThat(tables).containsExactly("flyway_schema_history", "personas");
+        assertThat(tables).containsExactly("flyway_schema_history", "personas", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2') AND success = true",
-                Integer.class)).isEqualTo(2);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3') AND success = true",
+                Integer.class)).isEqualTo(3);
     }
 
     @Test

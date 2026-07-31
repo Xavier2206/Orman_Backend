@@ -1,4 +1,4 @@
-package com.orman.backend.person.service;
+package com.orman.backend.person.integration;
 
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
@@ -6,6 +6,7 @@ import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.repository.PersonaRepository;
+import com.orman.backend.person.service.PersonaService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,12 +69,10 @@ class PersonaCrudIntegrationTest {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
 
-        assertThat(tables).containsExactly("flyway_schema_history", "personas");
+        assertThat(tables).containsExactly("flyway_schema_history", "personas", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2') AND success = true", Integer.class))
-                .isEqualTo(2);
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '3'", Integer.class))
-                .isZero();
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3') AND success = true", Integer.class))
+                .isEqualTo(3);
     }
 
     private CreatePersonaRequest createRequest(String ci, String estado) {

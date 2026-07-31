@@ -12,5 +12,6 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 | 03 — Infraestructura común y manejo global de errores | `COMPLETADA` | [Abrir documento](03-infraestructura-comun-manejo-errores.md) |
 | 04 — Modelo y migración de personas | `COMPLETADA` | [Abrir documento](04-modelo-migracion-persona.md) |
 | 05 — API CRUD de Persona | `COMPLETADA` | [Abrir documento](05-crud-persona.md) |
+| 06 — Modelo y migración de Usuario | `COMPLETADA` | [Abrir documento](06-modelo-migracion-usuario.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).

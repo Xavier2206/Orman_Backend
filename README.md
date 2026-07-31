@@ -1,12 +1,12 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. La Fase 05 completó la API CRUD de Persona sobre PostgreSQL.
+Backend de ORMAN construido con Java y Spring Boot. La Fase 06 completó el modelo y persistencia de Usuario sobre PostgreSQL.
 
 ## Estado actual
 
-**Fase 05 — API CRUD de Persona: COMPLETADA**
+**Fase 06 — Modelo y migración de Usuario: COMPLETADA**
 
-El backend incorpora la API CRUD de Persona, activación y desactivación idempotentes, eliminación física, validación de solicitudes y errores RFC 9457. El esquema `personas` sigue gestionado por Flyway y validado con PostgreSQL.
+El backend incorpora la API CRUD de Persona y el modelo persistente de Usuario. Flyway administra `personas` y `usuarios`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. No hay todavía API, autenticación ni seguridad de Usuario.
 
 ## Stack confirmado
 
@@ -67,7 +67,7 @@ En Linux o macOS:
 ./mvnw spring-boot:run
 ```
 
-Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema y aplicará las migraciones de `personas` cuando corresponda.
+Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema y aplicará las migraciones de `personas` y `usuarios` cuando corresponda.
 
 ## Documentación
 
@@ -83,6 +83,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 03 — Infraestructura común y manejo global de errores](docs/fases/03-infraestructura-comun-manejo-errores.md)
 - [Fase 04 — Modelo y migración de Persona](docs/fases/04-modelo-migracion-persona.md)
 - [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
+- [Fase 06 — Modelo y migración de Usuario](docs/fases/06-modelo-migracion-usuario.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

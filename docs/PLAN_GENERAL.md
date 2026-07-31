@@ -24,9 +24,9 @@ Las fases posteriores dependen de las bases establecidas por las anteriores. No 
 ## Estado actual
 
 - Etapa activa: **ETAPA 2 — Personas, usuarios y roles**
-- Fase activa: **Fase 05 — API CRUD de personas**
-- Estado de la Fase 05: **COMPLETADA**
-- Resultado: CRUD de Persona, endpoints idempotentes de activación/desactivación y 56 pruebas validadas contra PostgreSQL.
+- Fase activa: **Fase 06 — Modelo y migración de Usuario**
+- Estado de la Fase 06: **COMPLETADA**
+- Resultado: tabla `usuarios`, relación uno a uno con `personas`, entidad, repositorio y 65 pruebas validadas contra PostgreSQL.
 - Fecha de actualización: **2026-07-31**
 
 
@@ -51,7 +51,7 @@ Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuar
 |---|---|---|---|
 | 04 — Modelo y migración de personas | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
 | 05 — API CRUD de personas | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
-| 06 — Modelo de usuarios | `PENDIENTE` | Fases 04 y 05 | Documento pendiente de creación |
+| 06 — Modelo y migración de usuario | `COMPLETADA` | Fases 04 y 05 | [Documento de Fase 06](fases/06-modelo-migracion-usuario.md) |
 | 07 — Gestión administrativa de usuarios | `PENDIENTE` | Fase 06 | Documento pendiente de creación |
 | 08 — Roles y relación usuario-rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |
 

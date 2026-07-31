@@ -6,6 +6,25 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 06 — 2026-07-31
+
+### Agregado
+
+- Migración Flyway V3 para `usuarios`, con `login` como PK, `codper` único y FK a `personas` con `ON DELETE RESTRICT`.
+- Entidad `Usuario`, relación JPA uno a uno unidireccional y `UsuarioRepository` en el módulo `user`.
+- Pruebas de integración de esquema, defaults, restricciones, relación, borrado restringido y ausencia de cascada desde Usuario hacia Persona.
+
+### Modificado
+
+- Pruebas de integración existentes actualizadas mínimamente para reconocer V3 y la tabla `usuarios`.
+- Plan, documentación de Fase 06, índices, teoría de Etapa 2, documentación de base de datos y README.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 65 pruebas, 0 fallos y 0 errores.
+- `contextLoads` pasó; PostgreSQL 17.6 conectó; Flyway validó V1–V3 y aplicó V3; Hibernate validó el esquema con `ddl-auto=validate`.
+- Confirmado: no se modificaron V1, V2 ni `personas`; no se añadieron dependencias, CRUD, BCrypt, autenticación, JWT, roles ni sesiones.
+
 ## Fase 05 — 2026-07-31
 
 ### Agregado

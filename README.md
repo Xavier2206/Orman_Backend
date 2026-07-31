@@ -71,6 +71,9 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 
 ## Documentación
 
+- [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
+- [Guía Postman de la API Persona](docs/postman/persona.md)
+
 - [Reglas permanentes de trabajo](AGENTS.md)
 - [Registro de cambios](CHANGELOG.md)
 - [Índice de documentación](docs/README.md)

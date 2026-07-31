@@ -12,6 +12,8 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Fase 02 — Configuración PostgreSQL y Flyway](fases/02-configuracion-postgresql-flyway.md)
 - [Fase 03 — Infraestructura común y manejo global de errores](fases/03-infraestructura-comun-manejo-errores.md)
 - [Fase 04 — Modelo y migración de Persona](fases/04-modelo-migracion-persona.md)
+- [Guía Postman de la API Persona](postman/persona.md)
+- [Fase 05 — API CRUD de Persona](fases/05-crud-persona.md)
 - [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
 - [Documentación de base de datos](database/README.md)
 

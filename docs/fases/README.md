@@ -6,11 +6,11 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 | Fase | Estado | Documento |
 |---|---|---|
-| 05 — API CRUD de Persona | `PENDIENTE` | [Abrir documento](05-crud-persona.md) |
 | 00 — Planificación general y estructura documental | `COMPLETADA` | [Abrir documento](00-planificacion-general.md) |
 | 01 — Revisión y normalización del proyecto Spring Boot | `COMPLETADA` | [Abrir documento](01-revision-normalizacion-spring-boot.md) |
 | 02 — Configuración de PostgreSQL y Flyway | `COMPLETADA` | [Abrir documento](02-configuracion-postgresql-flyway.md) |
 | 03 — Infraestructura común y manejo global de errores | `COMPLETADA` | [Abrir documento](03-infraestructura-comun-manejo-errores.md) |
 | 04 — Modelo y migración de personas | `COMPLETADA` | [Abrir documento](04-modelo-migracion-persona.md) |
+| 05 — API CRUD de Persona | `COMPLETADA` | [Abrir documento](05-crud-persona.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).

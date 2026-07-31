@@ -6,6 +6,24 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 05 — 2026-07-31
+
+### Agregado
+
+- CRUD HTTP de Persona, paginación, validaciones, manejo de CI duplicado y operaciones idempotentes de activación y desactivación.
+- Pruebas específicas de mapper, servicio con mocks, MVC y flujo de integración con PostgreSQL.
+- Teoría de la Etapa 2 y guía Postman de Persona actualizada.
+
+### Corregido
+
+- La creación ahora refresca la entidad después de `saveAndFlush` para que `PersonaResponse` incluya `estado` y `fechaRegistro` generados por PostgreSQL cuando se omiten en la solicitud.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 56 pruebas, 0 fallos y 0 errores.
+- `contextLoads` pasó; PostgreSQL conectó; Flyway validó V1 y V2 sin aplicar migraciones; Hibernate validó el esquema.
+- Confirmado que no existe V3, no se alteró `personas`, no se agregaron tablas, dependencias ni código en `security`.
+
 ## Fase 04 — 2026-07-29
 
 ### Agregado

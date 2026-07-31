@@ -25,8 +25,8 @@ Las fases posteriores dependen de las bases establecidas por las anteriores. No 
 
 - Etapa activa: **ETAPA 2 — Personas, usuarios y roles**
 - Fase activa: **Fase 05 — API CRUD de personas**
-- Estado de la Fase 05: **PENDIENTE**
-- Resultado provisional: CRUD de Persona y endpoints idempotentes de activación/desactivación implementados; faltan las pruebas específicas antes del cierre.
+- Estado de la Fase 05: **COMPLETADA**
+- Resultado: CRUD de Persona, endpoints idempotentes de activación/desactivación y 56 pruebas validadas contra PostgreSQL.
 - Fecha de actualización: **2026-07-31**
 
 
@@ -45,12 +45,12 @@ Teoría: [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
 
 ### ETAPA 2 — Personas, usuarios y roles
 
-Teoría: Documento pendiente de creación.
+Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuarios-roles.md).
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
 | 04 — Modelo y migración de personas | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
-| 05 — API CRUD de personas | `PENDIENTE` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
+| 05 — API CRUD de personas | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
 | 06 — Modelo de usuarios | `PENDIENTE` | Fases 04 y 05 | Documento pendiente de creación |
 | 07 — Gestión administrativa de usuarios | `PENDIENTE` | Fase 06 | Documento pendiente de creación |
 | 08 — Roles y relación usuario-rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |

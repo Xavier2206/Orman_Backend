@@ -6,6 +6,7 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 
 - [Plan general del desarrollo](PLAN_GENERAL.md)
 - [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
+- [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuarios-roles.md)
 - [Índice de fases](fases/README.md)
 - [Fase 00 — Planificación general](fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](fases/01-revision-normalizacion-spring-boot.md)

@@ -10,6 +10,7 @@ import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.mapper.PersonaMapper;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.person.service.PersonaService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -22,11 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonaServiceImpl implements PersonaService {
     private final PersonaRepository personaRepository;
     private final PersonaMapper personaMapper;
+    private final EntityManager entityManager;
 
     @Transactional
     public PersonaResponse create(CreatePersonaRequest request) {
         if (personaRepository.existsByCi(request.ci().trim())) throw new ConflictException("El CI ya está registrado.");
-        try { return personaMapper.toResponse(personaRepository.saveAndFlush(personaMapper.toEntity(request))); }
+        try {
+            Persona persona = personaRepository.saveAndFlush(personaMapper.toEntity(request));
+            entityManager.refresh(persona);
+            return personaMapper.toResponse(persona);
+        }
         catch (DataIntegrityViolationException exception) { throw new ConflictException("El CI ya está registrado."); }
     }
     @Transactional(readOnly = true) public PersonaResponse get(Integer codper) { return personaMapper.toResponse(find(codper)); }

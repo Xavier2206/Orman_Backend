@@ -1,12 +1,12 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. El proyecto se encuentra en su fase de planificación y fundación técnica; todavía no implementa endpoints ni funcionalidades de negocio.
+Backend de ORMAN construido con Java y Spring Boot. La Fase 05 completó la API CRUD de Persona sobre PostgreSQL.
 
 ## Estado actual
 
-**Fase 04 — Modelo y migración de Persona: COMPLETADA**
+**Fase 05 — API CRUD de Persona: COMPLETADA**
 
-El backend incorpora un contrato uniforme RFC 9457 para errores HTTP y la persistencia inicial de `personas`, gestionada por Flyway y validada con PostgreSQL. Todavía no existen endpoints ni funcionalidades de negocio.
+El backend incorpora la API CRUD de Persona, activación y desactivación idempotentes, eliminación física, validación de solicitudes y errores RFC 9457. El esquema `personas` sigue gestionado por Flyway y validado con PostgreSQL.
 
 ## Stack confirmado
 
@@ -21,7 +21,7 @@ El backend incorpora un contrato uniforme RFC 9457 para errores HTTP y la persis
 - Empaquetado JAR
 - IntelliJ IDEA y Codex CLI como herramientas de trabajo
 
-El servidor se configura para usar el puerto `9090`. No existe una API disponible.
+El servidor se configura para usar el puerto `9090`. La API de Persona está disponible en `/api/v1/personas`.
 
 ## Requisitos
 
@@ -71,18 +71,18 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 
 ## Documentación
 
-- [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
-- [Guía Postman de la API Persona](docs/postman/persona.md)
-
 - [Reglas permanentes de trabajo](AGENTS.md)
 - [Registro de cambios](CHANGELOG.md)
 - [Índice de documentación](docs/README.md)
 - [Plan general](docs/PLAN_GENERAL.md)
 - [Etapa 1 — Fundación técnica](docs/etapas/etapa-01-fundacion-tecnica.md)
+- [Etapa 2 — Personas, usuarios y roles](docs/etapas/etapa-02-personas-usuarios-roles.md)
 - [Fase 00 — Planificación general](docs/fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](docs/fases/01-revision-normalizacion-spring-boot.md)
 - [Fase 02 — Configuración PostgreSQL y Flyway](docs/fases/02-configuracion-postgresql-flyway.md)
 - [Fase 03 — Infraestructura común y manejo global de errores](docs/fases/03-infraestructura-comun-manejo-errores.md)
 - [Fase 04 — Modelo y migración de Persona](docs/fases/04-modelo-migracion-persona.md)
+- [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
+- [Guía Postman de la API Persona](docs/postman/persona.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

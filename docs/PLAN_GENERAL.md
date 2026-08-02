@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 07 están cerradas; la Fase 08 permanece pendiente y no tiene todavía documento individual de implementación.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 08 están cerradas; la Fase 09 permanece pendiente.
 
 ## Estados permitidos
 
@@ -24,11 +24,11 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 2 — Personas, usuarios y roles**.
-- Última fase completada: **Fase 07 — Administración de Usuarios y Contraseñas**.
-- Siguiente fase autorizable: **Fase 08 — Roles y relación Usuario–Rol**.
-- Estado de la Fase 08: **PENDIENTE**.
-- No hay una fase activa tras el cierre de la Fase 07.
-- Resultado confirmado de la Fase 07: API administrativa de Usuario, BCrypt, cambio de contraseña y 83 pruebas validadas contra PostgreSQL.
+- Última fase completada: **Fase 08 — Roles y relación Usuario–Rol**.
+- Siguiente fase autorizable: **Fase 09 — Autenticación y validación de credenciales**.
+- Estado de la Fase 09: **PENDIENTE**.
+- No hay una fase activa tras el cierre de la Fase 08.
+- Resultado confirmado de la Fase 08: catálogo de Roles, relación `rolusu`, asignación/retiro administrativo y 103 pruebas validadas contra PostgreSQL.
 - Fecha de actualización: **2026-08-02**.
 
 ## Etapas y fases previstas
@@ -54,7 +54,7 @@ Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuar
 | 05 — API CRUD de Persona | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | Fases 04 y 05 | [Documento de Fase 06](fases/06-modelo-migracion-usuario.md) |
 | 07 — Administración de Usuarios y Contraseñas | `COMPLETADA` | Fase 06 | [Documento de Fase 07](fases/07-administracion-usuarios-contrasenas.md) |
-| 08 — Roles y relación Usuario–Rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |
+| 08 — Roles y relación Usuario–Rol | `COMPLETADA` | Fases 06 y 07 | [Documento de Fase 08](fases/08-roles-relacion-usuario-rol.md) |
 
 ### ETAPA 3 — Autenticación, sesiones y autorización
 
@@ -101,11 +101,13 @@ BCrypt se introduce aquí mediante `PasswordEncoder`. Puede incorporarse `spring
 
 **Objetivo:** modelar y administrar roles y su asociación con Usuarios.
 
-**Incluye:** tabla `roles`; tabla de relación Usuario–Rol; elección y documentación de un único nombre definitivo para esa tabla; migraciones; entidades; repositorios; administración básica; asignación y retiro de roles; validaciones y pruebas.
+**Incluye:** tabla `roles`; tabla `rolusu`; migraciones V4 y V5; entidades; repositorios; administración REST de Roles; asignación y retiro de roles; validaciones y pruebas.
 
 **Excluye:** login, JWT, sesiones, filtros de seguridad y autorización de endpoints.
 
 **Dependencias:** Fases 06 y 07. `tipo_persona` sigue siendo clasificación de negocio y no sustituye roles.
+
+**Resultado:** completada el 2026-08-02. `roles.codr` es la PK; `rolusu(login, codr)` materializa la relación N:M con `fecha_asignacion`, `ON DELETE CASCADE` desde Usuario y `ON DELETE RESTRICT` desde Rol. No se insertaron roles iniciales ni se implementó autorización.
 
 ### Fase 09 — Autenticación y validación de credenciales
 
@@ -169,9 +171,7 @@ Completar configuración, perfiles, secretos externos, observabilidad, empaqueta
 
 ## Decisiones pendientes
 
-Antes de la Fase 08 se debe elegir y documentar un único nombre para la tabla relacional de roles: `usuarios_roles`, `rol_usuario` u otro nombre aprobado. Mientras no exista esa decisión, ningún nombre es definitivo y no se crea migración.
-
-`tipo_persona` es una clasificación de negocio de Persona; no representa roles, permisos, autoridades ni autorización.
+`tipo_persona` es una clasificación de negocio de Persona; no representa roles, permisos, authorities ni autorización.
 
 ## Dependencias generales
 

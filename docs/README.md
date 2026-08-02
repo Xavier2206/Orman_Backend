@@ -18,6 +18,8 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Fase 06 — Modelo y migración de Usuario](fases/06-modelo-migracion-usuario.md)
 - [Fase 07 — Administración de Usuarios y Contraseñas](fases/07-administracion-usuarios-contrasenas.md)
 - [Guía Postman de la API Usuario](postman/usuario.md)
+- [Fase 08 — Roles y relación Usuario–Rol](fases/08-roles-relacion-usuario-rol.md)
+- [Guía Postman de Roles](postman/rol.md)
 - [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
 - [Documentación de base de datos](database/README.md)
 

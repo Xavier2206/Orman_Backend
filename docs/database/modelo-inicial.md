@@ -16,11 +16,11 @@ Representa la identidad de acceso asociada a una persona. La Fase 06 confirmó `
 
 ### `roles`
 
-Representa agrupaciones de permisos asignables a usuarios. Su catálogo, restricciones y estados se definirán en la Fase 08.
+Representa agrupaciones asignables a usuarios. La Fase 08 implementó `codr` como identidad, `nombre` único y `estado` como `SMALLINT` (`1` activo, `0` inactivo).
 
 ### Relación Usuario–Rol
 
-Representa la relación de muchos a muchos entre usuarios y roles. Antes de la Fase 08 se debe elegir un único nombre definitivo entre `usuarios_roles`, `rol_usuario` u otro nombre aprobado. No hay un nombre definitivo todavía.
+La tabla `rolusu` materializa la relación de muchos a muchos entre usuarios y roles. Usa la clave primaria compuesta `(login, codr)`, conserva `fecha_asignacion`, elimina asignaciones al eliminar físicamente un Usuario y restringe la eliminación de un Rol asignado.
 
 ## Relaciones confirmadas
 
@@ -43,4 +43,4 @@ La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obliga
 
 ## Estado de implementación
 
-La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3. Sus modelos definitivos están documentados en `docs/fases/04-modelo-migracion-persona.md` y `docs/fases/06-modelo-migracion-usuario.md`. Roles, sesiones y las demás tablas futuras no están implementados.
+La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5. Sesiones y las demás tablas futuras no están implementadas.

@@ -24,6 +24,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -82,6 +83,13 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException exception, HttpServletRequest request) {
         return problem(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST,
                 "Solicitud no válida", "El cuerpo de la solicitud no es válido.", request, List.of());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ProblemDetail> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, ErrorCode.INVALID_REQUEST,
+                "Método no permitido", "El método HTTP no está permitido para este recurso.", request, List.of());
     }
 
     @ExceptionHandler(Exception.class)

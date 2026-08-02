@@ -14,6 +14,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 | 05 — API CRUD de Persona | `COMPLETADA` | [Abrir documento](05-crud-persona.md) |
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | [Abrir documento](06-modelo-migracion-usuario.md) |
 | 07 — Administración de Usuarios y Contraseñas | `COMPLETADA` | [Abrir documento](07-administracion-usuarios-contrasenas.md) |
+| 08 — Roles y relación Usuario–Rol | `COMPLETADA` | [Abrir documento](08-roles-relacion-usuario-rol.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La siguiente fase autorizable es la Fase 08; su documento se creará únicamente al autorizarla.
+La siguiente fase autorizable es la Fase 09; su documento se creará únicamente al autorizarla.

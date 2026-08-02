@@ -9,4 +9,4 @@ La Fase 02 preparó el datasource PostgreSQL, Flyway y el directorio `src/main/r
 
 Cuando exista una conexión válida, Flyway puede iniciar sin migraciones y crear únicamente `flyway_schema_history`. Las tablas del dominio no se crearán hasta sus fases autorizadas.
 
-La Fase 04 creó `personas` mediante V1 y la migración V2 hizo obligatorio `fecha_registro`, sin editar la migración ya aplicada. La Fase 06 agregó exclusivamente `usuarios` mediante V3, con una referencia uno a uno a `personas` y `ON DELETE RESTRICT`. Sus validaciones se documentan en las fases 04 y 06.
+La Fase 04 creó `personas` mediante V1 y la migración V2 hizo obligatorio `fecha_registro`, sin editar la migración ya aplicada. La Fase 06 agregó exclusivamente `usuarios` mediante V3, con una referencia uno a uno a `personas` y `ON DELETE RESTRICT`. La Fase 08 agregó `roles` mediante V4 y `rolusu` mediante V5, con `ON DELETE CASCADE` desde Usuario y `ON DELETE RESTRICT` desde Rol. Sus validaciones se documentan en las fases 04, 06 y 08.

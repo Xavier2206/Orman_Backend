@@ -27,7 +27,7 @@ ORMAN-BACKEND comenzará como un monolito modular: una sola aplicación Spring B
 
 PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia. No se usará generación automática `create` o `update`.
 
-El núcleo contiene `personas`, `usuarios` y roles. La tabla relacional Usuario–Rol aún no tiene nombre definitivo: antes de la Fase 08 se elegirá entre `usuarios_roles`, `rol_usuario` u otro nombre aprobado. No se crean tablas fuera de la fase que las autorice.
+El núcleo contiene `personas`, `usuarios`, `roles` y `rolusu`. `rolusu` materializa la relación Usuario–Rol mediante `(login, codr)` y no crea dependencias bidireccionales innecesarias entre las entidades. No se crean tablas fuera de la fase que las autorice.
 
 ## Seguridad
 

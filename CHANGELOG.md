@@ -6,6 +6,29 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 08 — 2026-08-02
+
+### Agregado
+
+- Migraciones Flyway V4 para `roles` y V5 para `rolusu`, sin modificar V1, V2 ni V3.
+- Catálogo REST de Roles con creación, consulta, paginación, actualización de nombre, activación y desactivación idempotentes.
+- Relación N:M Usuario–Rol mediante `rolusu`, con asignación, retiro y listados en ambos sentidos.
+- Entidades `Rol`, `RolUsu` y `RolUsuId`, repositorios, DTO, mapper, servicios y controladores dentro del módulo `role`.
+- Pruebas de mapper, servicio, MVC e integración real contra PostgreSQL, además de guía Postman y documento de cierre de Fase 08.
+
+### Reglas
+
+- `roles.nombre` se normaliza con trim y mayúsculas mediante `Locale.ROOT`; los duplicados devuelven conflicto.
+- `rolusu` usa PK `(login, codr)`, conserva `fecha_asignacion`, aplica `ON DELETE CASCADE` desde Usuario y `ON DELETE RESTRICT` desde Rol.
+- Un Rol inactivo conserva asignaciones, pero no acepta nuevas y devuelve regla de negocio `422`.
+- Ninguna respuesta expone contraseñas, hashes ni datos completos de Persona.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 103 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- PostgreSQL 17.6 conectó; Flyway validó V1–V5 y el esquema quedó en versión 5; Hibernate validó el esquema con `ddl-auto=validate`.
+- Confirmado que no se implementaron login, autenticación, JWT, sesiones, filtros, authorities, autorización, permisos, OTP, menús ni procesos; la Fase 09 no se inició.
+
 ## Fase 07 — 2026-08-02
 
 ### Agregado

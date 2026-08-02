@@ -13,6 +13,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 | 04 — Modelo y migración de personas | `COMPLETADA` | [Abrir documento](04-modelo-migracion-persona.md) |
 | 05 — API CRUD de Persona | `COMPLETADA` | [Abrir documento](05-crud-persona.md) |
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | [Abrir documento](06-modelo-migracion-usuario.md) |
+| 07 — Administración de Usuarios y Contraseñas | `COMPLETADA` | [Abrir documento](07-administracion-usuarios-contrasenas.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La Fase 07 permanece `PENDIENTE`; no se crea su documento individual antes de autorizarla.
+La siguiente fase autorizable es la Fase 08; su documento se creará únicamente al autorizarla.

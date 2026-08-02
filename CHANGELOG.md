@@ -6,11 +6,31 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 07 — 2026-08-02
+
+### Agregado
+
+- Administración REST de Usuario: creación, consulta, paginación, actualización de estado, activación, desactivación y cambio de contraseña.
+- BCrypt mediante `PasswordEncoder` y la dependencia mínima `spring-security-crypto`.
+- DTO, mapper, servicio, controlador, pruebas unitarias, MVC e integración real con PostgreSQL.
+- Guía Postman de Usuario y documento de cierre de la Fase 07.
+
+### Modificado
+
+- `PageResponse<T>` trasladado a `common.dto` y reutilizado por Persona y Usuario.
+- Plan, teoría de Etapa 2, índices y README actualizados para cerrar la Fase 07.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 83 pruebas, 0 fallos y 0 errores.
+- PostgreSQL 17.6 conectó; Flyway validó V1–V3 sin nuevas migraciones; Hibernate validó el esquema y `contextLoads` pasó.
+- Confirmado que no se implementaron login, autenticación, JWT, sesiones, roles ni autorización; no se creó V4 ni se inició la Fase 08.
+
 ## Corrección documental del plan — 2026-08-02
 
 ### Documentación
 
-- Corregido el plan general desde la Fase 07, manteniendo las Fases 00–06 como `COMPLETADA` y la Fase 07 como `PENDIENTE`.
+- Corrección documental previa al inicio de la Fase 07: se mantuvieron las Fases 00–06 como `COMPLETADA` y la Fase 07 como `PENDIENTE` en ese momento.
 - Incorporado BCrypt mediante `PasswordEncoder` en la administración de Usuarios, sin declarar implementadas esas funciones.
 - Separadas administración de Usuario, roles, autenticación, JWT, sesiones, autorización, menús, procesos y OTP.
 - Documentada la política futura de una sola sesión activa en la Fase 10.

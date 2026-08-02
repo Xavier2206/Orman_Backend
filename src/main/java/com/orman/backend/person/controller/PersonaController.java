@@ -1,9 +1,9 @@
 package com.orman.backend.person.controller;
 
 import com.orman.backend.person.dto.CreatePersonaRequest;
-import com.orman.backend.person.dto.PageResponse;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
+import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.person.service.PersonaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

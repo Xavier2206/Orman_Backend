@@ -1,4 +1,4 @@
-package com.orman.backend.person.dto;
+package com.orman.backend.common.dto;
 
 import java.util.List;
 

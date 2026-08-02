@@ -12,7 +12,7 @@ Representa los datos de una persona. `tipo_persona` es una clasificación de neg
 
 ### `usuarios`
 
-Representa la identidad de acceso asociada a una persona. La Fase 06 confirmó `login VARCHAR(30)` como clave primaria y `passwd VARCHAR(255)` como columna reservada para un hash seguro. La Fase 07 introducirá BCrypt mediante `PasswordEncoder`; nunca se almacenará texto plano ni se expondrá o registrará el hash.
+Representa la identidad de acceso asociada a una persona. La Fase 06 confirmó `login VARCHAR(30)` como clave primaria y `passwd VARCHAR(255)` como columna reservada para un hash seguro. La Fase 07 introdujo BCrypt mediante `PasswordEncoder`; nunca se almacena texto plano ni se expone o registra el hash.
 
 ### `roles`
 

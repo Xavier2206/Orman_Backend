@@ -31,7 +31,7 @@ El núcleo contiene `personas`, `usuarios` y roles. La tabla relacional Usuario�
 
 ## Seguridad
 
-La Fase 07 introducirá BCrypt mediante `PasswordEncoder`; puede usar `spring-security-crypto` sin activar todavía Spring Security HTTP completo. La Fase 09 validará credenciales, la Fase 10 implementará JWT y una sola sesión activa mediante `sesiones_usuario`, y la Fase 11 aplicará autorización por roles. Ningún secreto, contraseña, hash, token u OTP deberá exponerse o registrarse.
+La Fase 07 introdujo BCrypt mediante `PasswordEncoder` y `spring-security-crypto`, sin activar Spring Security HTTP completo. La Fase 09 validará credenciales, la Fase 10 implementará JWT y una sola sesión activa mediante `sesiones_usuario`, y la Fase 11 aplicará autorización por roles. Ningún secreto, contraseña, hash, token u OTP deberá exponerse o registrarse.
 
 `tipo_persona` es clasificación de negocio de Persona y no sustituye roles, permisos ni autorización. JWT, OTP y Spring Security HTTP no forman parte de la arquitectura ejecutable actual.
 

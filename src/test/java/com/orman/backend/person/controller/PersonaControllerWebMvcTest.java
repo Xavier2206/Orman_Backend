@@ -3,7 +3,7 @@ package com.orman.backend.person.controller;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
-import com.orman.backend.person.dto.PageResponse;
+import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.service.PersonaService;
 import java.time.LocalDateTime;

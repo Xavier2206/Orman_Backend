@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 06 están cerradas; la Fase 07 permanece pendiente y no tiene todavía documento individual de implementación.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 07 están cerradas; la Fase 08 permanece pendiente y no tiene todavía documento individual de implementación.
 
 ## Estados permitidos
 
@@ -24,11 +24,11 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 2 — Personas, usuarios y roles**.
-- Última fase completada: **Fase 06 — Modelo y migración de Usuario**.
-- Siguiente fase autorizable: **Fase 07 — Administración de Usuarios y Contraseñas**.
-- Estado de la Fase 07: **PENDIENTE**.
-- No hay una fase activa en esta corrección documental.
-- Resultado confirmado de la Fase 06: tabla `usuarios`, relación uno a uno con `personas`, entidad, repositorio y 65 pruebas validadas contra PostgreSQL.
+- Última fase completada: **Fase 07 — Administración de Usuarios y Contraseñas**.
+- Siguiente fase autorizable: **Fase 08 — Roles y relación Usuario–Rol**.
+- Estado de la Fase 08: **PENDIENTE**.
+- No hay una fase activa tras el cierre de la Fase 07.
+- Resultado confirmado de la Fase 07: API administrativa de Usuario, BCrypt, cambio de contraseña y 83 pruebas validadas contra PostgreSQL.
 - Fecha de actualización: **2026-08-02**.
 
 ## Etapas y fases previstas
@@ -53,7 +53,7 @@ Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuar
 | 04 — Modelo y migración de Persona | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
 | 05 — API CRUD de Persona | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | Fases 04 y 05 | [Documento de Fase 06](fases/06-modelo-migracion-usuario.md) |
-| 07 — Administración de Usuarios y Contraseñas | `PENDIENTE` | Fase 06 | Documento pendiente de creación |
+| 07 — Administración de Usuarios y Contraseñas | `COMPLETADA` | Fase 06 | [Documento de Fase 07](fases/07-administracion-usuarios-contrasenas.md) |
 | 08 — Roles y relación Usuario–Rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |
 
 ### ETAPA 3 — Autenticación, sesiones y autorización
@@ -92,6 +92,8 @@ Teoría: pendiente de creación cuando corresponda.
 **Excluye:** login/autenticación, JWT, refresh token, sesiones, roles, autorización, OTP y Spring Security HTTP completo.
 
 **Dependencia:** Fase 06. **Resultado esperado:** Usuarios administrables por API y contraseñas almacenadas únicamente como BCrypt, sin autenticación todavía.
+
+**Resultado:** completada el 2026-08-02 sin modificar el esquema. La actualización administrativa quedó limitada a `estado`; `login` y `codper` son inmutables. No existe eliminación física de Usuario.
 
 BCrypt se introduce aquí mediante `PasswordEncoder`. Puede incorporarse `spring-security-crypto` sin activar `spring-boot-starter-security` ni el modelo HTTP completo.
 
@@ -186,4 +188,3 @@ Antes de la Fase 08 se debe elegir y documentar un único nombre para la tabla r
 - Fase 17 depende de Fases 14, 15 y 16.
 
 Una dependencia expresa orden técnico, pero cada fase requiere además autorización explícita del usuario.
-

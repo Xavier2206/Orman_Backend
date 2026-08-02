@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. La Fase 06 completó el modelo y persistencia de Usuario sobre PostgreSQL; la Fase 07 es la siguiente fase autorizable y permanece pendiente.
+Backend de ORMAN construido con Java y Spring Boot. La Fase 07 completó la administración de Usuario y contraseñas BCrypt sobre PostgreSQL.
 
 ## Estado actual
 
-**Última fase completada: Fase 06 — Modelo y migración de Usuario**
+**Última fase completada: Fase 07 — Administración de Usuarios y Contraseñas**
 
-**Siguiente fase autorizable: Fase 07 — Administración de Usuarios y Contraseñas (`PENDIENTE`)**
+**Siguiente fase autorizable: Fase 08 — Roles y relación Usuario–Rol (`PENDIENTE`)**
 
-El backend incorpora la API CRUD de Persona y el modelo persistente de Usuario. Flyway administra `personas` y `usuarios`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. No hay todavía API, autenticación ni seguridad de Usuario.
+El backend incorpora la API CRUD de Persona y la administración REST de Usuario. Flyway administra `personas` y `usuarios`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. Las contraseñas se almacenan exclusivamente como BCrypt. No hay todavía login, autenticación, JWT, roles, sesiones ni autorización.
 
 ## Stack confirmado
 
@@ -86,6 +86,8 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 04 — Modelo y migración de Persona](docs/fases/04-modelo-migracion-persona.md)
 - [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
 - [Fase 06 — Modelo y migración de Usuario](docs/fases/06-modelo-migracion-usuario.md)
+- [Fase 07 — Administración de Usuarios y Contraseñas](docs/fases/07-administracion-usuarios-contrasenas.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
+- [Guía Postman de la API Usuario](docs/postman/usuario.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

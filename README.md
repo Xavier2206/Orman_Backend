@@ -1,10 +1,12 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. La Fase 06 completó el modelo y persistencia de Usuario sobre PostgreSQL.
+Backend de ORMAN construido con Java y Spring Boot. La Fase 06 completó el modelo y persistencia de Usuario sobre PostgreSQL; la Fase 07 es la siguiente fase autorizable y permanece pendiente.
 
 ## Estado actual
 
-**Fase 06 — Modelo y migración de Usuario: COMPLETADA**
+**Última fase completada: Fase 06 — Modelo y migración de Usuario**
+
+**Siguiente fase autorizable: Fase 07 — Administración de Usuarios y Contraseñas (`PENDIENTE`)**
 
 El backend incorpora la API CRUD de Persona y el modelo persistente de Usuario. Flyway administra `personas` y `usuarios`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. No hay todavía API, autenticación ni seguridad de Usuario.
 

@@ -2,13 +2,13 @@
 
 ## Objetivo general
 
-Construir de forma incremental un backend mantenible para ORMAN, comenzando por la gestión de personas, usuarios y roles, e incorporando posteriormente autenticación, autorización, calidad y preparación para producción. La solución parte como un monolito modular con Java 21, Spring Boot, Maven y PostgreSQL.
+Construir de forma incremental un backend mantenible para ORMAN, comenzando por la gestión de personas y usuarios, e incorporando posteriormente roles, autenticación, autorización, calidad y preparación para producción. La solución parte como un monolito modular con Java 21, Spring Boot, Maven y PostgreSQL.
 
 ## Forma de trabajo
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-Las fases posteriores dependen de las bases establecidas por las anteriores. No se debe adelantar persistencia, seguridad, APIs o infraestructura antes de la fase que las autoriza.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 06 están cerradas; la Fase 07 permanece pendiente y no tiene todavía documento individual de implementación.
 
 ## Estados permitidos
 
@@ -23,12 +23,13 @@ Las fases posteriores dependen de las bases establecidas por las anteriores. No 
 
 ## Estado actual
 
-- Etapa activa: **ETAPA 2 — Personas, usuarios y roles**
-- Fase activa: **Fase 06 — Modelo y migración de Usuario**
-- Estado de la Fase 06: **COMPLETADA**
-- Resultado: tabla `usuarios`, relación uno a uno con `personas`, entidad, repositorio y 65 pruebas validadas contra PostgreSQL.
-- Fecha de actualización: **2026-07-31**
-
+- Etapa actual: **ETAPA 2 — Personas, usuarios y roles**.
+- Última fase completada: **Fase 06 — Modelo y migración de Usuario**.
+- Siguiente fase autorizable: **Fase 07 — Administración de Usuarios y Contraseñas**.
+- Estado de la Fase 07: **PENDIENTE**.
+- No hay una fase activa en esta corrección documental.
+- Resultado confirmado de la Fase 06: tabla `usuarios`, relación uno a uno con `personas`, entidad, repositorio y 65 pruebas validadas contra PostgreSQL.
+- Fecha de actualización: **2026-08-02**.
 
 ## Etapas y fases previstas
 
@@ -45,47 +46,144 @@ Teoría: [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
 
 ### ETAPA 2 — Personas, usuarios y roles
 
-Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuarios-roles.md).
+Teoría: [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuarios-roles.md)
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 04 — Modelo y migración de personas | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
-| 05 — API CRUD de personas | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
-| 06 — Modelo y migración de usuario | `COMPLETADA` | Fases 04 y 05 | [Documento de Fase 06](fases/06-modelo-migracion-usuario.md) |
-| 07 — Gestión administrativa de usuarios | `PENDIENTE` | Fase 06 | Documento pendiente de creación |
-| 08 — Roles y relación usuario-rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |
+| 04 — Modelo y migración de Persona | `COMPLETADA` | Fases 02 y 03 | [Documento de Fase 04](fases/04-modelo-migracion-persona.md) |
+| 05 — API CRUD de Persona | `COMPLETADA` | Fase 04 | [Documento de Fase 05](fases/05-crud-persona.md) |
+| 06 — Modelo y migración de Usuario | `COMPLETADA` | Fases 04 y 05 | [Documento de Fase 06](fases/06-modelo-migracion-usuario.md) |
+| 07 — Administración de Usuarios y Contraseñas | `PENDIENTE` | Fase 06 | Documento pendiente de creación |
+| 08 — Roles y relación Usuario–Rol | `PENDIENTE` | Fases 06 y 07 | Documento pendiente de creación |
 
-### ETAPA 3 — Autenticación y autorización
+### ETAPA 3 — Autenticación, sesiones y autorización
 
-Teoría: Documento pendiente de creación.
+Teoría: pendiente de creación cuando corresponda.
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 09 — Spring Security y autenticación | `PENDIENTE` | Etapa 2 | Documento pendiente de creación |
-| 10 — Autenticación mediante JWT | `PENDIENTE` | Fase 09 | Documento pendiente de creación |
+| 09 — Autenticación y validación de credenciales | `PENDIENTE` | Fases 07 y 08 | Documento pendiente de creación |
+| 10 — JWT y control de sesiones | `PENDIENTE` | Fase 09 | Documento pendiente de creación |
 | 11 — Autorización por roles | `PENDIENTE` | Fases 08 y 10 | Documento pendiente de creación |
 | 12 — Menús y procesos dinámicos | `PENDIENTE` | Fase 11 | Documento pendiente de creación |
-| 13 — OTP y `login_challenges` | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
+| 13 — OTP y desafíos de autenticación | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
 
 ### ETAPA 4 — Calidad y producción
 
-Teoría: Documento pendiente de creación.
+Teoría: pendiente de creación cuando corresponda.
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 14 — Documentación OpenAPI | `PENDIENTE` | APIs principales implementadas | Documento pendiente de creación |
-| 15 — Pruebas de integración | `PENDIENTE` | Infraestructura y APIs estables | Documento pendiente de creación |
+| 14 — Documentación OpenAPI | `PENDIENTE` | APIs principales estables | Documento pendiente de creación |
+| 15 — Pruebas de integración ampliadas | `PENDIENTE` | Fases 07 a 13 | Documento pendiente de creación |
 | 16 — Auditoría | `PENDIENTE` | Modelo y seguridad estables | Documento pendiente de creación |
 | 17 — Preparación para producción | `PENDIENTE` | Fases 14, 15 y 16 | Documento pendiente de creación |
 
-### ETAPA FUTURA — Módulos adicionales
+## Alcance aprobado de las fases futuras
 
-**Estado:** `PENDIENTE DE ANÁLISIS`
+### Fase 07 — Administración de Usuarios y Contraseñas
 
-Las tablas, relaciones, reglas de negocio y fases de los módulos adicionales se definirán cuando el usuario proporcione la información correspondiente.
+**Objetivo:** implementar la administración REST segura de Usuarios vinculados a Personas existentes, almacenando las contraseñas únicamente como hash BCrypt.
 
-Esta etapa no tendrá fases numeradas por el momento.
+**Incluye:** creación de Usuario; consulta por login; listado paginado; actualización de datos administrativos permitidos; activación; desactivación; validación de Persona existente; un único Usuario por Persona; login duplicado; DTO, mapper, service, service.impl, controller, Bean Validation, `PasswordEncoder` con BCrypt; endpoint específico de cambio o restablecimiento de contraseña; pruebas unitarias, MVC e integración; documentación Postman; `ProblemDetail`.
+
+**Reglas:** `login` es clave primaria y no se modifica mediante PUT; `passwd` no aparece en respuestas, logs ni PUT general; el hash tampoco se expone; crear y cambiar contraseña siempre aplica BCrypt; activar Usuario no activa Persona; desactivar Usuario no desactiva Persona.
+
+**Excluye:** login/autenticación, JWT, refresh token, sesiones, roles, autorización, OTP y Spring Security HTTP completo.
+
+**Dependencia:** Fase 06. **Resultado esperado:** Usuarios administrables por API y contraseñas almacenadas únicamente como BCrypt, sin autenticación todavía.
+
+BCrypt se introduce aquí mediante `PasswordEncoder`. Puede incorporarse `spring-security-crypto` sin activar `spring-boot-starter-security` ni el modelo HTTP completo.
+
+### Fase 08 — Roles y relación Usuario–Rol
+
+**Objetivo:** modelar y administrar roles y su asociación con Usuarios.
+
+**Incluye:** tabla `roles`; tabla de relación Usuario–Rol; elección y documentación de un único nombre definitivo para esa tabla; migraciones; entidades; repositorios; administración básica; asignación y retiro de roles; validaciones y pruebas.
+
+**Excluye:** login, JWT, sesiones, filtros de seguridad y autorización de endpoints.
+
+**Dependencias:** Fases 06 y 07. `tipo_persona` sigue siendo clasificación de negocio y no sustituye roles.
+
+### Fase 09 — Autenticación y validación de credenciales
+
+**Objetivo:** validar el inicio de sesión mediante Usuario, Persona y BCrypt.
+
+**Incluye:** endpoint de login; búsqueda de Usuario; validación BCrypt; validación de `usuarios.estado = 1` y `personas.estado = 1`; errores seguros de credenciales; actualización controlada de `ultimo_acceso` si se aprueba; pruebas.
+
+**Excluye:** access token, refresh token, `sesiones_usuario`, logout, autorización por roles y OTP.
+
+**Dependencias:** Fases 07 y 08. El Usuario solo podrá autenticarse cuando `personas.estado = 1`, `usuarios.estado = 1` y la contraseña sea válida.
+
+### Fase 10 — JWT y control de sesiones
+
+**Objetivo:** implementar autenticación basada en tokens y una única sesión activa por Usuario.
+
+**Incluye:** access token; refresh token; expiración; renovación; tabla `sesiones_usuario`; identificador `sid`; hash del refresh token; revocación; logout; sesión única; revocación de la sesión anterior ante nuevo login; revocación al desactivar Usuario o Persona; pruebas.
+
+**Excluye:** autorización por rol, OTP, menús y procesos. **Dependencia:** Fase 09.
+
+Cada Usuario tendrá una sola sesión activa. El JWT incluirá `sid`; logout y un nuevo login revocarán la sesión correspondiente, y desactivar Persona o Usuario revocará sus sesiones. `ultimo_acceso` no reemplaza `sesiones_usuario`; reactivar no restaura sesiones revocadas; solo se almacenará el hash del refresh token original.
+
+### Fase 11 — Autorización por roles
+
+**Objetivo:** proteger endpoints usando identidad autenticada y roles.
+
+**Incluye:** reglas por rol; protección de endpoints; integración con roles; respuestas 401 y 403; pruebas de autorización.
+
+**Excluye:** creación de roles, OTP, menús y procesos. **Dependencias:** Fases 08 y 10.
+
+### Fase 12 — Menús y procesos dinámicos
+
+**Objetivo:** modelar menús, procesos y relaciones de acceso según roles.
+
+**Incluye:** tablas, migraciones, entidades, repositorios, administración, asociación con roles, consultas de navegación autorizada y pruebas.
+
+**Excluye:** OTP, cambios de autenticación y nuevos mecanismos de sesión. **Dependencia:** Fase 11.
+
+### Fase 13 — OTP y desafíos de autenticación
+
+**Objetivo:** implementar desafíos temporales de autenticación.
+
+**Incluye:** `login_challenges`, generación de OTP, expiración, consumo único, límites, intentos y pruebas.
+
+**Excluye:** sustituir BCrypt, eliminar JWT o cambiar la sesión única sin decisión explícita. **Dependencias:** Fases 09 y 10.
+
+### Fase 14 — Documentación OpenAPI
+
+Documentar los contratos HTTP ya implementados. Depende de APIs principales estables.
+
+### Fase 15 — Pruebas de integración ampliadas
+
+Validar flujos completos de persistencia, API, autenticación, JWT, sesiones, roles, autorización y OTP. No reemplaza las pruebas creadas en cada fase anterior. Depende de las Fases 07 a 13.
+
+### Fase 16 — Auditoría
+
+Revisar seguridad, logs, trazabilidad, datos sensibles, sesiones y operaciones críticas. Depende del modelo y seguridad estables.
+
+### Fase 17 — Preparación para producción
+
+Completar configuración, perfiles, secretos externos, observabilidad, empaquetado, despliegue y controles operativos. Depende de las Fases 14, 15 y 16.
+
+## Decisiones pendientes
+
+Antes de la Fase 08 se debe elegir y documentar un único nombre para la tabla relacional de roles: `usuarios_roles`, `rol_usuario` u otro nombre aprobado. Mientras no exista esa decisión, ningún nombre es definitivo y no se crea migración.
+
+`tipo_persona` es una clasificación de negocio de Persona; no representa roles, permisos, autoridades ni autorización.
 
 ## Dependencias generales
 
-La fundación técnica habilita el modelo de personas, usuarios y roles. Ese núcleo permite incorporar autenticación y autorización. La etapa de calidad y producción documenta, integra y verifica las capacidades confirmadas anteriormente. Los módulos adicionales solo entrarán al plan cuando el usuario proporcione su información. Una dependencia expresa orden técnico, pero cada fase requiere además autorización explícita del usuario.
+- Fase 07 depende de Fase 06.
+- Fase 08 depende de Fases 06 y 07.
+- Fase 09 depende de Fases 07 y 08.
+- Fase 10 depende de Fase 09.
+- Fase 11 depende de Fases 08 y 10.
+- Fase 12 depende de Fase 11.
+- Fase 13 depende de Fases 09 y 10.
+- Fase 14 depende de APIs principales estables.
+- Fase 15 depende de Fases 07 a 13.
+- Fase 16 depende del modelo y seguridad estables.
+- Fase 17 depende de Fases 14, 15 y 16.
+
+Una dependencia expresa orden técnico, pero cada fase requiere además autorización explícita del usuario.
+

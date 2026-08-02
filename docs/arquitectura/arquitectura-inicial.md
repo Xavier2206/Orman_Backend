@@ -10,11 +10,9 @@ ORMAN-BACKEND comenzará como un monolito modular: una sola aplicación Spring B
 - Organización: paquetes por funcionalidad o dominio.
 - Plataforma: Java 21, Spring Boot y Maven.
 - Configuración principal: `application.yml`.
-- Persistencia futura: PostgreSQL, Spring Data JPA e Hibernate.
+- Persistencia: PostgreSQL, Spring Data JPA e Hibernate.
 - Evolución del esquema: Flyway.
 - Puerto HTTP: `9090`.
-
-Una estructura ilustrativa futura podría contener paquetes como `persona` o `usuario`, cada uno con sus componentes internos necesarios. Esta fase no crea esos paquetes porque aún no existe implementación que los justifique.
 
 ## Límites y dependencias
 
@@ -23,17 +21,19 @@ Una estructura ilustrativa futura podría contener paquetes como `persona` o `us
 - Los módulos no deben formar dependencias circulares.
 - Las entidades de persistencia no serán contratos directos de las APIs.
 - Los componentes comunes solo se crearán cuando resuelvan una necesidad compartida real.
-- La infraestructura transversal de errores reside en `common.error` y `common.exception`; no contiene reglas ni tipos de un dominio concreto.
+- La infraestructura transversal de errores reside en `common.error` y `common.exception`.
 
 ## Datos y esquema
 
-PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia cuando esa configuración sea incorporada. No se usará generación automática `create` o `update`.
+PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia. No se usará generación automática `create` o `update`.
 
-El núcleo inicialmente analizado contiene `personas`, `usuarios`, `roles` y `rol_usuario`, pero ninguna tabla se implementa durante la Fase 00.
+El núcleo contiene `personas`, `usuarios` y roles. La tabla relacional Usuario–Rol aún no tiene nombre definitivo: antes de la Fase 08 se elegirá entre `usuarios_roles`, `rol_usuario` u otro nombre aprobado. No se crean tablas fuera de la fase que las autorice.
 
 ## Seguridad
 
-La seguridad se incorporará en sus fases específicas. Las contraseñas se almacenarán mediante hash BCrypt, nunca en texto plano, y ningún secreto, hash, token u OTP deberá exponerse o registrarse. JWT, OTP y Spring Security no forman parte de la arquitectura ejecutable actual.
+La Fase 07 introducirá BCrypt mediante `PasswordEncoder`; puede usar `spring-security-crypto` sin activar todavía Spring Security HTTP completo. La Fase 09 validará credenciales, la Fase 10 implementará JWT y una sola sesión activa mediante `sesiones_usuario`, y la Fase 11 aplicará autorización por roles. Ningún secreto, contraseña, hash, token u OTP deberá exponerse o registrarse.
+
+`tipo_persona` es clasificación de negocio de Persona y no sustituye roles, permisos ni autorización. JWT, OTP y Spring Security HTTP no forman parte de la arquitectura ejecutable actual.
 
 ## Evolución
 

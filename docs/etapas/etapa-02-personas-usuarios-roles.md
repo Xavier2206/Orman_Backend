@@ -14,6 +14,10 @@ Las capas se prueban de forma complementaria: mapper y servicio de manera unitar
 
 La Fase 06 incorpora `usuarios` como identidad persistente asociada a una Persona. La relación es uno a uno: una Persona puede no tener Usuario y un Usuario requiere exactamente una Persona. `usuarios.codper` es único y referencia `personas.codper` con `ON DELETE RESTRICT`, por lo que una Persona con Usuario no puede eliminarse físicamente.
 
-`login` es la clave primaria natural asignada, `estado` es un `SMALLINT` con `1` activo y `0` inactivo, y los defaults de `estado` y `fecha_creacion` son generados por PostgreSQL. La entidad usa inserción dinámica para respetarlos. Los estados de Persona y Usuario son independientes; la futura autenticación deberá exigir ambos activos, sin que esta fase implemente esa regla.
+`login` es la clave primaria natural asignada, `estado` es un `SMALLINT` con `1` activo y `0` inactivo, y los defaults de `estado` y `fecha_creacion` son generados por PostgreSQL. La entidad usa inserción dinámica para respetarlos. Los estados de Persona y Usuario son independientes; la autenticación futura exigirá ambos activos.
 
-La columna `passwd` se reserva para hashes seguros futuros. No hay aún BCrypt, Spring Security, autenticación, roles, JWT, sesiones ni API administrativa. La futura regla de una sesión activa se implementará mediante `sesiones_usuario` en una fase autorizada posterior.
+La Fase 07 incorporará la administración REST de Usuario y el almacenamiento de contraseñas mediante `PasswordEncoder` con BCrypt. Podrá incorporarse `spring-security-crypto` sin activar todavía Spring Security HTTP completo. Ninguna contraseña ni hash se devolverá o registrará.
+
+La administración de Usuario, los roles, la autenticación, JWT, las sesiones y la autorización son responsabilidades separadas. La Fase 08 administrará roles; la Fase 09 validará credenciales; la Fase 10 implementará JWT y una sola sesión activa mediante `sesiones_usuario`; la Fase 11 protegerá endpoints por roles. OTP, menús y procesos corresponden a las Fases 13 y 12, respectivamente.
+
+`tipo_persona` continúa siendo una clasificación de negocio de Persona y no sustituye roles, permisos ni autorización.

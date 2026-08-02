@@ -15,3 +15,4 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | [Abrir documento](06-modelo-migracion-usuario.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
+La Fase 07 permanece `PENDIENTE`; no se crea su documento individual antes de autorizarla.

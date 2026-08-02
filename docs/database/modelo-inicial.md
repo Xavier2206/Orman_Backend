@@ -2,46 +2,45 @@
 
 ## Alcance
 
-Este documento conserva el análisis preliminar del núcleo de personas, usuarios y roles. No representa una migración ni autoriza la creación de tablas.
+Este documento conserva el análisis del núcleo de personas, usuarios y roles. No representa una migración ni autoriza la creación de tablas fuera de la fase correspondiente.
 
 ## Tablas del núcleo
 
 ### `personas`
 
-Representará los datos de una persona. Antes de implementarla se deben confirmar los atributos, restricciones, significado de `tipo_persona` y estrategia de estado.
+Representa los datos de una persona. `tipo_persona` es una clasificación de negocio y no sustituye roles, permisos ni autorización.
 
 ### `usuarios`
 
-Representa la identidad de acceso asociada opcionalmente a una persona. La Fase 06 confirmó `login VARCHAR(30)` como clave primaria y `passwd VARCHAR(255)` como columna reservada exclusivamente para un hash seguro futuro; BCrypt se adopta en una fase posterior autorizada.
+Representa la identidad de acceso asociada a una persona. La Fase 06 confirmó `login VARCHAR(30)` como clave primaria y `passwd VARCHAR(255)` como columna reservada para un hash seguro. La Fase 07 introducirá BCrypt mediante `PasswordEncoder`; nunca se almacenará texto plano ni se expondrá o registrará el hash.
 
 ### `roles`
 
-Representará las agrupaciones de permisos asignables a usuarios. Su catálogo, restricciones y estados se definirán en la fase correspondiente.
+Representa agrupaciones de permisos asignables a usuarios. Su catálogo, restricciones y estados se definirán en la Fase 08.
 
-### `rol_usuario`
+### Relación Usuario–Rol
 
-Representará la relación de muchos a muchos entre usuarios y roles. Sus claves y restricciones se diseñarán antes de la primera migración relacionada.
+Representa la relación de muchos a muchos entre usuarios y roles. Antes de la Fase 08 se debe elegir un único nombre definitivo entre `usuarios_roles`, `rol_usuario` u otro nombre aprobado. No hay un nombre definitivo todavía.
 
 ## Relaciones confirmadas
 
 - Una persona puede tener como máximo un usuario.
 - Un usuario puede tener varios roles.
 - Un rol puede pertenecer a varios usuarios.
-- `rol_usuario` materializará la relación entre `usuarios` y `roles`.
+- La tabla relacional que se elija en la Fase 08 materializará la relación entre `usuarios` y `roles`.
 
-La primera relación se implementó en V3: `usuarios.codper` es obligatorio, único y referencia `personas.codper` con `ON DELETE RESTRICT`. Por tanto, una Persona tiene cero o un Usuario y un Usuario pertenece a una Persona.
+La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obligatorio, único y referencia `personas.codper` con `ON DELETE RESTRICT`.
 
 ## Decisiones preliminares
 
 - Usar nombres SQL en minúsculas y `snake_case`.
-- Revisar el significado y la representación de `tipo_persona` antes de implementar `personas`.
-- Definir una longitud uniforme para `login`.
+- Mantener `tipo_persona` separada del sistema de roles.
 - Usar `passwd` como columna persistida para el futuro hash; nunca almacenar texto plano.
+- Introducir BCrypt en la Fase 07 sin activar todavía Spring Security HTTP completo.
 - Evitar `ON DELETE CASCADE` entre `personas` y `usuarios`.
-- Preferir tipos de fecha y hora con zona horaria cuando representen instantes.
-- Revisar el significado, tipo y ciclo de `estado` antes de crear la primera migración.
-- Definir restricciones, índices y nulabilidad a partir de reglas confirmadas, no de suposiciones.
+- Definir restricciones, índices y nulabilidad a partir de reglas confirmadas.
+- Diseñar `sesiones_usuario` únicamente en la Fase 10.
 
 ## Estado de implementación
 
-La Fase 00 no implementó tablas, migraciones, entidades ni repositorios. `personas` se completó en la Fase 04 con V1 y V2; `usuarios` se completó en la Fase 06 con V3. Sus modelos definitivos están documentados en `docs/fases/04-modelo-migracion-persona.md` y `docs/fases/06-modelo-migracion-usuario.md`.
+La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3. Sus modelos definitivos están documentados en `docs/fases/04-modelo-migracion-persona.md` y `docs/fases/06-modelo-migracion-usuario.md`. Roles, sesiones y las demás tablas futuras no están implementados.

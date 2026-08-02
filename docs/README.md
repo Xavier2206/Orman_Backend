@@ -16,6 +16,7 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Guía Postman de la API Persona](postman/persona.md)
 - [Fase 05 — API CRUD de Persona](fases/05-crud-persona.md)
 - [Fase 06 — Modelo y migración de Usuario](fases/06-modelo-migracion-usuario.md)
+- La Fase 07 está pendiente; su documento se creará únicamente al autorizar su inicio.
 - [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
 - [Documentación de base de datos](database/README.md)
 

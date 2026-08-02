@@ -6,6 +6,21 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Corrección documental del plan — 2026-08-02
+
+### Documentación
+
+- Corregido el plan general desde la Fase 07, manteniendo las Fases 00–06 como `COMPLETADA` y la Fase 07 como `PENDIENTE`.
+- Incorporado BCrypt mediante `PasswordEncoder` en la administración de Usuarios, sin declarar implementadas esas funciones.
+- Separadas administración de Usuario, roles, autenticación, JWT, sesiones, autorización, menús, procesos y OTP.
+- Documentada la política futura de una sola sesión activa en la Fase 10.
+- Corregidas las referencias vigentes de menús/procesos a la Fase 12 y de OTP a la Fase 13.
+- Conservada como decisión pendiente la elección de un único nombre para la tabla relacional Usuario–Rol.
+
+### Alcance y validación
+
+- Corrección exclusivamente documental. No se creó código, documento de implementación de Fase 07 ni migración; no se ejecutó Maven y no se inició la Fase 07.
+
 ## Fase 06 — 2026-07-31
 
 ### Agregado

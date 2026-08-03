@@ -6,6 +6,28 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 09 — 2026-08-03
+
+### Agregado
+
+- Endpoint `POST /api/v1/auth/login`, módulo `auth`, DTO de login, servicio transaccional, `Clock` UTC y pruebas unitarias, MVC e integración con PostgreSQL real.
+- Validación BCrypt de Usuario y Persona activos, con actualización de `usuarios.ultimo_acceso` únicamente después de una autenticación correcta.
+- Código `INVALID_CREDENTIALS`, excepción específica y respuesta `401 application/problem+json` uniforme para credenciales incorrectas, inexistentes, inactivas o inconsistentes.
+- Guía Postman de autenticación y documento de cierre de la Fase 09.
+
+### Seguridad
+
+- El login inexistente ejecuta BCrypt contra un hash señuelo constante interno para reducir enumeración de Usuarios.
+- La respuesta exitosa contiene exclusivamente `login` y `codper`; no expone password, `passwd`, hashes, Persona, Roles, tokens o sesiones.
+- Roles se ignoran: un Usuario sin Roles, con varios Roles o con Roles inactivos puede autenticarse si sus credenciales y estados son válidos.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 114 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- PostgreSQL 17.6 conectó; Flyway validó V1–V5 y el esquema permaneció en versión 5; Hibernate validó con `ddl-auto=validate`.
+- No se modificaron migraciones ni se implementaron JWT, sesiones, filtros, `SecurityFilterChain`, `AuthenticationManager`, `UserDetailsService` o autorización.
+- Se aislaron fixtures preexistentes de integración de Roles para evitar colisiones con roles administrativos ya presentes en PostgreSQL, sin alterar datos persistentes ni cobertura.
+
 ## Fase 08 — 2026-08-02
 
 ### Agregado

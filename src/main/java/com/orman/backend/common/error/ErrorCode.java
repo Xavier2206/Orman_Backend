@@ -5,6 +5,7 @@ package com.orman.backend.common.error;
  */
 public enum ErrorCode {
 
+    INVALID_CREDENTIALS,
     RESOURCE_NOT_FOUND,
     VALIDATION_ERROR,
     INVALID_REQUEST,

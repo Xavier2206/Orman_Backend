@@ -23,6 +23,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Arquitectura inicial](arquitectura/arquitectura-inicial.md)
 - [Documentación de base de datos](database/README.md)
 
+## Fase 09
+
+- [Fase 09 — Autenticación y validación de credenciales](fases/09-autenticacion-validacion-credenciales.md)
+- [Guía Postman de Autenticación](postman/auth.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

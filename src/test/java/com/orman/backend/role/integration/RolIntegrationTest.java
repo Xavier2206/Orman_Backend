@@ -91,20 +91,20 @@ class RolIntegrationTest {
 
     @Test
     void administersRolesWithNormalizationValidationAndIdempotentStateChanges() {
-        RolResponse created = rolService.create(new CreateRolRequest(" administrador ", null));
+        RolResponse created = rolService.create(new CreateRolRequest(" test-rol-admin-state ", null));
 
-        assertThat(created.nombre()).isEqualTo("ADMINISTRADOR");
+        assertThat(created.nombre()).isEqualTo("TEST-ROL-ADMIN-STATE");
         assertThat(created.estado()).isEqualTo((short) 1);
         assertThat(rolService.get(created.codr())).isEqualTo(created);
         assertThat(rolService.list(org.springframework.data.domain.PageRequest.of(0, 20)).content())
-                .extracting(RolResponse::nombre).contains("ADMINISTRADOR");
-        assertThat(rolService.update(created.codr(), new UpdateRolRequest(" supervisor ")).nombre())
-                .isEqualTo("SUPERVISOR");
+                .extracting(RolResponse::nombre).contains("TEST-ROL-ADMIN-STATE");
+        assertThat(rolService.update(created.codr(), new UpdateRolRequest(" test-rol-supervisor-state ")).nombre())
+                .isEqualTo("TEST-ROL-SUPERVISOR-STATE");
         assertThat(rolService.deactivate(created.codr()).estado()).isZero();
         assertThat(rolService.deactivate(created.codr()).estado()).isZero();
         assertThat(rolService.activate(created.codr()).estado()).isEqualTo((short) 1);
 
-        assertThatThrownBy(() -> rolService.create(new CreateRolRequest("SUPERVISOR", null)))
+        assertThatThrownBy(() -> rolService.create(new CreateRolRequest("TEST-ROL-SUPERVISOR-STATE", null)))
                 .isInstanceOf(ConflictException.class);
         assertThatThrownBy(() -> rolService.get(999999)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> jdbcTemplate.update("INSERT INTO roles (nombre, estado) VALUES ('INVALIDO', 2)"))
@@ -114,12 +114,12 @@ class RolIntegrationTest {
     @Test
     void assignsListsPreservesAndRemovesRolesWithoutExposingSensitiveData() {
         UsuarioResponse usuario = createUsuario("TEST-ROL-USUARIO-1", "usuario.rol.1");
-        RolResponse firstRol = rolService.create(new CreateRolRequest("ADMINISTRADOR", null));
-        RolResponse secondRol = rolService.create(new CreateRolRequest("OPERADOR", null));
+        RolResponse firstRol = rolService.create(new CreateRolRequest("TEST-ROL-ADMIN-ASSIGN", null));
+        RolResponse secondRol = rolService.create(new CreateRolRequest("TEST-ROL-OPERADOR-ASSIGN", null));
 
         RolUsuResponse assigned = rolUsuService.assign(usuario.login(), firstRol.codr());
         assertThat(assigned.login()).isEqualTo(usuario.login());
-        assertThat(assigned.nombreRol()).isEqualTo("ADMINISTRADOR");
+        assertThat(assigned.nombreRol()).isEqualTo("TEST-ROL-ADMIN-ASSIGN");
         assertThat(assigned.fechaAsignacion()).isNotNull();
         assertThat(rolUsuService.listByUsuario(usuario.login())).extracting(RolUsuResponse::codr)
                 .containsExactly(firstRol.codr());
@@ -153,7 +153,7 @@ class RolIntegrationTest {
     @Test
     void databaseCascadesAssignmentsFromUsuario() {
         UsuarioResponse usuario = createUsuario("TEST-ROL-USUARIO-2", "usuario.rol.2");
-        RolResponse rol = rolService.create(new CreateRolRequest("SUPERVISOR", null));
+        RolResponse rol = rolService.create(new CreateRolRequest("TEST-ROL-SUPERVISOR-CASCADE", null));
         rolUsuService.assign(usuario.login(), rol.codr());
 
         jdbcTemplate.update("DELETE FROM usuarios WHERE login = ?", usuario.login());
@@ -164,7 +164,7 @@ class RolIntegrationTest {
     @Test
     void databaseRestrictsDeletionOfAssignedRol() {
         UsuarioResponse usuario = createUsuario("TEST-ROL-USUARIO-3", "usuario.rol.3");
-        RolResponse rol = rolService.create(new CreateRolRequest("AUDITOR", null));
+        RolResponse rol = rolService.create(new CreateRolRequest("TEST-ROL-AUDITOR-RESTRICT", null));
         rolUsuService.assign(usuario.login(), rol.codr());
 
         assertThatThrownBy(() -> jdbcTemplate.update("DELETE FROM roles WHERE codr = ?", rol.codr()))

@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 08 están cerradas; la Fase 09 permanece pendiente.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 09 están cerradas; la Fase 10 permanece pendiente.
 
 ## Estados permitidos
 
@@ -23,13 +23,13 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 ## Estado actual
 
-- Etapa actual: **ETAPA 2 — Personas, usuarios y roles**.
-- Última fase completada: **Fase 08 — Roles y relación Usuario–Rol**.
-- Siguiente fase autorizable: **Fase 09 — Autenticación y validación de credenciales**.
-- Estado de la Fase 09: **PENDIENTE**.
-- No hay una fase activa tras el cierre de la Fase 08.
-- Resultado confirmado de la Fase 08: catálogo de Roles, relación `rolusu`, asignación/retiro administrativo y 103 pruebas validadas contra PostgreSQL.
-- Fecha de actualización: **2026-08-02**.
+- Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
+- Última fase completada: **Fase 09 — Autenticación y validación de credenciales**.
+- Siguiente fase autorizable: **Fase 10 — JWT y control de sesiones**.
+- Estado de la Fase 09: **COMPLETADA**.
+- No hay una fase activa tras el cierre de la Fase 09.
+- Resultado confirmado de la Fase 09: login BCrypt con validación de estados, `ultimo_acceso` UTC y 114 pruebas validadas contra PostgreSQL.
+- Fecha de actualización: **2026-08-03**.
 
 ## Etapas y fases previstas
 
@@ -62,7 +62,7 @@ Teoría: pendiente de creación cuando corresponda.
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 09 — Autenticación y validación de credenciales | `PENDIENTE` | Fases 07 y 08 | Documento pendiente de creación |
+| 09 — Autenticación y validación de credenciales | `COMPLETADA` | Fases 07 y 08 | [Documento de Fase 09](fases/09-autenticacion-validacion-credenciales.md) |
 | 10 — JWT y control de sesiones | `PENDIENTE` | Fase 09 | Documento pendiente de creación |
 | 11 — Autorización por roles | `PENDIENTE` | Fases 08 y 10 | Documento pendiente de creación |
 | 12 — Menús y procesos dinámicos | `PENDIENTE` | Fase 11 | Documento pendiente de creación |

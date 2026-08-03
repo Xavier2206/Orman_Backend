@@ -4,6 +4,8 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 ## Fases documentadas
 
+La Fase 09 está completada: [Autenticación y validación de credenciales](09-autenticacion-validacion-credenciales.md).
+
 | Fase | Estado | Documento |
 |---|---|---|
 | 00 — Planificación general y estructura documental | `COMPLETADA` | [Abrir documento](00-planificacion-general.md) |
@@ -17,4 +19,4 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 | 08 — Roles y relación Usuario–Rol | `COMPLETADA` | [Abrir documento](08-roles-relacion-usuario-rol.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La siguiente fase autorizable es la Fase 09; su documento se creará únicamente al autorizarla.
+La siguiente fase autorizable es la Fase 10 — JWT y control de sesiones.

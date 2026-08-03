@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. La Fase 07 completó la administración de Usuario y contraseñas BCrypt sobre PostgreSQL.
+Backend de ORMAN construido con Java y Spring Boot. La Fase 09 completó la autenticación inicial con BCrypt sobre PostgreSQL.
 
 ## Estado actual
 
-**Última fase completada: Fase 07 — Administración de Usuarios y Contraseñas**
+**Última fase completada: Fase 09 — Autenticación y validación de credenciales**
 
-**Siguiente fase autorizable: Fase 08 — Roles y relación Usuario–Rol (`PENDIENTE`)**
+**Siguiente fase autorizable: Fase 10 — JWT y control de sesiones (`PENDIENTE`)**
 
-El backend incorpora la API CRUD de Persona y la administración REST de Usuario. Flyway administra `personas` y `usuarios`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. Las contraseñas se almacenan exclusivamente como BCrypt. No hay todavía login, autenticación, JWT, roles, sesiones ni autorización.
+El backend incorpora la API CRUD de Persona, administración REST de Usuario y Roles, y `POST /api/v1/auth/login`. Flyway administra `personas`, `usuarios`, `roles` y `rolusu`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. Las contraseñas se almacenan exclusivamente como BCrypt y el login requiere Usuario y Persona activos. No existen todavía JWT, tokens, sesiones ni autorización.
 
 ## Stack confirmado
 
@@ -87,7 +87,11 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
 - [Fase 06 — Modelo y migración de Usuario](docs/fases/06-modelo-migracion-usuario.md)
 - [Fase 07 — Administración de Usuarios y Contraseñas](docs/fases/07-administracion-usuarios-contrasenas.md)
+- [Fase 08 — Roles y relación Usuario–Rol](docs/fases/08-roles-relacion-usuario-rol.md)
+- [Fase 09 — Autenticación y validación de credenciales](docs/fases/09-autenticacion-validacion-credenciales.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)
+- [Guía Postman de la API Roles](docs/postman/rol.md)
+- [Guía Postman de Autenticación](docs/postman/auth.md)
 
 La documentación generada por Spring Initializr se conserva en `HELP.md`.

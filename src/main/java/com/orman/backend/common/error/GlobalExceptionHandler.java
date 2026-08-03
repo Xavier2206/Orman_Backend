@@ -3,6 +3,7 @@ package com.orman.backend.common.error;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.auth.exception.InvalidCredentialsException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -31,6 +32,13 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ResponseEntity<ProblemDetail> handleInvalidCredentials(
+            InvalidCredentialsException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS,
+                "Credenciales inválidas", "Las credenciales no son válidas.", request, List.of());
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ProblemDetail> handleResourceNotFound(

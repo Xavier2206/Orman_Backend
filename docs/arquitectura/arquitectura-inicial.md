@@ -35,6 +35,8 @@ La Fase 07 introdujo BCrypt mediante `PasswordEncoder` y `spring-security-crypto
 
 `tipo_persona` es clasificación de negocio de Persona y no sustituye roles, permisos ni autorización. JWT, OTP y Spring Security HTTP no forman parte de la arquitectura ejecutable actual.
 
+La Fase 09 incorpora el módulo `auth`: valida Usuario, Persona y BCrypt mediante `POST /api/v1/auth/login`, actualiza `ultimo_acceso` en UTC y devuelve una identidad mínima. No habilita Spring Security HTTP, tokens, sesiones ni autorización; esas responsabilidades permanecen en las Fases 10 y 11.
+
 ## Evolución
 
 La modularidad facilitará crecer dentro del mismo despliegue. Una separación en microservicios solo podría considerarse ante necesidades técnicas y operativas demostrables; no es parte del plan actual.

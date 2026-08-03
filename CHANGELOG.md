@@ -6,6 +6,31 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 10.1 — 2026-08-03
+
+### Agregado
+
+- Migración V6 con `sesiones_usuario`, PK UUID, FK a Usuario, checks, índice por login e índice único parcial para una sesión activa por `(login, device_id)`.
+- Entidad, enums y repositorio de sesión; bloqueo pesimista de Usuario en login y de sesión en refresh.
+- JWT HS256 con Nimbus JOSE + JWT 10.8, claims mínimos `sub`, `sid`, `iss`, `iat`, `exp` y duración predeterminada de 15 minutos.
+- Refresh opaco `sid.secreto` con 256 bits aleatorios, hash SHA-256, comparación constante, duración de 30 días, rotación y detección de reutilización.
+- Login WEB/MOBILE y `POST /api/v1/auth/refresh`; cookie WEB HttpOnly configurable y refresh MOBILE en JSON.
+- Error seguro `INVALID_REFRESH_TOKEN`, pruebas unitarias, MVC, persistencia e integración real, documento de fase y guía Postman completa.
+
+### Seguridad
+
+- `JWT_SECRET` es obligatorio, externo y de al menos 32 bytes; el arranque falla con configuración débil. No se incluyó un secreto real.
+- PostgreSQL almacena solo el hash del refresh; WEB nunca devuelve refresh en JSON y ningún contrato contiene password, hash, Persona completa o Roles.
+- Refresh reutilizado/manipulado revoca con `REFRESH_REUSE`; expiración usa `EXPIRED`; el reemplazo del mismo dispositivo usa `REPLACED_BY_NEW_LOGIN`.
+- No se agregaron filtro JWT, `SecurityFilterChain`, protección de endpoints, logout, revocaciones administrativas, autorización ni código de 10.2/11.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 133 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- PostgreSQL 17.6 conectado; Flyway validó V1–V6, dejó el esquema en versión 6 e Hibernate validó con `ddl-auto=validate`.
+- Pruebas automatizadas verificaron contratos WEB/MOBILE, cookie, claims, firma, algoritmos, rotación, reutilización, concurrencia por bloqueos, constraints, defaults, nulabilidad, índices y cascade.
+- V1–V5 permanecen intactas y no se creó V7.
+
 ## Fase 09 — 2026-08-03
 
 ### Agregado

@@ -27,15 +27,15 @@ ORMAN-BACKEND comenzará como un monolito modular: una sola aplicación Spring B
 
 PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia. No se usará generación automática `create` o `update`.
 
-El núcleo contiene `personas`, `usuarios`, `roles` y `rolusu`. `rolusu` materializa la relación Usuario–Rol mediante `(login, codr)` y no crea dependencias bidireccionales innecesarias entre las entidades. No se crean tablas fuera de la fase que las autorice.
+El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu` y `sesiones_usuario`. `rolusu` materializa Usuario–Rol; `sesiones_usuario` pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita a una sesión activa por `(login, device_id)`.
 
 ## Seguridad
 
-La Fase 07 introdujo BCrypt mediante `PasswordEncoder` y `spring-security-crypto`, sin activar Spring Security HTTP completo. La Fase 09 validará credenciales, la Fase 10 implementará JWT y una sola sesión activa mediante `sesiones_usuario`, y la Fase 11 aplicará autorización por roles. Ningún secreto, contraseña, hash, token u OTP deberá exponerse o registrarse.
+La Fase 07 introdujo BCrypt y la Fase 09 validó credenciales. La subfase 10.1 incorpora JWT HS256 y refresh opaco con sesiones por dispositivo. Nimbus JOSE + JWT es la única biblioteca JWT; la clave se obtiene del entorno y debe tener al menos 32 bytes. Ningún secreto, contraseña, hash, token u OTP se expone o registra.
 
-`tipo_persona` es clasificación de negocio de Persona y no sustituye roles, permisos ni autorización. JWT, OTP y Spring Security HTTP no forman parte de la arquitectura ejecutable actual.
+`tipo_persona` es clasificación de negocio y no sustituye roles, permisos ni autorización. Los JWT no contienen Roles. Spring Security HTTP, filtros, protección de rutas, logout y autorización siguen ausentes y pertenecen a 10.2/11.
 
-La Fase 09 incorpora el módulo `auth`: valida Usuario, Persona y BCrypt mediante `POST /api/v1/auth/login`, actualiza `ultimo_acceso` en UTC y devuelve una identidad mínima. No habilita Spring Security HTTP, tokens, sesiones ni autorización; esas responsabilidades permanecen en las Fases 10 y 11.
+El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UTC, crea sesiones y emite tokens mediante login. `POST /api/v1/auth/refresh` rota el refresh bajo bloqueo pesimista. WEB usa cookie HttpOnly y MOBILE JSON. La configuración HTTP completa permanece pendiente.
 
 ## Evolución
 

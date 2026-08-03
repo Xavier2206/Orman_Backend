@@ -24,11 +24,11 @@ server:
 
 security:
   jwt:
-    secret: ${JWT_SECRET}
-    issuer: ${JWT_ISSUER:orman-backend}
-    access-token-expiration-minutes: ${JWT_ACCESS_EXPIRATION_MINUTES:15}
-    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS:30}
+    secret: test-only-secret-with-at-least-32-bytes-0001
+    issuer: orman-backend-test
+    access-token-expiration-minutes: 15
+    refresh-token-expiration-days: 30
   cookie:
-    refresh-name: ${REFRESH_COOKIE_NAME:orman_refresh}
-    secure: ${REFRESH_COOKIE_SECURE:false}
-    same-site: ${REFRESH_COOKIE_SAME_SITE:Lax}
+    refresh-name: orman_refresh
+    secure: false
+    same-site: Lax

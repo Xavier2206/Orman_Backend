@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java y Spring Boot. La Fase 09 completó la autenticación inicial con BCrypt sobre PostgreSQL.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 10.1 completó sesiones por dispositivo, JWT y refresh rotatorio sobre PostgreSQL.
 
 ## Estado actual
 
-**Última fase completada: Fase 09 — Autenticación y validación de credenciales**
+**Última subfase completada: Fase 10.1 — Sesiones por dispositivo, JWT y refresh token**
 
-**Siguiente fase autorizable: Fase 10 — JWT y control de sesiones (`PENDIENTE`)**
+**Fase 10 global: `EN DESARROLLO`; Fase 10.2 pendiente y no iniciada**
 
-El backend incorpora la API CRUD de Persona, administración REST de Usuario y Roles, y `POST /api/v1/auth/login`. Flyway administra `personas`, `usuarios`, `roles` y `rolusu`; Usuario se asocia obligatoriamente con una Persona mediante una relación uno a uno. Las contraseñas se almacenan exclusivamente como BCrypt y el login requiere Usuario y Persona activos. No existen todavía JWT, tokens, sesiones ni autorización.
+El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE y refresh. Flyway V6 administra `sesiones_usuario`; el access JWT dura 15 minutos y el refresh opaco rota, dura 30 días y se persiste solo como hash. Aún no hay filtro JWT, `SecurityFilterChain`, protección de endpoints, logout ni autorización.
 
 ## Stack confirmado
 
@@ -30,7 +30,7 @@ El servidor se configura para usar el puerto `9090`. La API de Persona está dis
 - JDK 21
 - Una terminal compatible con el Maven Wrapper
 
-Para iniciar la aplicación o ejecutar las pruebas de contexto se requiere acceso a PostgreSQL y las variables `DB_USERNAME` y `DB_PASSWORD`.
+Para iniciar la aplicación se requiere PostgreSQL, `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` de al menos 32 bytes.
 
 ## Configuración local de PostgreSQL
 
@@ -46,6 +46,7 @@ $env:DB_PORT = "5432"
 $env:DB_NAME = "orman"
 $env:DB_USERNAME = "<usuario>"
 $env:DB_PASSWORD = "<contraseña>"
+$env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
 .\mvnw.cmd test
 ```
 
@@ -89,6 +90,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 07 — Administración de Usuarios y Contraseñas](docs/fases/07-administracion-usuarios-contrasenas.md)
 - [Fase 08 — Roles y relación Usuario–Rol](docs/fases/08-roles-relacion-usuario-rol.md)
 - [Fase 09 — Autenticación y validación de credenciales](docs/fases/09-autenticacion-validacion-credenciales.md)
+- [Fase 10.1 — Sesiones por dispositivo, JWT y refresh token](docs/fases/10-1-sesiones-jwt-refresh.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)
 - [Guía Postman de la API Roles](docs/postman/rol.md)

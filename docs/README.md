@@ -28,6 +28,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Fase 09 — Autenticación y validación de credenciales](fases/09-autenticacion-validacion-credenciales.md)
 - [Guía Postman de Autenticación](postman/auth.md)
 
+## Fase 10.1
+
+- [Sesiones por dispositivo, JWT y refresh token](fases/10-1-sesiones-jwt-refresh.md)
+- [Guía Postman de login, JWT y refresh](postman/auth.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

@@ -1,8 +1,16 @@
 package com.orman.backend.auth.service.impl;
 
+import com.orman.backend.auth.config.JwtProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
-import com.orman.backend.auth.dto.response.LoginResponse;
+import com.orman.backend.auth.entity.SesionUsuario;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
+import com.orman.backend.auth.exception.InvalidRefreshTokenException;
+import com.orman.backend.auth.model.ClientType;
+import com.orman.backend.auth.model.RevocationReason;
+import com.orman.backend.auth.repository.SesionUsuarioRepository;
+import com.orman.backend.auth.service.AuthResult;
+import com.orman.backend.auth.service.JwtService;
+import com.orman.backend.auth.service.RefreshTokenService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
@@ -11,10 +19,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,73 +39,146 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
-    private static final Clock UTC_CLOCK = Clock.fixed(Instant.parse("2026-08-03T12:30:45Z"), ZoneOffset.UTC);
+    private static final Instant NOW = Instant.parse("2026-08-03T12:30:45Z");
+    private static final UUID SID = UUID.fromString("be6a3aa2-321f-4fb5-b07d-c0ca8adf30f6");
 
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private SesionUsuarioRepository sesionRepository;
     @Mock private PasswordEncoder passwordEncoder;
-    @Mock private Clock clock;
-    @InjectMocks private AuthServiceImpl service;
+    @Mock private JwtService jwtService;
+    @Mock private RefreshTokenService refreshTokenService;
+    private AuthServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        JwtProperties properties = new JwtProperties("test-only-secret-with-at-least-32-bytes", "issuer", 15, 30);
+        service = new AuthServiceImpl(usuarioRepository, sesionRepository, passwordEncoder, jwtService,
+                refreshTokenService, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
 
     @Test
-    void authenticatesActiveUsuarioAndUpdatesUltimoAccesoInUtc() {
+    void createsMobileSessionWithTrimmedDeviceDataAndHashedRefreshToken() {
         Usuario usuario = usuario("Usuario.Demo", (short) 1, persona(7, (short) 1));
-        when(clock.instant()).thenReturn(UTC_CLOCK.instant());
-        when(clock.getZone()).thenReturn(ZoneOffset.UTC);
-        when(usuarioRepository.findById("Usuario.Demo")).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.findByLoginForUpdate("Usuario.Demo")).thenReturn(Optional.of(usuario));
         when(passwordEncoder.matches("clave-ficticia", "bcrypt-hash")).thenReturn(true);
+        when(refreshTokenService.generate(org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenAnswer(invocation -> new RefreshTokenService.GeneratedRefreshToken(
+                        invocation.<UUID>getArgument(0) + ".secret", "sha256-hash"));
+        when(jwtService.generateAccessToken(anyString(), org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenReturn("access-token");
 
-        LoginResponse response = service.login(new LoginRequest(" Usuario.Demo ", "clave-ficticia"));
+        AuthResult result = service.login(request(" Usuario.Demo ", " device-1 ", " Android ", ClientType.MOBILE));
 
-        assertThat(response).isEqualTo(new LoginResponse("Usuario.Demo", 7));
-        assertThat(usuario.getUltimoAcceso()).isEqualTo(LocalDateTime.of(2026, 8, 3, 12, 30, 45));
-        verify(usuarioRepository).save(usuario);
+        ArgumentCaptor<SesionUsuario> captor = ArgumentCaptor.forClass(SesionUsuario.class);
+        verify(sesionRepository).save(captor.capture());
+        SesionUsuario persisted = captor.getValue();
+        assertThat(persisted.getDeviceId()).isEqualTo("device-1");
+        assertThat(persisted.getDeviceName()).isEqualTo("Android");
+        assertThat(persisted.getRefreshTokenHash()).isEqualTo("sha256-hash");
+        assertThat(persisted.getRefreshTokenHash()).isNotEqualTo(result.refreshToken());
+        assertThat(persisted.getFechaExpiracion()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC).plusDays(30));
+        assertThat(result.response().refreshToken()).isEqualTo(result.refreshToken());
+        assertThat(result.response().expiresIn()).isEqualTo(900);
+        assertThat(usuario.getUltimoAcceso()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
     }
 
     @Test
-    void rejectsUnknownUsuarioAfterExecutingBcryptComparison() {
-        when(usuarioRepository.findById("inexistente")).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.login(new LoginRequest(" inexistente ", "clave-ficticia")))
-                .isInstanceOf(InvalidCredentialsException.class);
-
-        verify(passwordEncoder).matches(anyString(), anyString());
-        verify(usuarioRepository, never()).save(org.mockito.ArgumentMatchers.any());
-    }
-
-    @Test
-    void rejectsWrongPasswordAndPreservesUltimoAcceso() {
+    void replacesOnlyPreviousActiveSessionForSameDevice() {
         Usuario usuario = usuario("usuario.demo", (short) 1, persona(7, (short) 1));
-        when(usuarioRepository.findById("usuario.demo")).thenReturn(Optional.of(usuario));
-        when(passwordEncoder.matches(" clave-ficticia ", "bcrypt-hash")).thenReturn(false);
+        SesionUsuario previous = session(usuario, "old-hash", "device-1", ClientType.WEB);
+        when(usuarioRepository.findByLoginForUpdate("usuario.demo")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("clave-ficticia", "bcrypt-hash")).thenReturn(true);
+        when(sesionRepository.findByUsuarioLoginAndDeviceIdAndFechaRevocacionIsNull("usuario.demo", "device-1"))
+                .thenReturn(Optional.of(previous));
+        when(refreshTokenService.generate(org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenReturn(new RefreshTokenService.GeneratedRefreshToken(SID + ".secret", "new-hash"));
+        when(jwtService.generateAccessToken(anyString(), org.mockito.ArgumentMatchers.any(UUID.class))).thenReturn("jwt");
 
-        assertThatThrownBy(() -> service.login(new LoginRequest("usuario.demo", " clave-ficticia ")))
-                .isInstanceOf(InvalidCredentialsException.class);
+        service.login(request("usuario.demo", "device-1", "Browser", ClientType.WEB));
 
-        assertThat(usuario.getUltimoAcceso()).isNull();
-        verify(usuarioRepository, never()).save(usuario);
+        assertThat(previous.getMotivoRevocacion()).isEqualTo(RevocationReason.REPLACED_BY_NEW_LOGIN);
+        assertThat(previous.getFechaRevocacion()).isNotNull();
+        verify(sesionRepository).saveAndFlush(previous);
     }
 
     @Test
-    void rejectsInactiveUsuarioInactivePersonaAndMissingPersonaWithoutPersistingAccess() {
-        Usuario inactiveUsuario = usuario("usuario.inactivo", (short) 0, persona(7, (short) 1));
-        Usuario inactivePersona = usuario("persona.inactiva", (short) 1, persona(8, (short) 0));
-        Usuario missingPersona = usuario("sin.persona", (short) 1, null);
-        when(usuarioRepository.findById("usuario.inactivo")).thenReturn(Optional.of(inactiveUsuario));
-        when(usuarioRepository.findById("persona.inactiva")).thenReturn(Optional.of(inactivePersona));
-        when(usuarioRepository.findById("sin.persona")).thenReturn(Optional.of(missingPersona));
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+    void rotatesRefreshHashVersionAndLastUse() {
+        Usuario usuario = usuario("usuario.demo", (short) 1, persona(7, (short) 1));
+        SesionUsuario session = session(usuario, "old-hash", "mobile-1", ClientType.MOBILE);
+        when(refreshTokenService.extractSid("old-token")).thenReturn(SID);
+        when(sesionRepository.findBySidForUpdate(SID)).thenReturn(Optional.of(session));
+        when(refreshTokenService.matches("old-token", "old-hash")).thenReturn(true);
+        when(refreshTokenService.generate(SID))
+                .thenReturn(new RefreshTokenService.GeneratedRefreshToken("new-token", "new-hash"));
+        when(jwtService.generateAccessToken("usuario.demo", SID)).thenReturn("new-access");
 
-        assertThatThrownBy(() -> service.login(new LoginRequest("usuario.inactivo", "clave-ficticia")))
-                .isInstanceOf(InvalidCredentialsException.class);
-        assertThatThrownBy(() -> service.login(new LoginRequest("persona.inactiva", "clave-ficticia")))
-                .isInstanceOf(InvalidCredentialsException.class);
-        assertThatThrownBy(() -> service.login(new LoginRequest("sin.persona", "clave-ficticia")))
-                .isInstanceOf(InvalidCredentialsException.class);
+        AuthResult result = service.refresh("old-token", ClientType.MOBILE);
 
-        assertThat(inactiveUsuario.getUltimoAcceso()).isNull();
-        assertThat(inactivePersona.getUltimoAcceso()).isNull();
-        assertThat(missingPersona.getUltimoAcceso()).isNull();
-        verify(usuarioRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        assertThat(session.getRefreshTokenHash()).isEqualTo("new-hash");
+        assertThat(session.getRefreshTokenVersion()).isEqualTo(2);
+        assertThat(session.getUltimoUso()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        assertThat(result.response().accessToken()).isEqualTo("new-access");
+        assertThat(result.response().refreshToken()).isEqualTo("new-token");
+    }
+
+    @Test
+    void revokesSessionWhenRefreshDoesNotMatchCurrentHash() {
+        Usuario usuario = usuario("usuario.demo", (short) 1, persona(7, (short) 1));
+        SesionUsuario session = session(usuario, "current-hash", "mobile-1", ClientType.MOBILE);
+        when(refreshTokenService.extractSid("reused-token")).thenReturn(SID);
+        when(sesionRepository.findBySidForUpdate(SID)).thenReturn(Optional.of(session));
+        when(refreshTokenService.matches("reused-token", "current-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.refresh("reused-token", ClientType.MOBILE))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+
+        assertThat(session.getMotivoRevocacion()).isEqualTo(RevocationReason.REFRESH_REUSE);
+        verify(jwtService, never()).generateAccessToken(anyString(), org.mockito.ArgumentMatchers.any(UUID.class));
+    }
+
+    @Test
+    void marksExpiredSessionAndRejectsInactivePrincipals() {
+        Usuario usuario = usuario("usuario.demo", (short) 1, persona(7, (short) 1));
+        SesionUsuario expired = session(usuario, "hash", "mobile-1", ClientType.MOBILE);
+        ReflectionTestUtils.setField(expired, "fechaExpiracion", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        when(refreshTokenService.extractSid("expired-token")).thenReturn(SID);
+        when(sesionRepository.findBySidForUpdate(SID)).thenReturn(Optional.of(expired));
+
+        assertThatThrownBy(() -> service.refresh("expired-token", ClientType.MOBILE))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThat(expired.getMotivoRevocacion()).isEqualTo(RevocationReason.EXPIRED);
+
+        SesionUsuario inactive = session(usuario("usuario.demo", (short) 0, persona(7, (short) 1)),
+                "hash", "mobile-1", ClientType.MOBILE);
+        when(refreshTokenService.extractSid("inactive-token")).thenReturn(SID);
+        when(sesionRepository.findBySidForUpdate(SID)).thenReturn(Optional.of(inactive));
+        assertThatThrownBy(() -> service.refresh("inactive-token", ClientType.MOBILE))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThat(inactive.isRevoked()).isFalse();
+    }
+
+    @Test
+    void rejectsUnknownOrInvalidCredentialsWithoutCreatingSession() {
+        when(usuarioRepository.findByLoginForUpdate("inexistente")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.login(request(" inexistente ", "device", "Phone", ClientType.MOBILE)))
+                .isInstanceOf(InvalidCredentialsException.class);
+        verify(passwordEncoder).matches(anyString(), anyString());
+        verify(sesionRepository, never()).save(org.mockito.ArgumentMatchers.any());
+
+        Usuario usuario = usuario("usuario.demo", (short) 1, persona(7, (short) 1));
+        when(usuarioRepository.findByLoginForUpdate("usuario.demo")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("clave-ficticia", "bcrypt-hash")).thenReturn(false);
+        assertThatThrownBy(() -> service.login(request("usuario.demo", "device", "Phone", ClientType.MOBILE)))
+                .isInstanceOf(InvalidCredentialsException.class);
+    }
+
+    private LoginRequest request(String login, String deviceId, String deviceName, ClientType type) {
+        return new LoginRequest(login, "clave-ficticia", deviceId, deviceName, type);
+    }
+
+    private SesionUsuario session(Usuario usuario, String hash, String deviceId, ClientType type) {
+        LocalDateTime created = LocalDateTime.of(2026, 8, 1, 12, 0);
+        return new SesionUsuario(SID, usuario, hash, deviceId, "Device", type, created, created.plusDays(30));
     }
 
     private Usuario usuario(String login, short estado, Persona persona) {

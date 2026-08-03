@@ -4,7 +4,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 ## Fases documentadas
 
-La Fase 09 está completada: [Autenticación y validación de credenciales](09-autenticacion-validacion-credenciales.md).
+La subfase 10.1 está completada: [Sesiones por dispositivo, JWT y refresh token](10-1-sesiones-jwt-refresh.md). La Fase 10 global continúa en desarrollo y 10.2 no se inició.
 
 | Fase | Estado | Documento |
 |---|---|---|
@@ -17,6 +17,8 @@ La Fase 09 está completada: [Autenticación y validación de credenciales](09-a
 | 06 — Modelo y migración de Usuario | `COMPLETADA` | [Abrir documento](06-modelo-migracion-usuario.md) |
 | 07 — Administración de Usuarios y Contraseñas | `COMPLETADA` | [Abrir documento](07-administracion-usuarios-contrasenas.md) |
 | 08 — Roles y relación Usuario–Rol | `COMPLETADA` | [Abrir documento](08-roles-relacion-usuario-rol.md) |
+| 09 — Autenticación y validación de credenciales | `COMPLETADA` | [Abrir documento](09-autenticacion-validacion-credenciales.md) |
+| 10.1 — Sesiones por dispositivo, JWT y refresh | `COMPLETADA` | [Abrir documento](10-1-sesiones-jwt-refresh.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La siguiente fase autorizable es la Fase 10 — JWT y control de sesiones.
+La siguiente subfase autorizable es 10.2; requiere autorización expresa.

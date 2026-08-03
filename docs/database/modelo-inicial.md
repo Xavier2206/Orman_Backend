@@ -22,11 +22,16 @@ Representa agrupaciones asignables a usuarios. La Fase 08 implementó `codr` com
 
 La tabla `rolusu` materializa la relación de muchos a muchos entre usuarios y roles. Usa la clave primaria compuesta `(login, codr)`, conserva `fecha_asignacion`, elimina asignaciones al eliminar físicamente un Usuario y restringe la eliminación de un Rol asignado.
 
+### `sesiones_usuario`
+
+V6 incorpora sesiones persistentes. `sid UUID` es PK y `login VARCHAR(30)` referencia `usuarios(login)` con `ON DELETE CASCADE`. Solo existe una fila activa por `(login, device_id)` mediante índice único parcial. La fila conserva cliente WEB/MOBILE, fechas UTC, versión, revocación y exclusivamente el hash SHA-256 del refresh token; nunca el token original.
+
 ## Relaciones confirmadas
 
 - Una persona puede tener como máximo un usuario.
 - Un usuario puede tener varios roles.
 - Un rol puede pertenecer a varios usuarios.
+- Un usuario puede tener varias sesiones, con máximo una activa por dispositivo.
 - La tabla relacional que se elija en la Fase 08 materializará la relación entre `usuarios` y `roles`.
 
 La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obligatorio, único y referencia `personas.codper` con `ON DELETE RESTRICT`.
@@ -43,4 +48,4 @@ La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obliga
 
 ## Estado de implementación
 
-La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5. Sesiones y las demás tablas futuras no están implementadas.
+La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5; la subfase 10.1 completó `sesiones_usuario` con V6. No se creó V7 ni tablas de fases futuras.

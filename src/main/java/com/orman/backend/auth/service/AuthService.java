@@ -1,9 +1,11 @@
 package com.orman.backend.auth.service;
 
 import com.orman.backend.auth.dto.request.LoginRequest;
-import com.orman.backend.auth.dto.response.LoginResponse;
+import com.orman.backend.auth.model.ClientType;
 
 public interface AuthService {
 
-    LoginResponse login(LoginRequest request);
+    AuthResult login(LoginRequest request);
+
+    AuthResult refresh(String refreshToken, ClientType sourceClientType);
 }

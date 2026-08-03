@@ -1,11 +1,24 @@
 package com.orman.backend.auth.controller;
 
+import com.orman.backend.auth.config.JwtProperties;
+import com.orman.backend.auth.config.RefreshCookieProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
+import com.orman.backend.auth.dto.request.RefreshRequest;
 import com.orman.backend.auth.dto.response.LoginResponse;
+import com.orman.backend.auth.exception.InvalidRefreshTokenException;
+import com.orman.backend.auth.model.ClientType;
+import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.AuthService;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,10 +29,61 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
+    private static final String REFRESH_PATH = "/api/v1/auth";
     private final AuthService authService;
+    private final RefreshCookieProperties cookieProperties;
+    private final JwtProperties jwtProperties;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        return response(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(
+            @CookieValue(name = "${security.cookie.refresh-name}", required = false) String cookieToken,
+            @RequestBody(required = false) RefreshRequest request) {
+        String bodyToken = request == null ? null : request.refreshToken();
+        RefreshInput input = resolveRefreshInput(cookieToken, bodyToken);
+        return response(authService.refresh(input.token(), input.clientType()));
+    }
+
+    private ResponseEntity<LoginResponse> response(AuthResult result) {
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
+        if (result.clientType() == ClientType.WEB) {
+            builder.header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken()).toString());
+        }
+        return builder.body(result.response());
+    }
+
+    private ResponseCookie refreshCookie(String value) {
+        return ResponseCookie.from(cookieProperties.refreshName(), value)
+                .httpOnly(true)
+                .secure(cookieProperties.secure())
+                .sameSite(cookieProperties.sameSite())
+                .path(REFRESH_PATH)
+                .maxAge(Duration.ofDays(jwtProperties.refreshTokenExpirationDays()))
+                .build();
+    }
+
+    private RefreshInput resolveRefreshInput(String cookieToken, String bodyToken) {
+        boolean hasCookie = StringUtils.hasText(cookieToken);
+        boolean hasBody = StringUtils.hasText(bodyToken);
+        if (!hasCookie && !hasBody) {
+            throw new InvalidRefreshTokenException();
+        }
+        if (hasCookie && hasBody && !constantTimeEquals(cookieToken, bodyToken)) {
+            throw new InvalidRefreshTokenException();
+        }
+        return hasCookie
+                ? new RefreshInput(cookieToken, ClientType.WEB)
+                : new RefreshInput(bodyToken, ClientType.MOBILE);
+    }
+
+    private boolean constantTimeEquals(String first, String second) {
+        return MessageDigest.isEqual(first.getBytes(StandardCharsets.UTF_8), second.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private record RefreshInput(String token, ClientType clientType) {
     }
 }

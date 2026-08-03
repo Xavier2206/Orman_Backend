@@ -4,6 +4,7 @@ import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
+import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -38,6 +39,13 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException exception, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS,
                 "Credenciales inválidas", "Las credenciales no son válidas.", request, List.of());
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    ResponseEntity<ProblemDetail> handleInvalidRefreshToken(
+            InvalidRefreshTokenException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_REFRESH_TOKEN,
+                "Sesión no válida", "La sesión no es válida o ha expirado.", request, List.of());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

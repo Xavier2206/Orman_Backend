@@ -1,12 +1,12 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 12.1 incorpora el modelo persistente de Menús y Procesos sin alterar la autorización existente.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 12.2 incorpora la administración REST de Menús, Procesos y sus relaciones sin alterar la autorización existente.
 
 ## Estado actual
 
-**Última subfase completada: Fase 12.1 — Modelo persistente de Menús y Procesos**
+**Última subfase completada: Fase 12.2 — Administración REST de Menús, Procesos y relaciones**
 
-**Fases 10, 11 y 12.1: `COMPLETADAS`; Fase 12.2 pendiente y no iniciada**
+**Fases 10, 11 y 12: `COMPLETADAS`; Fase 12.3 no iniciada**
 
 El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, seguridad stateless y sesiones propias. En cada petición protegida carga Roles activos como authorities `ROLE_<NOMBRE>` sin incluirlos en el JWT. La matriz protege Personas, Usuarios, Roles y asignaciones; reserva PROPIETARIO y exige al menos uno activo. Flyway está en V7 con `menus`, `procesos`, `rolme` y `mepro`, sin endpoints ni autorización por Proceso.
 
@@ -122,6 +122,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 11.1 — Carga de Roles activos y base de autorización](docs/fases/11-1-base-autorizacion-roles.md)
 - [Fase 11.2 — Matriz de autorización y protección del propietario](docs/fases/11-2-matriz-autorizacion-propietario.md)
 - [Fase 12.1 — Modelo persistente de Menús y Procesos](docs/fases/12-1-modelo-menus-procesos.md)
+- [Fase 12.2 — Administración REST de Menús, Procesos y relaciones](docs/fases/12-2-administracion-rest-menus-procesos.md)
 - [Guía Postman de asignaciones Usuario–Rol](docs/postman/rolusu.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)

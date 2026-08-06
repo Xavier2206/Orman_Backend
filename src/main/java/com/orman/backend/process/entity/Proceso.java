@@ -9,12 +9,14 @@ import jakarta.persistence.Table;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.DynamicInsert;
 
 @Entity
 @Table(name = "procesos")
 @Getter
+@Setter
 @NoArgsConstructor
 @DynamicInsert
 public class Proceso {

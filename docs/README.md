@@ -8,6 +8,7 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Etapa 1 — Fundación técnica](etapas/etapa-01-fundacion-tecnica.md)
 - [Etapa 2 — Personas, usuarios y roles](etapas/etapa-02-personas-usuarios-roles.md)
 - [Índice de fases](fases/README.md)
+- [Índice de guías Postman](postman/README.md)
 - [Fase 00 — Planificación general](fases/00-planificacion-general.md)
 - [Fase 01 — Revisión y normalización Spring Boot](fases/01-revision-normalizacion-spring-boot.md)
 - [Fase 02 — Configuración PostgreSQL y Flyway](fases/02-configuracion-postgresql-flyway.md)
@@ -48,6 +49,12 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 ## Fase 12.1
 
 - [Modelo persistente de Menús y Procesos](fases/12-1-modelo-menus-procesos.md)
+
+## Fase 12.2
+
+- [Administración REST de Menús, Procesos y relaciones](fases/12-2-administracion-rest-menus-procesos.md)
+- [Guía Postman de Menús y Rol–Menú](postman/menu.md)
+- [Guía Postman de Procesos y Menú–Proceso](postman/proceso.md)
 
 ## Decisiones arquitectónicas
 

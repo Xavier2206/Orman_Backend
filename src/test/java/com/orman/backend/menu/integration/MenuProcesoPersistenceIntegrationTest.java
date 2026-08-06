@@ -4,11 +4,14 @@ import com.orman.backend.menu.entity.MePro;
 import com.orman.backend.menu.entity.Menu;
 import com.orman.backend.menu.repository.MeProRepository;
 import com.orman.backend.menu.repository.MenuRepository;
+import com.orman.backend.menu.service.MeProService;
+import com.orman.backend.menu.service.MenuService;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.process.entity.Proceso;
 import com.orman.backend.process.repository.ProcesoRepository;
+import com.orman.backend.process.service.ProcesoService;
 import com.orman.backend.role.dto.request.CreateRolRequest;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.entity.Rol;
@@ -17,6 +20,9 @@ import com.orman.backend.role.repository.RolRepository;
 import com.orman.backend.role.repository.RolMeRepository;
 import com.orman.backend.role.service.RolService;
 import com.orman.backend.role.service.RolUsuService;
+import com.orman.backend.role.service.RolMeService;
+import com.orman.backend.menu.dto.request.CreateMenuRequest;
+import com.orman.backend.process.dto.request.CreateProcesoRequest;
 import com.orman.backend.user.dto.CreateUsuarioRequest;
 import com.orman.backend.user.dto.UsuarioResponse;
 import com.orman.backend.user.service.UsuarioService;
@@ -48,6 +54,25 @@ class MenuProcesoPersistenceIntegrationTest {
     @Autowired private UsuarioService usuarioService;
     @Autowired private RolService rolService;
     @Autowired private RolUsuService rolUsuService;
+    @Autowired private MenuService menuService;
+    @Autowired private ProcesoService procesoService;
+    @Autowired private RolMeService rolMeService;
+    @Autowired private MeProService meProService;
+
+    @Test
+    void administrativeServicesPersistRelationsAndKeepPrincipalEntitiesWhenRemoved() {
+        RolResponse rol = rolService.create(new CreateRolRequest("ROL-ADMIN-REL", null));
+        var menu = menuService.create(new CreateMenuRequest("MENU-ADMIN-REL", "users", null));
+        var proceso = procesoService.create(new CreateProcesoRequest("PROCESO-ADMIN-REL", "admin-rel", null));
+        assertThat(rolMeService.assign(rol.codr(), menu.codm()).estadoMenu()).isEqualTo((short) 1);
+        assertThat(meProService.assign(menu.codm(), proceso.codp()).estadoProceso()).isEqualTo((short) 1);
+        assertThat(rolMeService.listByRol(rol.codr())).hasSize(1);
+        assertThat(meProService.listByMenu(menu.codm())).hasSize(1);
+        rolMeService.remove(rol.codr(), menu.codm());
+        meProService.remove(menu.codm(), proceso.codp());
+        assertThat(menuRepository.findById(menu.codm())).isPresent();
+        assertThat(procesoRepository.findById(proceso.codp())).isPresent();
+    }
 
     @Test
     void v7CreatesOnlyApprovedTablesConstraintsAndNoInitialData() {

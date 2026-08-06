@@ -4,7 +4,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 ## Fases documentadas
 
-Las Fases 00 a 11 y la subfase 12.1 están completadas. La 12.2 no se inició.
+Las Fases 00 a 12.2 están completadas. No se inició una Fase 12.3.
 
 | Fase | Estado | Documento |
 |---|---|---|
@@ -23,6 +23,7 @@ Las Fases 00 a 11 y la subfase 12.1 están completadas. La 12.2 no se inició.
 | 11.1 — Carga de Roles activos y base de autorización | `COMPLETADA` | [Abrir documento](11-1-base-autorizacion-roles.md) |
 | 11.2 — Matriz de autorización y protección del propietario | `COMPLETADA` | [Abrir documento](11-2-matriz-autorizacion-propietario.md) |
 | 12.1 — Modelo persistente de Menús y Procesos | `COMPLETADA` | [Abrir documento](12-1-modelo-menus-procesos.md) |
+| 12.2 — Administración REST de Menús, Procesos y relaciones | `COMPLETADA` | [Abrir documento](12-2-administracion-rest-menus-procesos.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La Fase 11 global está completada. La Fase 12.2 permanece pendiente y no se inició.
+La Fase 11 y la Fase 12 están completadas. La Fase 12.3 no se inició.

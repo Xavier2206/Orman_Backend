@@ -6,6 +6,18 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 12.2 — 2026-08-06
+
+### Agregado
+
+- Administración REST de Menús, Procesos, RolMe y MePro mediante DTOs, mappers, servicios transaccionales y controladores exclusivos de PROPIETARIO.
+- Validación de unicidad, estados, relaciones duplicadas e intentos de asignar extremos inactivos.
+- Guías Postman y pruebas para contratos, mappers, servicios y persistencia existente.
+
+### Exclusiones
+
+- Sin V8, `rolpro`, datos iniciales, eliminación física de Menús o Procesos, authorities por Proceso ni cambios de JWT, sesiones, CORS, CSRF o seguridad de Fase 11.2.
+
 ## Fase 12.1 — 2026-08-06
 
 ### Agregado

@@ -39,7 +39,7 @@ El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UT
 
 La Fase 11.2 aplica `@PreAuthorize` a los controladores actuales. `AuthorizationService` resuelve alcance propio, Usuario común y Persona común; las consultas complejas no viven en SpEL. `OwnerProtectionService` mantiene las invariantes en la capa transaccional. Todas las operaciones que pueden reducir propietarios activos bloquean primero, con `PESSIMISTIC_WRITE`, la fila del Rol exacto `PROPIETARIO`; después cuentan asignación, Rol, Usuario y Persona activos. Esta fila actúa como mutex y evita que operaciones concurrentes dejen cero propietarios.
 
-La Fase 12.1 incorpora el flujo persistente `Usuario -> RolUsu -> Rol -> RolMe -> Menu -> MePro -> Proceso`. `RolMe` y `MePro` son entidades explícitas con claves compuestas; no existe `rolpro`, `@ManyToMany` automático ni integración de Menús/Procesos con autorización HTTP.
+Las Fases 12.1 y 12.2 incorporan el flujo persistente `Usuario -> RolUsu -> Rol -> RolMe -> Menu -> MePro -> Proceso` y su administración REST exclusiva de PROPIETARIO. `RolMe` y `MePro` son entidades explícitas con claves compuestas; no existe `rolpro`, `@ManyToMany` automático, authorities por Proceso ni menú del Usuario autenticado.
 
 Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; romper el mínimo devuelve `409 LAST_OWNER_REQUIRED`; la autenticación inválida conserva `401`. CORS, CSRF y los contratos WEB/MOBILE no se modificaron. El futuro alcance por propiedad requiere una relación persistente que todavía no existe y no se simula con `tipo_persona`.
 

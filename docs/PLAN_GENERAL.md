@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las Fases 10 y 11 están completadas; la Fase 12.1 incorpora únicamente el modelo persistente de Menús y Procesos.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las Fases 10, 11 y 12 están completadas; no se inició la Fase 12.3.
 
 ## Estados permitidos
 
@@ -24,8 +24,8 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
-- Última subfase completada: **Fase 12.1 — Modelo persistente de Menús y Procesos**.
-- Siguiente subfase autorizable: **Fase 12.2**, únicamente mediante autorización expresa.
+- Última subfase completada: **Fase 12.2 — Administración REST de Menús, Procesos y relaciones**.
+- Fase 12.3: no iniciada.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
 - Resultado de Fase 10: sesiones por dispositivo, JWT HS256, refresh rotatorio, autenticación HTTP stateless, logout y administración de sesiones sobre Flyway V6.
@@ -68,7 +68,7 @@ Teoría: pendiente de creación cuando corresponda.
 | 09 — Autenticación y validación de credenciales | `COMPLETADA` | Fases 07 y 08 | [Documento de Fase 09](fases/09-autenticacion-validacion-credenciales.md) |
 | 10 — JWT y control de sesiones | `COMPLETADA` | Fase 09 | [Subfase 10.1](fases/10-1-sesiones-jwt-refresh.md); [Subfase 10.2](fases/10-2-seguridad-sesiones.md) |
 | 11 — Autorización por roles | `COMPLETADA` | Fases 08 y 10 | [Subfase 11.1](fases/11-1-base-autorizacion-roles.md); [Subfase 11.2](fases/11-2-matriz-autorizacion-propietario.md) |
-| 12 — Menús y procesos dinámicos | `EN DESARROLLO` (12.1 completada; 12.2 pendiente) | Fase 11 | [Subfase 12.1](fases/12-1-modelo-menus-procesos.md); 12.2 no iniciada |
+| 12 — Menús y procesos dinámicos | `COMPLETADA` | Fase 11 | [Subfase 12.1](fases/12-1-modelo-menus-procesos.md); [Subfase 12.2](fases/12-2-administracion-rest-menus-procesos.md) |
 | 13 — OTP y desafíos de autenticación | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
 
 ### ETAPA 4 — Calidad y producción
@@ -150,7 +150,9 @@ El alcance Administrador–Propiedad permanece pendiente porque todavía no exis
 
 ### Fase 12 — Menús y procesos dinámicos
 
-**Subfase 12.1 completada el 2026-08-06:** modelo V7 con `menus`, `procesos`, `rolme` y `mepro`; relaciones explícitas por claves compuestas para el flujo Usuario–Rol–Menú–Proceso. No se añadieron `rolpro`, endpoints ni autorización por Proceso. Validación: 180 pruebas, 0 fallos, 0 errores y 0 omitidas.
+**Subfase 12.1 completada el 2026-08-06:** modelo V7 con `menus`, `procesos`, `rolme` y `mepro`; relaciones explícitas por claves compuestas para el flujo Usuario–Rol–Menú–Proceso.
+
+**Subfase 12.2 completada el 2026-08-06:** administración REST exclusiva de PROPIETARIO para Menús, Procesos, RolMe y MePro; estados administrativos, validaciones, relaciones explícitas y guías Postman. No se añadieron `rolpro`, V8, datos iniciales, menú de Usuario ni autorización por Proceso.
 
 **Objetivo:** modelar menús, procesos y relaciones de acceso según roles.
 

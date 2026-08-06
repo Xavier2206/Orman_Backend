@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 10 están cerradas; la Fase 11 permanece pendiente de autorización expresa.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 10 y la subfase 11.1 están cerradas; la Fase 11 global permanece en desarrollo.
 
 ## Estados permitidos
 
@@ -24,12 +24,14 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
-- Última subfase completada: **Fase 10.2 — Seguridad HTTP, filtro JWT y administración de sesiones**.
-- Siguiente fase autorizable: **Fase 11**, únicamente mediante autorización expresa.
+- Última subfase completada: **Fase 11.1 — Carga de Roles activos y base de autorización**.
+- Siguiente subfase autorizable: **Fase 11.2 — Matriz de autorización por módulo**, únicamente mediante autorización expresa.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
 - Resultado de Fase 10: sesiones por dispositivo, JWT HS256, refresh rotatorio, autenticación HTTP stateless, logout y administración de sesiones sobre Flyway V6.
-- Fecha de actualización: **2026-08-04**.
+- Estado de la Fase 11 global: **EN DESARROLLO**; 11.1 está cerrada y 11.2 permanece pendiente.
+- Resultado de Fase 11.1: Roles activos consultados en PostgreSQL en cada petición protegida, convertidos a authorities de Spring Security, sin incluirlos en el JWT ni revocar sesiones por sus cambios.
+- Fecha de actualización: **2026-08-06**.
 
 ## Etapas y fases previstas
 
@@ -64,7 +66,7 @@ Teoría: pendiente de creación cuando corresponda.
 |---|---|---|---|
 | 09 — Autenticación y validación de credenciales | `COMPLETADA` | Fases 07 y 08 | [Documento de Fase 09](fases/09-autenticacion-validacion-credenciales.md) |
 | 10 — JWT y control de sesiones | `COMPLETADA` | Fase 09 | [Subfase 10.1](fases/10-1-sesiones-jwt-refresh.md); [Subfase 10.2](fases/10-2-seguridad-sesiones.md) |
-| 11 — Autorización por roles | `PENDIENTE` | Fases 08 y 10 | Documento pendiente de creación |
+| 11 — Autorización por roles | `EN DESARROLLO` | Fases 08 y 10 | [Subfase 11.1](fases/11-1-base-autorizacion-roles.md); subfase 11.2 pendiente |
 | 12 — Menús y procesos dinámicos | `PENDIENTE` | Fase 11 | Documento pendiente de creación |
 | 13 — OTP y desafíos de autenticación | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
 
@@ -138,6 +140,10 @@ Cada Usuario puede mantener varias sesiones activas, con una sola por combinaci�
 **Incluye:** reglas por rol; protección de endpoints; integración con roles; respuestas 401 y 403; pruebas de autorización.
 
 **Excluye:** creación de roles, OTP, menús y procesos. **Dependencias:** Fases 08 y 10.
+
+**Subfase 11.1 completada el 2026-08-06:** consulta escalar de nombres de Roles activos por login, conversión normalizada a `ROLE_<NOMBRE>`, authorities inmutables en `Authentication`, `@EnableMethodSecurity` y respuesta estable `403 ACCESS_DENIED`. Los Roles se consultan después de validar JWT, sesión, Usuario y Persona, y nunca forman parte del JWT. Asignar, retirar, desactivar o reactivar un Rol se refleja en la siguiente petición con la misma sesión y el mismo access token.
+
+**Subfase 11.2 pendiente:** matriz concreta de autorización de Personas, Usuarios, Roles y asignaciones. La cadena HTTP conserva por ahora login, refresh, preflight y dispatch interno de errores como rutas públicas; el resto requiere autenticación, sin reglas generales por módulo.
 
 ### Fase 12 — Menús y procesos dinámicos
 

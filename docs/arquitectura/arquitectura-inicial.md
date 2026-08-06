@@ -31,11 +31,11 @@ El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu` y `sesiones_usuari
 
 ## Seguridad
 
-La Fase 07 introdujo BCrypt y la Fase 09 validó credenciales. La subfase 10.1 incorpora JWT HS256 y refresh opaco con sesiones por dispositivo. Nimbus JOSE + JWT es la única biblioteca JWT; la clave se obtiene del entorno y debe tener al menos 32 bytes. Ningún secreto, contraseña, hash, token u OTP se expone o registra.
+La Fase 07 introdujo BCrypt, la Fase 09 validó credenciales y la Fase 10 incorporó JWT HS256, refresh opaco, sesiones por dispositivo y seguridad HTTP stateless. Nimbus JOSE + JWT es la única biblioteca JWT; la clave se obtiene del entorno y debe tener al menos 32 bytes. Ningún secreto, contraseña, hash, token u OTP se expone o registra.
 
-`tipo_persona` es clasificación de negocio y no sustituye roles, permisos ni autorización. Los JWT no contienen Roles. Spring Security HTTP, filtros, protección de rutas, logout y autorización siguen ausentes y pertenecen a 10.2/11.
+`tipo_persona` es clasificación de negocio y no sustituye roles, permisos ni autorización. Los JWT contienen exclusivamente `sub`, `sid`, `iss`, `iat` y `exp`; no contienen Roles. El filtro valida JWT, sesión, Usuario y Persona, consulta los nombres de Roles activos en PostgreSQL y crea un `Authentication` con authorities inmutables `ROLE_<NOMBRE>`. Esta consulta ocurre en cada petición protegida, de modo que los cambios confirmados de asignación o estado se reflejan sin renovar el token ni revocar la sesión.
 
-El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UTC, crea sesiones y emite tokens mediante login. `POST /api/v1/auth/refresh` rota el refresh bajo bloqueo pesimista. WEB usa cookie HttpOnly y MOBILE JSON. La configuración HTTP completa permanece pendiente.
+El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UTC, crea sesiones y emite tokens mediante login. `POST /api/v1/auth/refresh` rota el refresh bajo bloqueo pesimista. WEB usa cookie HttpOnly y MOBILE JSON. `@EnableMethodSecurity` deja disponibles `@PreAuthorize`, `hasRole` y `hasAnyRole`; la matriz de controladores se reserva para 11.2. Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`, mientras los fallos de autenticación conservan `401`.
 
 ## Evolución
 

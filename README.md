@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 10 completó autenticación JWT y administración de sesiones sobre PostgreSQL.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 11.1 incorporó la base de autorización por Roles activos sobre la autenticación JWT y las sesiones persistentes.
 
 ## Estado actual
 
-**Última subfase completada: Fase 10.2 — Seguridad HTTP, filtro JWT y administración de sesiones**
+**Última subfase completada: Fase 11.1 — Carga de Roles activos y base de autorización**
 
-**Fase 10 global: `COMPLETADA`; Fase 11 no iniciada**
+**Fase 10 global: `COMPLETADA`; Fase 11 global: `EN DESARROLLO`; Fase 11.2 pendiente**
 
-El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, filtro JWT, seguridad HTTP stateless, logout y administración de sesiones propias. Flyway V6 administra `sesiones_usuario`; el access JWT dura 15 minutos y el refresh opaco rota, dura 30 días y se persiste solo como hash. No existe todavía autorización por Roles, permisos, menús, procesos ni OTP.
+El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, filtro JWT, seguridad HTTP stateless, logout y administración de sesiones propias. En cada petición protegida carga desde PostgreSQL los Roles activos del Usuario y los convierte a authorities `ROLE_<NOMBRE>`; no los incluye en el JWT. Flyway permanece en V6. La matriz concreta de autorización por módulos, permisos, menús, procesos y OTP todavía no existe.
 
 ## Stack confirmado
 
@@ -117,6 +117,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 09 — Autenticación y validación de credenciales](docs/fases/09-autenticacion-validacion-credenciales.md)
 - [Fase 10.1 — Sesiones por dispositivo, JWT y refresh token](docs/fases/10-1-sesiones-jwt-refresh.md)
 - [Fase 10.2 — Seguridad HTTP y administración de sesiones](docs/fases/10-2-seguridad-sesiones.md)
+- [Fase 11.1 — Carga de Roles activos y base de autorización](docs/fases/11-1-base-autorizacion-roles.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)
 - [Guía Postman de la API Roles](docs/postman/rol.md)

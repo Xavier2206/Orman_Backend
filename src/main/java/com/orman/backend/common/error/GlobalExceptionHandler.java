@@ -31,6 +31,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 @RestControllerAdvice
@@ -84,6 +85,12 @@ public class GlobalExceptionHandler {
             SecurityAccessDeniedException exception, HttpServletRequest request) {
         return problem(HttpStatus.FORBIDDEN, ErrorCode.INVALID_REQUEST,
                 "Solicitud rechazada", "La solicitud de seguridad no es válida.", request, List.of());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED,
+                "Acceso denegado", "No tiene autorización para realizar esta operación.", request, List.of());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

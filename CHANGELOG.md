@@ -6,6 +6,33 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 11.1 — 2026-08-06
+
+### Agregado
+
+- Consulta JPQL escalar de nombres de Roles activos por login, sin carga de entidades completas ni N+1.
+- `UserAuthorityService` para normalizar, deduplicar y convertir nombres activos en una colección inmutable de authorities `ROLE_<NOMBRE>`.
+- Seguridad por métodos mediante `@EnableMethodSecurity` y contrato estable `403 ACCESS_DENIED` para identidades autenticadas sin authority suficiente.
+- Pruebas unitarias, MVC e integración con PostgreSQL real para authorities, cambios inmediatos, JWT mínimo, `401` y `403`.
+
+### Modificado
+
+- `JwtAuthenticationFilter` carga las authorities actuales después de validar JWT, sesión, Usuario y Persona, y las incorpora al `Authentication` existente.
+- Los cambios confirmados de asignación o estado de Rol se reflejan en la siguiente petición con la misma sesión y el mismo access token.
+- La documentación distingue autenticación de autorización y mantiene la matriz de módulos reservada para Fase 11.2.
+
+### Seguridad
+
+- El JWT conserva únicamente `sub`, `sid`, `iss`, `iat` y `exp`; no contiene Roles, authorities ni permisos.
+- Roles inactivos y nombres vacíos/inconsistentes no conceden authority; un Usuario sin Roles continúa autenticado con colección vacía.
+- Asignar, retirar, activar o desactivar Roles no revoca sesiones. CORS, CSRF y contratos WEB/MOBILE permanecen sin cambios inseguros.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 149 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- PostgreSQL real, Flyway V1–V6 y Hibernate `ddl-auto=validate`; no se creó V7.
+- Fase 11 global permanece en desarrollo: no se aplicó la matriz de 11.2 y no se inició la Fase 12.
+
 ## Fase 10.2 — 2026-08-04
 
 ### Agregado

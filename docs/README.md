@@ -33,6 +33,12 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Sesiones por dispositivo, JWT y refresh token](fases/10-1-sesiones-jwt-refresh.md)
 - [Guía Postman de login, JWT y refresh](postman/auth.md)
 
+## Fases 10.2 y 11.1
+
+- [Seguridad HTTP y administración de sesiones](fases/10-2-seguridad-sesiones.md)
+- [Carga de Roles activos y base de autorización](fases/11-1-base-autorizacion-roles.md)
+- [Guía Postman de autenticación y base de autorización](postman/auth.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

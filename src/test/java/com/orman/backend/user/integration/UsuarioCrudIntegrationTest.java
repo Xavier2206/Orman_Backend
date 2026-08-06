@@ -11,7 +11,6 @@ import com.orman.backend.user.dto.UsuarioResponse;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import com.orman.backend.user.service.UsuarioService;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

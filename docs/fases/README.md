@@ -4,7 +4,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 ## Fases documentadas
 
-La subfase 10.1 está completada: [Sesiones por dispositivo, JWT y refresh token](10-1-sesiones-jwt-refresh.md). La Fase 10 global continúa en desarrollo y 10.2 no se inició.
+Las Fases 00 a 10 están completadas. La subfase 11.1 también está completada; la Fase 11 global continúa en desarrollo y 11.2 no se inició.
 
 | Fase | Estado | Documento |
 |---|---|---|
@@ -19,6 +19,8 @@ La subfase 10.1 está completada: [Sesiones por dispositivo, JWT y refresh token
 | 08 — Roles y relación Usuario–Rol | `COMPLETADA` | [Abrir documento](08-roles-relacion-usuario-rol.md) |
 | 09 — Autenticación y validación de credenciales | `COMPLETADA` | [Abrir documento](09-autenticacion-validacion-credenciales.md) |
 | 10.1 — Sesiones por dispositivo, JWT y refresh | `COMPLETADA` | [Abrir documento](10-1-sesiones-jwt-refresh.md) |
+| 10.2 — Seguridad HTTP y administración de sesiones | `COMPLETADA` | [Abrir documento](10-2-seguridad-sesiones.md) |
+| 11.1 — Carga de Roles activos y base de autorización | `COMPLETADA` | [Abrir documento](11-1-base-autorizacion-roles.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-La siguiente subfase autorizable es 10.2; requiere autorización expresa.
+La siguiente subfase autorizable es 11.2; requiere autorización expresa. La Fase 12 permanece pendiente.

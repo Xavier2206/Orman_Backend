@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,6 +56,22 @@ class GlobalExceptionHandlerWebMvcTest {
         mockMvc.perform(get("/test-errors/business-rule"))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"));
+    }
+
+    @Test
+    void returnsSafeProblemDetailForAccessDenied() throws Exception {
+        mockMvc.perform(get("/test-errors/access-denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Acceso denegado"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail").value("No tiene autorización para realizar esta operación."))
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.instance").value("/test-errors/access-denied"))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("ROLE_INTERNO_NO_EXPONIBLE"))));
     }
 
     @Test
@@ -111,6 +128,11 @@ class ErrorTestController {
     @GetMapping("/business-rule")
     void businessRule() {
         throw new BusinessRuleException("La operación no cumple una regla de negocio.");
+    }
+
+    @GetMapping("/access-denied")
+    void accessDenied() {
+        throw new AccessDeniedException("ROLE_INTERNO_NO_EXPONIBLE");
     }
 
     @PostMapping("/validation")

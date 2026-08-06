@@ -11,6 +11,7 @@ import com.orman.backend.auth.exception.InvalidJwtException;
 import com.orman.backend.auth.exception.ExpiredJwtException;
 import com.orman.backend.auth.service.JwtService;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -28,7 +29,7 @@ class NimbusJwtServiceTest {
     private static final UUID SID = UUID.fromString("12aa107e-48b4-40f8-b66f-4c9f1906623d");
 
     @Test
-    void generatesAndValidatesRequiredClaimsWithFifteenMinuteLifetime() {
+    void generatesAndValidatesRequiredClaimsWithFifteenMinuteLifetime() throws ParseException {
         NimbusJwtService service = service("orman-backend", NOW);
 
         String token = service.generateAccessToken("usuario.demo", SID);
@@ -39,6 +40,8 @@ class NimbusJwtServiceTest {
         assertThat(claims.issuer()).isEqualTo("orman-backend");
         assertThat(claims.issuedAt()).isEqualTo(NOW);
         assertThat(claims.expiresAt()).isEqualTo(NOW.plusSeconds(900));
+        assertThat(SignedJWT.parse(token).getJWTClaimsSet().getClaims().keySet())
+                .containsExactlyInAnyOrder("sub", "sid", "iss", "iat", "exp");
     }
 
     @Test

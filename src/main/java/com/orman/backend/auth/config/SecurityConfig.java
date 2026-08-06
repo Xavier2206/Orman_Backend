@@ -5,6 +5,7 @@ import com.orman.backend.auth.exception.SecurityAccessDeniedException;
 import com.orman.backend.auth.security.JwtAuthenticationFilter;
 import com.orman.backend.auth.service.JwtService;
 import com.orman.backend.auth.service.SessionService;
+import com.orman.backend.auth.service.UserAuthorityService;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.Cookie;
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -28,6 +30,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -62,8 +65,9 @@ public class SecurityConfig {
 
     @Bean
     JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, SessionService sessionService,
+            UserAuthorityService userAuthorityService,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
-        return new JwtAuthenticationFilter(jwtService, sessionService, exceptionResolver);
+        return new JwtAuthenticationFilter(jwtService, sessionService, userAuthorityService, exceptionResolver);
     }
 
     @Bean

@@ -165,7 +165,7 @@ Todas las demás rutas requieren el access token:
 Authorization: Bearer {{accessToken}}
 ```
 
-El backend valida firma, algoritmo, issuer, expiración, `sub`, `sid`, sesión persistente no revocada/no expirada y Usuario/Persona activos. No valida Roles ni permisos en Fase 10.2.
+El backend valida firma, algoritmo, issuer, expiración, `sub`, `sid`, sesión persistente no revocada/no expirada y Usuario/Persona activos. Después consulta en PostgreSQL los Roles activos asignados al login y los convierte a authorities `ROLE_<NOMBRE>`. Los Roles no están en el JWT y la matriz concreta por endpoint permanece pendiente de Fase 11.2.
 
 ## 26. Logout y logout global
 
@@ -209,6 +209,7 @@ Una sesión propia responde 204 y queda con `ADMIN_REVOKED`. Un `sid` inexistent
 | JWT expirado | 401 | `TOKEN_EXPIRED` |
 | Sesión revocada | 401 | `SESSION_REVOKED` |
 | Sesión expirada | 401 | `SESSION_EXPIRED` |
+| Autenticado sin authority suficiente en un método protegido | 403 | `ACCESS_DENIED` |
 
 Todos usan `application/problem+json` con `type`, `title`, `status`, `detail`, `errorCode`, `timestamp`, `traceId` e `instance`.
 
@@ -226,3 +227,9 @@ Flutter envía `Authorization: Bearer {{accessToken}}`, ejecuta refresh mediante
 - Desactivar Usuario: `USER_DISABLED`.
 - Desactivar Persona vinculada: `PERSON_DISABLED`.
 - Reactivar Usuario o Persona no restaura ninguna sesión; se debe iniciar sesión nuevamente.
+
+## 33. Base de autorización por Roles
+
+Para comprobar cambios inmediatos, conserve el mismo `{{accessToken}}` y `sid`, asigne o retire un Rol mediante la API de Roles y repita una petición protegida por método. En la siguiente petición, una asignación activa concede `ROLE_<NOMBRE>` y su retiro la elimina. Desactivar el Rol conserva la asignación pero deja de concederla; reactivarlo la restaura.
+
+Los cambios de Rol no revocan la sesión ni requieren login, refresh o un JWT nuevo. Un Usuario sin Roles continúa autenticado con authorities vacías y conserva sus operaciones propias de autenticación y sesiones. Actualmente no hay una matriz general por módulo ni un endpoint artificial para inspeccionar authorities; esa protección se incorporará únicamente en Fase 11.2.

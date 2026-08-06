@@ -4,12 +4,12 @@ import com.orman.backend.auth.exception.InvalidJwtException;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.auth.service.JwtService;
 import com.orman.backend.auth.service.SessionService;
+import com.orman.backend.auth.service.UserAuthorityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,12 +23,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final SessionService sessionService;
+    private final UserAuthorityService userAuthorityService;
     private final HandlerExceptionResolver exceptionResolver;
 
     public JwtAuthenticationFilter(JwtService jwtService, SessionService sessionService,
+            UserAuthorityService userAuthorityService,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
         this.jwtService = jwtService;
         this.sessionService = sessionService;
+        this.userAuthorityService = userAuthorityService;
         this.exceptionResolver = exceptionResolver;
     }
 
@@ -52,7 +55,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             JwtService.JwtClaims claims = jwtService.validateAndExtract(token);
             AuthenticatedUser principal = sessionService.authenticate(claims.subject(), claims.sid());
             SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(principal, null, List.of()));
+                    new UsernamePasswordAuthenticationToken(principal, null,
+                            userAuthorityService.loadAuthorities(principal.login())));
             filterChain.doFilter(request, response);
         } catch (RuntimeException exception) {
             SecurityContextHolder.clearContext();

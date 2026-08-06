@@ -1,6 +1,8 @@
 package com.orman.backend.user.service.impl;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.auth.model.RevocationReason;
+import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.person.entity.Persona;
@@ -35,6 +37,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioMapper usuarioMapper;
     private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
+    private final SessionService sessionService;
 
     @Override
     @Transactional
@@ -78,7 +81,11 @@ public class UsuarioServiceImpl implements UsuarioService {
     public UsuarioResponse update(String login, UpdateUsuarioRequest request) {
         Usuario usuario = findUsuario(login);
         usuarioMapper.update(usuario, request);
-        return usuarioMapper.toResponse(usuarioRepository.saveAndFlush(usuario));
+        Usuario saved = usuarioRepository.saveAndFlush(usuario);
+        if (Short.valueOf(INACTIVO).equals(saved.getEstado())) {
+            sessionService.revokeAll(login, RevocationReason.USER_DISABLED);
+        }
+        return usuarioMapper.toResponse(saved);
     }
 
     @Override
@@ -98,13 +105,18 @@ public class UsuarioServiceImpl implements UsuarioService {
     public void changePassword(String login, ChangePasswordRequest request) {
         Usuario usuario = findUsuario(login);
         usuario.setPasswd(passwordEncoder.encode(request.newPassword()));
-        usuarioRepository.save(usuario);
+        usuarioRepository.saveAndFlush(usuario);
+        sessionService.revokeAll(login, RevocationReason.PASSWORD_CHANGED);
     }
 
     private UsuarioResponse changeStatus(String login, short estado) {
         Usuario usuario = findUsuario(login);
         usuario.setEstado(estado);
-        return usuarioMapper.toResponse(usuarioRepository.save(usuario));
+        Usuario saved = usuarioRepository.save(usuario);
+        if (estado == INACTIVO) {
+            sessionService.revokeAll(login, RevocationReason.USER_DISABLED);
+        }
+        return usuarioMapper.toResponse(saved);
     }
 
     private Usuario findUsuario(String login) {

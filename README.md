@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 10.1 completó sesiones por dispositivo, JWT y refresh rotatorio sobre PostgreSQL.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 10 completó autenticación JWT y administración de sesiones sobre PostgreSQL.
 
 ## Estado actual
 
-**Última subfase completada: Fase 10.1 — Sesiones por dispositivo, JWT y refresh token**
+**Última subfase completada: Fase 10.2 — Seguridad HTTP, filtro JWT y administración de sesiones**
 
-**Fase 10 global: `EN DESARROLLO`; Fase 10.2 pendiente y no iniciada**
+**Fase 10 global: `COMPLETADA`; Fase 11 no iniciada**
 
-El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE y refresh. Flyway V6 administra `sesiones_usuario`; el access JWT dura 15 minutos y el refresh opaco rota, dura 30 días y se persiste solo como hash. Aún no hay filtro JWT, `SecurityFilterChain`, protección de endpoints, logout ni autorización.
+El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, filtro JWT, seguridad HTTP stateless, logout y administración de sesiones propias. Flyway V6 administra `sesiones_usuario`; el access JWT dura 15 minutos y el refresh opaco rota, dura 30 días y se persiste solo como hash. No existe todavía autorización por Roles, permisos, menús, procesos ni OTP.
 
 ## Stack confirmado
 
@@ -32,11 +32,27 @@ El servidor se configura para usar el puerto `9090`. La API de Persona está dis
 
 Para iniciar la aplicación se requiere PostgreSQL, `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` de al menos 32 bytes.
 
+`ORMAN_FRONTEND_URL` define el origen permitido para Angular. CORS admite credenciales y nunca usa `*`. Angular envía el access token mediante `Authorization: Bearer`, mantiene el refresh en cookie HttpOnly y reenvía `X-XSRF-TOKEN` al renovar. Flutter envía Bearer y conserva su refresh MOBILE en almacenamiento seguro.
+
 ## Configuración local de PostgreSQL
 
 La aplicación obtiene la conexión de estas variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` y `DB_PASSWORD`. Los valores no sensibles de host, puerto y base tienen valores predeterminados en `application.yml`; usuario y contraseña son obligatorios.
 
-Usa [.env.example](.env.example) como referencia. Puede versionarse, pero `.env` real está ignorado y Spring Boot no lo carga automáticamente.
+Usa [.env.example](.env.example) como referencia. `application.yml` importa opcionalmente `.env` como archivo de propiedades (`optional:file:./.env[.properties]`); el archivo real está ignorado por Git y nunca se empaqueta. Si no existe, siguen funcionando las variables del sistema, que tienen prioridad sobre `.env`.
+
+## Configuración local de JWT
+
+`JWT_SECRET` es obligatorio y debe tener al menos 32 bytes. Genera un valor local una sola vez con PowerShell; no ejecutes ni compartas su resultado:
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+Alternativa A — `.env` local: crea `.env` en la raíz a partir de `.env.example`, coloca el resultado en `JWT_SECRET=<valor>` y arranca `OrmanBackendApplication`. Spring Boot 4.1.0 lo carga mediante el import opcional. No versionas ese archivo.
+
+Alternativa B — IntelliJ: abre **Run → Edit Configurations → Environment variables** y agrega `JWT_SECRET=<valor-local-seguro>`. Si creaste una variable global de Windows después de abrir IntelliJ, reinicia IntelliJ para que pueda heredarla.
 
 En PowerShell, configura las variables solo para la sesión actual antes de ejecutar Maven:
 
@@ -49,6 +65,15 @@ $env:DB_PASSWORD = "<contraseña>"
 $env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
 .\mvnw.cmd test
 ```
+
+Para iniciar desde Maven en la sesión actual:
+
+```powershell
+$env:JWT_SECRET = "<valor-local-seguro>"
+.\mvnw.cmd spring-boot:run
+```
+
+La variable de PowerShell dura solo durante esa sesión. Una variable de entorno configurada de este modo o en IntelliJ sobrescribe cualquier valor de `.env`.
 
 En IntelliJ IDEA, abre la configuración de ejecución o prueba, agrega las cinco variables en **Environment variables** y ejecuta la configuración. No guardes contraseñas en Git, documentación ni archivos versionados.
 
@@ -91,6 +116,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 08 — Roles y relación Usuario–Rol](docs/fases/08-roles-relacion-usuario-rol.md)
 - [Fase 09 — Autenticación y validación de credenciales](docs/fases/09-autenticacion-validacion-credenciales.md)
 - [Fase 10.1 — Sesiones por dispositivo, JWT y refresh token](docs/fases/10-1-sesiones-jwt-refresh.md)
+- [Fase 10.2 — Seguridad HTTP y administración de sesiones](docs/fases/10-2-seguridad-sesiones.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)
 - [Guía Postman de la API Roles](docs/postman/rol.md)

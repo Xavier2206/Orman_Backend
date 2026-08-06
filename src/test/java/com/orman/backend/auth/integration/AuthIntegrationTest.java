@@ -14,6 +14,7 @@ import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.user.dto.CreateUsuarioRequest;
+import com.orman.backend.user.dto.ChangePasswordRequest;
 import com.orman.backend.user.dto.UsuarioResponse;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
@@ -44,6 +45,27 @@ class AuthIntegrationTest {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtService jwtService;
     @Autowired private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void revokesSessionsAfterPasswordAndAdministrativeDeactivations() {
+        UsuarioResponse passwordUser = createUsuario("AUTH-106-A", "password.revoke", "clave-ficticia");
+        AuthResult passwordSession = authService.login(request(passwordUser.login(), "device", "Phone", ClientType.MOBILE));
+        usuarioService.changePassword(passwordUser.login(), new ChangePasswordRequest("nueva-clave-ficticia"));
+        assertThat(sesionRepository.findById(passwordSession.response().sid()).orElseThrow().getMotivoRevocacion())
+                .isEqualTo(RevocationReason.PASSWORD_CHANGED);
+
+        UsuarioResponse disabledUser = createUsuario("AUTH-106-B", "user.revoke", "clave-ficticia");
+        AuthResult disabledSession = authService.login(request(disabledUser.login(), "device", "Phone", ClientType.MOBILE));
+        usuarioService.deactivate(disabledUser.login());
+        assertThat(sesionRepository.findById(disabledSession.response().sid()).orElseThrow().getMotivoRevocacion())
+                .isEqualTo(RevocationReason.USER_DISABLED);
+
+        UsuarioResponse personUser = createUsuario("AUTH-106-C", "person.revoke", "clave-ficticia");
+        AuthResult personSession = authService.login(request(personUser.login(), "device", "Phone", ClientType.MOBILE));
+        personaService.deactivate(personUser.codper());
+        assertThat(sesionRepository.findById(personSession.response().sid()).orElseThrow().getMotivoRevocacion())
+                .isEqualTo(RevocationReason.PERSON_DISABLED);
+    }
 
     @Test
     void mobileLoginPersistsOnlyHashAndIssuesMinimalJwt() {

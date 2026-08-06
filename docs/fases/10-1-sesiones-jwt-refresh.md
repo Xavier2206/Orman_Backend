@@ -41,7 +41,13 @@ No incluye filtro JWT, `SecurityFilterChain`, protección de endpoints, logout, 
 - PostgreSQL 17.6 conectado; Flyway validó seis migraciones y dejó el esquema en V6.
 - Hibernate inició con `ddl-auto=validate`.
 - Se verificaron login WEB/MOBILE, coexistencia, reemplazo por `deviceId`, JWT, cookie, refresh, rotación, reutilización, errores seguros, constraints e índices.
-- `.\mvnw.cmd clean test`: `BUILD SUCCESS`; 133 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- `.\mvnw.cmd clean test` tras la corrección local: `BUILD SUCCESS`; 135 pruebas, 0 fallos, 0 errores y 0 omitidas.
+
+## Configuración local posterior
+
+Para facilitar la ejecución local sin debilitar la configuración, `application.yml` importa opcionalmente `./.env` con la sugerencia de extensión `.properties`. El archivo no se versiona y no se incluye en el JAR. Si falta, `JWT_SECRET` sigue siendo obligatorio; las variables de entorno del sistema e IntelliJ tienen prioridad sobre `.env`.
+
+Genere una clave local de 32 bytes con PowerShell y colóquela en `.env` o en la configuración de ejecución de IntelliJ. No se genera una clave en el arranque y no existe valor predeterminado.
 
 ## Riesgos y pendientes
 

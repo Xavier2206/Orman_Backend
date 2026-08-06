@@ -5,6 +5,11 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
+import com.orman.backend.auth.exception.ExpiredJwtException;
+import com.orman.backend.auth.exception.ExpiredSessionException;
+import com.orman.backend.auth.exception.InvalidJwtException;
+import com.orman.backend.auth.exception.RevokedSessionException;
+import com.orman.backend.auth.exception.SecurityAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -46,6 +51,39 @@ public class GlobalExceptionHandler {
             InvalidRefreshTokenException exception, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_REFRESH_TOKEN,
                 "Sesión no válida", "La sesión no es válida o ha expirado.", request, List.of());
+    }
+
+    @ExceptionHandler(InvalidJwtException.class)
+    ResponseEntity<ProblemDetail> handleInvalidJwt(InvalidJwtException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_TOKEN,
+                "Token no válido", "El access token no es válido.", request, List.of());
+    }
+
+    @ExceptionHandler(ExpiredJwtException.class)
+    ResponseEntity<ProblemDetail> handleExpiredJwt(ExpiredJwtException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.TOKEN_EXPIRED,
+                "Token expirado", "El access token ha expirado.", request, List.of());
+    }
+
+    @ExceptionHandler(RevokedSessionException.class)
+    ResponseEntity<ProblemDetail> handleRevokedSession(
+            RevokedSessionException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.SESSION_REVOKED,
+                "Sesión revocada", "La sesión fue revocada.", request, List.of());
+    }
+
+    @ExceptionHandler(ExpiredSessionException.class)
+    ResponseEntity<ProblemDetail> handleExpiredSession(
+            ExpiredSessionException exception, HttpServletRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ErrorCode.SESSION_EXPIRED,
+                "Sesión expirada", "La sesión ha expirado.", request, List.of());
+    }
+
+    @ExceptionHandler(SecurityAccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleSecurityAccessDenied(
+            SecurityAccessDeniedException exception, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, ErrorCode.INVALID_REQUEST,
+                "Solicitud rechazada", "La solicitud de seguridad no es válida.", request, List.of());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

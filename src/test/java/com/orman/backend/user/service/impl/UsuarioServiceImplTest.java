@@ -2,6 +2,7 @@ package com.orman.backend.user.service.impl;
 
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.user.dto.ChangePasswordRequest;
@@ -43,6 +44,7 @@ class UsuarioServiceImplTest {
     @Mock private UsuarioMapper usuarioMapper;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private EntityManager entityManager;
+    @Mock private SessionService sessionService;
     @InjectMocks private UsuarioServiceImpl service;
 
     @Test
@@ -136,7 +138,9 @@ class UsuarioServiceImplTest {
         service.changePassword("usuario.demo", new ChangePasswordRequest("nueva-clave"));
 
         assertThat(usuario.getPasswd()).isEqualTo("nuevo-bcrypt");
-        verify(usuarioRepository).save(usuario);
+        verify(usuarioRepository).saveAndFlush(usuario);
+        verify(sessionService).revokeAll("usuario.demo",
+                com.orman.backend.auth.model.RevocationReason.PASSWORD_CHANGED);
         when(usuarioRepository.findById("inexistente")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.changePassword("inexistente", new ChangePasswordRequest("nueva-clave")))
                 .isInstanceOf(ResourceNotFoundException.class);

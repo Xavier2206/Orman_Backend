@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 09 y la subfase 10.1 están cerradas; la Fase 10 permanece en desarrollo hasta completar 10.2.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las fases 00 a 10 están cerradas; la Fase 11 permanece pendiente de autorización expresa.
 
 ## Estados permitidos
 
@@ -24,12 +24,12 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
-- Última subfase completada: **Fase 10.1 — Sesiones por dispositivo, JWT y refresh token**.
-- Siguiente subfase autorizable: **Fase 10.2**, únicamente mediante autorización expresa.
+- Última subfase completada: **Fase 10.2 — Seguridad HTTP, filtro JWT y administración de sesiones**.
+- Siguiente fase autorizable: **Fase 11**, únicamente mediante autorización expresa.
 - Estado de la Fase 09: **COMPLETADA**.
-- Estado de la Fase 10 global: **EN DESARROLLO**; 10.1 está completada y 10.2 no se inició.
-- Resultado de 10.1: sesiones por dispositivo, JWT HS256, refresh opaco rotatorio, login WEB/MOBILE y renovación sobre Flyway V6.
-- Fecha de actualización: **2026-08-03**.
+- Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
+- Resultado de Fase 10: sesiones por dispositivo, JWT HS256, refresh rotatorio, autenticación HTTP stateless, logout y administración de sesiones sobre Flyway V6.
+- Fecha de actualización: **2026-08-04**.
 
 ## Etapas y fases previstas
 
@@ -63,7 +63,7 @@ Teoría: pendiente de creación cuando corresponda.
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
 | 09 — Autenticación y validación de credenciales | `COMPLETADA` | Fases 07 y 08 | [Documento de Fase 09](fases/09-autenticacion-validacion-credenciales.md) |
-| 10 — JWT y control de sesiones | `EN DESARROLLO` | Fase 09 | [Subfase 10.1](fases/10-1-sesiones-jwt-refresh.md); 10.2 pendiente |
+| 10 — JWT y control de sesiones | `COMPLETADA` | Fase 09 | [Subfase 10.1](fases/10-1-sesiones-jwt-refresh.md); [Subfase 10.2](fases/10-2-seguridad-sesiones.md) |
 | 11 — Autorización por roles | `PENDIENTE` | Fases 08 y 10 | Documento pendiente de creación |
 | 12 — Menús y procesos dinámicos | `PENDIENTE` | Fase 11 | Documento pendiente de creación |
 | 13 — OTP y desafíos de autenticación | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
@@ -125,11 +125,11 @@ BCrypt se introduce aquí mediante `PasswordEncoder`. Puede incorporarse `spring
 
 **Subfase 10.1 completada:** access token JWT; refresh token opaco; expiración; rotación y renovación; tabla `sesiones_usuario`; `sid`; hash SHA-256; login WEB/MOBILE; una sesión activa por `(login, device_id)`; reemplazo de la sesión del mismo dispositivo; pruebas.
 
-**Subfase 10.2 pendiente y no iniciada:** filtro JWT, `SecurityFilterChain`, protección de endpoints, logout, logout-all, administración/revocación de sesiones y revocación ante cambios de contraseña o desactivaciones.
+**Subfase 10.2 completada el 2026-08-04:** filtro JWT, `SecurityFilterChain`, protección de endpoints, logout, logout-all, administración/revocación de sesiones, CORS/CSRF y revocación ante cambios de contraseña o desactivaciones.
 
 **Excluye:** autorización por rol, OTP, menús y procesos. **Dependencia:** Fase 09.
 
-Cada Usuario puede mantener varias sesiones activas, con una sola por combinación `(login, device_id)`. El JWT incluye `sid`; un nuevo login reemplaza únicamente la sesión activa del mismo dispositivo. `ultimo_acceso` no reemplaza `sesiones_usuario` y PostgreSQL almacena solo el hash del refresh token. Las revocaciones administrativas permanecen pendientes para 10.2.
+Cada Usuario puede mantener varias sesiones activas, con una sola por combinación `(login, device_id)`. El JWT incluye `sid`; un nuevo login reemplaza únicamente la sesión activa del mismo dispositivo. `ultimo_acceso` no reemplaza `sesiones_usuario` y PostgreSQL almacena solo el hash del refresh token. Las revocaciones administrativas usan motivos específicos; reactivar Usuario o Persona no recupera sesiones.
 
 ### Fase 11 — Autorización por roles
 

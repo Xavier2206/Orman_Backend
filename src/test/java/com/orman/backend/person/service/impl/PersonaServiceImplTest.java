@@ -2,12 +2,14 @@ package com.orman.backend.person.service.impl;
 
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.mapper.PersonaMapper;
 import com.orman.backend.person.repository.PersonaRepository;
+import com.orman.backend.user.repository.UsuarioRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +38,8 @@ class PersonaServiceImplTest {
     @Mock private PersonaRepository personaRepository;
     @Mock private PersonaMapper personaMapper;
     @Mock private EntityManager entityManager;
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private SessionService sessionService;
     @InjectMocks private PersonaServiceImpl service;
 
     @Test

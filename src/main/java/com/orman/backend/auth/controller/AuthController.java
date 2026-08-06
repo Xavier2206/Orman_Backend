@@ -5,18 +5,29 @@ import com.orman.backend.auth.config.RefreshCookieProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
 import com.orman.backend.auth.dto.request.RefreshRequest;
 import com.orman.backend.auth.dto.response.LoginResponse;
+import com.orman.backend.auth.dto.response.SessionResponse;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
 import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.AuthService;
+import com.orman.backend.auth.service.SessionService;
+import com.orman.backend.auth.model.AuthenticatedUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,12 +42,16 @@ public class AuthController {
 
     private static final String REFRESH_PATH = "/api/v1/auth";
     private final AuthService authService;
+    private final SessionService sessionService;
     private final RefreshCookieProperties cookieProperties;
     private final JwtProperties jwtProperties;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return response(authService.login(request));
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+        CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
+        String csrfValue = csrfToken == null ? null : csrfToken.getToken();
+        return response(authService.login(request), csrfValue);
     }
 
     @PostMapping("/refresh")
@@ -48,10 +63,45 @@ public class AuthController {
         return response(authService.refresh(input.token(), input.clientType()));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal AuthenticatedUser user) {
+        sessionService.logout(user);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, expiredRefreshCookie().toString())
+                .build();
+    }
+
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll(@AuthenticationPrincipal AuthenticatedUser user) {
+        sessionService.logoutAll(user);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, expiredRefreshCookie().toString())
+                .build();
+    }
+
+    @GetMapping("/sessions")
+    public List<SessionResponse> sessions(@AuthenticationPrincipal AuthenticatedUser user) {
+        return sessionService.list(user);
+    }
+
+    @DeleteMapping("/sessions/{sid}")
+    public ResponseEntity<Void> revoke(@AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID sid) {
+        sessionService.revoke(user, sid);
+        return ResponseEntity.noContent().build();
+    }
+
     private ResponseEntity<LoginResponse> response(AuthResult result) {
+        return response(result, null);
+    }
+
+    private ResponseEntity<LoginResponse> response(AuthResult result, String csrfToken) {
         ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
         if (result.clientType() == ClientType.WEB) {
             builder.header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken()).toString());
+        }
+        if (csrfToken != null) {
+            builder.header("X-XSRF-TOKEN", csrfToken);
         }
         return builder.body(result.response());
     }
@@ -63,6 +113,16 @@ public class AuthController {
                 .sameSite(cookieProperties.sameSite())
                 .path(REFRESH_PATH)
                 .maxAge(Duration.ofDays(jwtProperties.refreshTokenExpirationDays()))
+                .build();
+    }
+
+    private ResponseCookie expiredRefreshCookie() {
+        return ResponseCookie.from(cookieProperties.refreshName(), "")
+                .httpOnly(true)
+                .secure(cookieProperties.secure())
+                .sameSite(cookieProperties.sameSite())
+                .path(REFRESH_PATH)
+                .maxAge(Duration.ZERO)
                 .build();
     }
 

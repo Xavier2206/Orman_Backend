@@ -8,6 +8,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.orman.backend.auth.config.JwtProperties;
 import com.orman.backend.auth.exception.InvalidJwtException;
+import com.orman.backend.auth.exception.ExpiredJwtException;
 import com.orman.backend.auth.service.JwtService;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -50,7 +51,7 @@ class NimbusJwtServiceTest {
         assertThatThrownBy(() -> service("other-issuer", NOW).validateAndExtract(token))
                 .isInstanceOf(InvalidJwtException.class);
         assertThatThrownBy(() -> service("orman-backend", NOW.plusSeconds(901)).validateAndExtract(token))
-                .isInstanceOf(InvalidJwtException.class);
+                .isInstanceOf(ExpiredJwtException.class);
     }
 
     @Test

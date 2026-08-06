@@ -6,6 +6,28 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 10.2 — 2026-08-04
+
+### Agregado
+
+- Spring Security HTTP stateless, `SecurityFilterChain`, filtro Bearer JWT e identidad mínima `AuthenticatedUser(login, sid)` sin roles ni authorities reales.
+- Endpoints autenticados `logout`, `logout-all`, listado de sesiones propias y revocación segura por `sid`.
+- Errores `INVALID_TOKEN`, `TOKEN_EXPIRED`, `SESSION_REVOKED` y `SESSION_EXPIRED` en `application/problem+json`.
+- CORS con orígenes configurables y credenciales; CSRF de doble envío para refresh WEB basado en cookie.
+
+### Modificado
+
+- Cambio de contraseña, desactivación de Usuario y desactivación de Persona revocan todas las sesiones activas con motivos específicos y dentro de la transacción.
+- Activar nuevamente Usuario o Persona no restaura sesiones revocadas.
+- La cadena permite públicamente solo login, refresh, preflight y dispatch interno de error; el resto requiere JWT y sesión vigentes.
+
+### Verificación
+
+- Se añadieron pruebas HTTP/integración para JWT, filtro, CORS, CSRF, logout, propiedad y secretos de sesiones y revocaciones administrativas.
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 141 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- PostgreSQL real, Flyway V1–V6 y Hibernate `ddl-auto=validate`; no se creó V7.
+- Fase 11 no iniciada: sin Roles en JWT, `hasRole`, `hasAuthority`, permisos, menús, procesos u OTP.
+
 ## Fase 10.1 — 2026-08-03
 
 ### Agregado

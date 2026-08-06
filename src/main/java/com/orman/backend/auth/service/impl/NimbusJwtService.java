@@ -9,6 +9,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.orman.backend.auth.config.JwtProperties;
 import com.orman.backend.auth.exception.InvalidJwtException;
+import com.orman.backend.auth.exception.ExpiredJwtException;
 import com.orman.backend.auth.service.JwtService;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
@@ -60,13 +61,16 @@ public class NimbusJwtService implements JwtService {
             Date issuedAt = required(claims.getIssueTime());
             Date expiresAt = required(claims.getExpirationTime());
             UUID sid = UUID.fromString(required(claims.getStringClaim("sid")));
-            if (!properties.issuer().equals(issuer) || !expiresAt.toInstant().isAfter(clock.instant())) {
+            if (!properties.issuer().equals(issuer)) {
                 throw new InvalidJwtException();
+            }
+            if (!expiresAt.toInstant().isAfter(clock.instant())) {
+                throw new ExpiredJwtException();
             }
             return new JwtClaims(subject, sid, issuer, issuedAt.toInstant(), expiresAt.toInstant());
         } catch (ParseException | JOSEException | IllegalArgumentException | NullPointerException exception) {
-            if (exception instanceof InvalidJwtException invalidJwtException) {
-                throw invalidJwtException;
+            if (exception instanceof RuntimeException runtimeException) {
+                throw runtimeException;
             }
             throw new InvalidJwtException();
         }

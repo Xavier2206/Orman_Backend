@@ -1,4 +1,4 @@
-# Guía Postman — Login, JWT y refresh
+# Guía Postman — Login, JWT, seguridad HTTP y sesiones
 
 ## 1. Variables de entorno
 
@@ -15,10 +15,6 @@ sid =
 ```
 
 Use datos ficticios. No sincronice contraseñas, JWT, refresh tokens, cookies ni capturas con valores vigentes.
-
-## 2. Configuración JWT local
-
-Defina `JWT_SECRET` con un valor aleatorio de al menos 32 bytes; no copie el ejemplo como secreto real. Los valores predeterminados son issuer `orman-backend`, access de 15 minutos, refresh de 30 días, cookie `orman_refresh`, `Secure=false` y `SameSite=Lax`. En producción use HTTPS y `REFRESH_COOKIE_SECURE=true`.
 
 ## 3. Login MOBILE
 
@@ -50,7 +46,7 @@ pm.expect(json.expiresIn).to.eql(900);
 
 ## 4–5. Login WEB y cookie HttpOnly
 
-Use el mismo endpoint con `deviceId={{deviceWeb}}`, nombre de navegador y `clientType=WEB`. El JSON contiene access token pero no `refreshToken`. Abra **Cookies** en Postman para `localhost`: debe existir `orman_refresh`, `HttpOnly`, path `/api/v1/auth`, `Max-Age=2592000`, `SameSite=Lax` y `Secure=false` solo en local. Postman administra la cookie; no la copie a variables ni scripts.
+Use el mismo endpoint con `deviceId={{deviceWeb}}`, nombre de navegador y `clientType=WEB`. El JSON contiene access token pero no `refreshToken`. Abra **Cookies** en Postman para `localhost`: deben existir `orman_refresh` HttpOnly y `XSRF-TOKEN`; la respuesta también expone el header `X-XSRF-TOKEN`. La cookie refresh usa path `/api/v1/auth`, `Max-Age=2592000`, `SameSite=Lax` y `Secure=false` solo en local. No copie valores vigentes a documentación o consola.
 
 ## 6–7. Access token y claims
 
@@ -84,7 +80,7 @@ pm.environment.set("refreshToken", json.refreshToken);
 
 ## 12. Refresh WEB
 
-Envíe `POST {{baseUrl}}/api/v1/auth/refresh` sin body. Postman adjunta la cookie. Debe llegar un access token nuevo, ninguna propiedad `refreshToken` y una nueva cookie `orman_refresh`.
+Envíe `POST {{baseUrl}}/api/v1/auth/refresh` sin body. Postman adjunta las cookies; agregue `X-XSRF-TOKEN` con el valor recibido en el header del login WEB. Debe llegar un access token nuevo, ninguna propiedad `refreshToken` y una nueva cookie `orman_refresh`.
 
 ## 13–14. Rotación y reutilización
 
@@ -97,8 +93,8 @@ Cada refresh reemplaza el hash, incrementa la versión y actualiza `ultimo_uso`.
 | Token manipulado | Cambie un carácter de la parte secreta conservando el sid | 401 y revocación por reutilización |
 | Token mal formado/sid inexistente | Envíe texto o UUID ficticio con 32 bytes Base64 URL | 401 genérico |
 | Sesión expirada | Pruebe una sesión con `fecha_expiracion <= ahora UTC` | 401; puede quedar `EXPIRED` |
-| Usuario inactivo | Desactive Usuario después del login | 401, sin revocación administrativa en 10.1 |
-| Persona inactiva | Desactive Persona después del login | 401, sin revocación administrativa en 10.1 |
+| Usuario inactivo | Desactive Usuario después del login | sesiones revocadas con `USER_DISABLED`; access responde 401 |
+| Persona inactiva | Desactive Persona después del login | sesiones revocadas con `PERSON_DISABLED`; access responde 401 |
 | Sesión ya revocada | Use cualquiera de sus refresh | 401 genérico |
 | Cookie/body ausentes | Refresh sin ninguno | 401 genérico |
 | Cookie/body distintos | Envíe ambos con valores diferentes | 401 genérico |
@@ -153,3 +149,80 @@ Prepare Persona/Usuario activos; ejecute login MOBILE, login WEB, inspección JW
 ## 24. Seguridad de evidencias y clientes
 
 Antes de compartir capturas, oculte Authorization, JWT, refresh, cookie, contraseña, variables y consola. Flutter debe generar un `deviceId` persistente, enviar MOBILE, guardar refresh en almacenamiento seguro y mantener access preferentemente en memoria. Angular debe generar un `deviceId` persistente del navegador, enviar WEB, mantener access en memoria, no leer la cookie HttpOnly y usar credenciales al renovar. No se implementa código cliente en esta fase.
+
+## 25. Authorization Bearer y rutas
+
+Solo estas rutas son públicas:
+
+```http
+POST {{baseUrl}}/api/v1/auth/login
+POST {{baseUrl}}/api/v1/auth/refresh
+```
+
+Todas las demás rutas requieren el access token:
+
+```http
+Authorization: Bearer {{accessToken}}
+```
+
+El backend valida firma, algoritmo, issuer, expiración, `sub`, `sid`, sesión persistente no revocada/no expirada y Usuario/Persona activos. No valida Roles ni permisos en Fase 10.2.
+
+## 26. Logout y logout global
+
+```http
+POST {{baseUrl}}/api/v1/auth/logout
+Authorization: Bearer {{accessToken}}
+```
+
+Responde 204, revoca únicamente el `sid` actual con `LOGOUT` y expira la cookie refresh si existe.
+
+```http
+POST {{baseUrl}}/api/v1/auth/logout-all
+Authorization: Bearer {{accessToken}}
+```
+
+Responde 204 y revoca todas las sesiones activas del Usuario con `LOGOUT_ALL`.
+
+## 27. Listar sesiones propias
+
+```http
+GET {{baseUrl}}/api/v1/auth/sessions
+Authorization: Bearer {{accessToken}}
+```
+
+Cada elemento contiene solo `sid`, `deviceId`, `deviceName`, `clientType`, `fechaCreacion`, `fechaExpiracion`, `ultimoUso` y `current`. La respuesta excluye sesiones ajenas, revocadas y expiradas; nunca contiene refresh ni hash.
+
+## 28. Revocar una sesión
+
+```http
+DELETE {{baseUrl}}/api/v1/auth/sessions/{{sid}}
+Authorization: Bearer {{accessToken}}
+```
+
+Una sesión propia responde 204 y queda con `ADMIN_REVOKED`. Un `sid` inexistente o perteneciente a otro Usuario responde el mismo 404 `RESOURCE_NOT_FOUND`.
+
+## 29. Errores del access token
+
+| Caso | HTTP | `errorCode` |
+|---|---:|---|
+| Ausente, formato Bearer inválido, manipulado, issuer/sub/sid inválido o cuenta inactiva | 401 | `INVALID_TOKEN` |
+| JWT expirado | 401 | `TOKEN_EXPIRED` |
+| Sesión revocada | 401 | `SESSION_REVOKED` |
+| Sesión expirada | 401 | `SESSION_EXPIRED` |
+
+Todos usan `application/problem+json` con `type`, `title`, `status`, `detail`, `errorCode`, `timestamp`, `traceId` e `instance`.
+
+## 30. Angular, CORS y CSRF
+
+Configure `ORMAN_FRONTEND_URL` con el origen exacto. Angular guarda temporalmente el access token, usa Bearer y envía `credentials` en login/refresh. El login entrega cookie refresh HttpOnly, cookie `XSRF-TOKEN` y el valor XSRF en el header CORS expuesto `X-XSRF-TOKEN`; Angular conserva temporalmente ese header y lo reenvía con el mismo nombre en refresh. Un refresh WEB con cookie pero sin header XSRF responde 403.
+
+## 31. Flutter
+
+Flutter envía `Authorization: Bearer {{accessToken}}`, ejecuta refresh mediante body JSON en `POST /api/v1/auth/refresh` y guarda el refresh token en almacenamiento seguro. El refresh MOBILE no usa cookies ni requiere XSRF.
+
+## 32. Revocaciones administrativas
+
+- Cambio de contraseña: `PASSWORD_CHANGED`.
+- Desactivar Usuario: `USER_DISABLED`.
+- Desactivar Persona vinculada: `PERSON_DISABLED`.
+- Reactivar Usuario o Persona no restaura ninguna sesión; se debe iniciar sesión nuevamente.

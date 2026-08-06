@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, RefreshCookieProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, RefreshCookieProperties.class, CorsProperties.class})
 public class AuthTokenConfig {
 
     @Bean

@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   application:
     name: ORMAN-BACKEND
   mvc:
@@ -32,3 +34,6 @@ security:
     refresh-name: orman_refresh
     secure: false
     same-site: Lax
+  cors:
+    allowed-origins:
+      - http://localhost:4200

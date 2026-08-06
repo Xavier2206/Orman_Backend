@@ -13,6 +13,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
 
     boolean existsByPersonaCodper(Integer codper);
 
+    Optional<Usuario> findByPersonaCodper(Integer codper);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = "persona")
     @Query("select u from Usuario u where u.login = :login")

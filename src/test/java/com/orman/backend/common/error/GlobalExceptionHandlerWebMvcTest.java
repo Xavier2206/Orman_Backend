@@ -3,6 +3,7 @@ package com.orman.backend.common.error;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.exception.LastOwnerRequiredException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -75,6 +76,18 @@ class GlobalExceptionHandlerWebMvcTest {
     }
 
     @Test
+    void returnsStableProblemDetailWhenLastOwnerWouldBeRemoved() throws Exception {
+        mockMvc.perform(get("/test-errors/last-owner"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.errorCode").value("LAST_OWNER_REQUIRED"))
+                .andExpect(jsonPath("$.detail").value("Debe permanecer al menos un propietario activo."))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
     void returnsOrderedFieldErrorsForValidationFailures() throws Exception {
         mockMvc.perform(post("/test-errors/validation")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -133,6 +146,11 @@ class ErrorTestController {
     @GetMapping("/access-denied")
     void accessDenied() {
         throw new AccessDeniedException("ROLE_INTERNO_NO_EXPONIBLE");
+    }
+
+    @GetMapping("/last-owner")
+    void lastOwner() {
+        throw new LastOwnerRequiredException();
     }
 
     @PostMapping("/validation")

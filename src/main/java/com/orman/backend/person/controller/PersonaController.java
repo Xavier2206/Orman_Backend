@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,27 +30,41 @@ import java.net.URI;
 @RequiredArgsConstructor
 public class PersonaController {
     private final PersonaService personaService;
-    @PostMapping public ResponseEntity<PersonaResponse> create(@Valid @RequestBody CreatePersonaRequest request) {
+    @PostMapping
+    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    public ResponseEntity<PersonaResponse> create(@Valid @RequestBody CreatePersonaRequest request) {
         PersonaResponse response = personaService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{codper}").buildAndExpand(response.codper()).toUri();
         return ResponseEntity.created(location).body(response);
     }
-    @GetMapping("/{codper}") public PersonaResponse get(@PathVariable Integer codper) {
+    @GetMapping("/{codper}")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #codper)")
+    public PersonaResponse get(@PathVariable Integer codper) {
         return personaService.get(codper);
     }
-    @GetMapping public PageResponse<PersonaResponse> list(@PageableDefault(page = 0, size = 20, sort = "codper", direction = Sort.Direction.ASC) Pageable pageable) {
+    @GetMapping
+    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    public PageResponse<PersonaResponse> list(@PageableDefault(page = 0, size = 20, sort = "codper", direction = Sort.Direction.ASC) Pageable pageable) {
         return personaService.list(pageable.getPageSize() > 100 ? org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), 100, pageable.getSort()) : pageable);
     }
-    @PutMapping("/{codper}") public PersonaResponse update(@PathVariable Integer codper, @Valid @RequestBody UpdatePersonaRequest request) {
+    @PutMapping("/{codper}")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #codper)")
+    public PersonaResponse update(@PathVariable Integer codper, @Valid @RequestBody UpdatePersonaRequest request) {
         return personaService.update(codper, request);
     }
-    @PatchMapping("/{codper}/desactivar") public PersonaResponse deactivate(@PathVariable Integer codper) {
+    @PatchMapping("/{codper}/desactivar")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #codper)")
+    public PersonaResponse deactivate(@PathVariable Integer codper) {
         return personaService.deactivate(codper);
     }
-    @PatchMapping("/{codper}/activar") public PersonaResponse activate(@PathVariable Integer codper) {
+    @PatchMapping("/{codper}/activar")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #codper)")
+    public PersonaResponse activate(@PathVariable Integer codper) {
         return personaService.activate(codper);
     }
-    @DeleteMapping("/{codper}") public ResponseEntity<Void> delete(@PathVariable Integer codper) {
+    @DeleteMapping("/{codper}")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #codper)")
+    public ResponseEntity<Void> delete(@PathVariable Integer codper) {
         personaService.delete(codper); return ResponseEntity.noContent().build();
     }
 }

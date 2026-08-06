@@ -99,27 +99,27 @@ class AuthorizationIntegrationTest {
         UsuarioResponse usuario = createUsuario("AUTHZ-111-B", "authz.roles.dynamic");
         AuthResult login = login(usuario.login(), "device-dynamic");
         String accessToken = login.response().accessToken();
-        Rol propietario = activeRole("PROPIETARIO");
+        Rol administrador = activeRole("ADMINISTRADOR");
 
-        expectOwnerDenied(accessToken);
+        expectAdminDenied(accessToken);
 
-        rolUsuService.assign(usuario.login(), propietario.getCodr());
-        expectOwnerAllowed(accessToken);
+        rolUsuService.assign(usuario.login(), administrador.getCodr());
+        expectAdminAllowed(accessToken);
 
-        rolUsuService.remove(usuario.login(), propietario.getCodr());
-        expectOwnerDenied(accessToken);
+        rolUsuService.remove(usuario.login(), administrador.getCodr());
+        expectAdminDenied(accessToken);
 
-        rolUsuService.assign(usuario.login(), propietario.getCodr());
-        expectOwnerAllowed(accessToken);
+        rolUsuService.assign(usuario.login(), administrador.getCodr());
+        expectAdminAllowed(accessToken);
 
-        rolService.deactivate(propietario.getCodr());
+        rolService.deactivate(administrador.getCodr());
         rolRepository.flush();
-        assertThat(rolUsuRepository.existsById(new RolUsuId(usuario.login(), propietario.getCodr()))).isTrue();
-        expectOwnerDenied(accessToken);
+        assertThat(rolUsuRepository.existsById(new RolUsuId(usuario.login(), administrador.getCodr()))).isTrue();
+        expectAdminDenied(accessToken);
 
-        rolService.activate(propietario.getCodr());
+        rolService.activate(administrador.getCodr());
         rolRepository.flush();
-        expectOwnerAllowed(accessToken);
+        expectAdminAllowed(accessToken);
 
         assertThat(login.response().accessToken()).isEqualTo(accessToken);
         assertSessionRemainsActive(login.response().sid());
@@ -201,6 +201,20 @@ class AuthorizationIntegrationTest {
                 "password", "passwd", "hash", "sql", "stacktrace");
     }
 
+    private void expectAdminAllowed(String accessToken) throws Exception {
+        mockMvc.perform(get("/test/authorization/admin")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string("allowed"));
+    }
+
+    private void expectAdminDenied(String accessToken) throws Exception {
+        mockMvc.perform(get("/test/authorization/admin")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona autorización", null,
                 null, "F", null, null, "70000000", "A", null));
@@ -254,6 +268,11 @@ class AuthorizationIntegrationTest {
         public String ownerOnly() {
             return "allowed";
         }
+
+        @PreAuthorize("hasRole('ADMINISTRADOR')")
+        public String adminOnly() {
+            return "allowed";
+        }
     }
 
     @RestController
@@ -276,6 +295,11 @@ class AuthorizationIntegrationTest {
         @GetMapping("/owner")
         String owner() {
             return service.ownerOnly();
+        }
+
+        @GetMapping("/admin")
+        String admin() {
+            return service.adminOnly();
         }
     }
 }

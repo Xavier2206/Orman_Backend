@@ -1,14 +1,16 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 11.1 incorporó la base de autorización por Roles activos sobre la autenticación JWT y las sesiones persistentes.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 11 completó la autorización por Roles sobre autenticación JWT y sesiones persistentes.
 
 ## Estado actual
 
-**Última subfase completada: Fase 11.1 — Carga de Roles activos y base de autorización**
+**Última subfase implementada: Fase 11.2 — Matriz de autorización y protección del propietario (validación manual pendiente)**
 
-**Fase 10 global: `COMPLETADA`; Fase 11 global: `EN DESARROLLO`; Fase 11.2 pendiente**
+**Fase 10: `COMPLETADA`; Fase 11: `EN DESARROLLO` (11.2 implementada, validación manual pendiente); Fase 12 pendiente y no iniciada**
 
-El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, filtro JWT, seguridad HTTP stateless, logout y administración de sesiones propias. En cada petición protegida carga desde PostgreSQL los Roles activos del Usuario y los convierte a authorities `ROLE_<NOMBRE>`; no los incluye en el JWT. Flyway permanece en V6. La matriz concreta de autorización por módulos, permisos, menús, procesos y OTP todavía no existe.
+El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, seguridad stateless y sesiones propias. En cada petición protegida carga Roles activos como authorities `ROLE_<NOMBRE>` sin incluirlos en el JWT. La matriz protege Personas, Usuarios, Roles y asignaciones; reserva PROPIETARIO y exige al menos uno activo. Flyway permanece en V6. Propiedades, permisos dinámicos, menús, procesos y OTP todavía no existen.
+
+Antes de desplegar 11.2, el entorno debe tener un Rol activo exacto `PROPIETARIO` asignado a un Usuario y Persona activos. La base local auditada no cumple todavía esa precondición; consulte la [preparación manual](docs/fases/11-2-matriz-autorizacion-propietario.md#precondición-operativa). La aplicación no crea propietarios automáticamente.
 
 ## Stack confirmado
 
@@ -118,6 +120,8 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 10.1 — Sesiones por dispositivo, JWT y refresh token](docs/fases/10-1-sesiones-jwt-refresh.md)
 - [Fase 10.2 — Seguridad HTTP y administración de sesiones](docs/fases/10-2-seguridad-sesiones.md)
 - [Fase 11.1 — Carga de Roles activos y base de autorización](docs/fases/11-1-base-autorizacion-roles.md)
+- [Fase 11.2 — Matriz de autorización y protección del propietario](docs/fases/11-2-matriz-autorizacion-propietario.md)
+- [Guía Postman de asignaciones Usuario–Rol](docs/postman/rolusu.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)
 - [Guía Postman de la API Roles](docs/postman/rol.md)

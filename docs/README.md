@@ -39,6 +39,12 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Carga de Roles activos y base de autorización](fases/11-1-base-autorizacion-roles.md)
 - [Guía Postman de autenticación y base de autorización](postman/auth.md)
 
+## Fase 11.2
+
+- [Matriz de autorización y protección del propietario](fases/11-2-matriz-autorizacion-propietario.md)
+- [Guía Postman de asignaciones Usuario–Rol](postman/rolusu.md)
+- [Guías actualizadas de autenticación](postman/auth.md), [Personas](postman/persona.md), [Usuarios](postman/usuario.md) y [Roles](postman/rol.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

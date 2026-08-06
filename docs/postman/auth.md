@@ -16,6 +16,19 @@ sid =
 
 Use datos ficticios. No sincronice contraseñas, JWT, refresh tokens, cookies ni capturas con valores vigentes.
 
+## Resumen completo de endpoints
+
+| Método | Ruta | Operación | Auth/regla | Body | Éxito | Errores principales |
+|---|---|---|---|---|---:|---|
+| POST | `/api/v1/auth/login` | [Login MOBILE](#3-login-mobile) / [Login WEB](#4-5-login-web-y-cookie-httponly) | Público; `WEB` o `MOBILE` | Sí | 200 | 400, 401 |
+| POST | `/api/v1/auth/refresh` | [Refresh MOBILE](#11-refresh-mobile) / [Refresh WEB](#12-refresh-web) | Público; WEB usa cookie HttpOnly + XSRF, MOBILE usa JSON sin cookie | Sí | 200 | 400, 401, 403 |
+| POST | `/api/v1/auth/logout` | [Logout](#26-logout-y-logout-global) | Bearer; cualquier Usuario autenticado, solo su `sid` | No | 204 | 401, 404 |
+| POST | `/api/v1/auth/logout-all` | [Logout-all](#26-logout-y-logout-global) | Bearer; cualquier Usuario autenticado | No | 204 | 401 |
+| GET | `/api/v1/auth/sessions` | [Listar sesiones](#27-listar-sesiones-propias) | Bearer; cualquier Usuario autenticado | No | 200 | 401 |
+| DELETE | `/api/v1/auth/sessions/{sid}` | [Revocar sesión](#28-revocar-una-sesión) | Bearer; solo sesión del Usuario autenticado | No | 204 | 401, 404 |
+
+`*` En WEB el refresh no lleva body; en MOBILE lleva `{"refreshToken":"..."}`. Una cookie WEB residual en Postman puede activar la validación CSRF y producir `403 INVALID_REQUEST` en una prueba MOBILE.
+
 ## 3. Login MOBILE
 
 ```http
@@ -44,9 +57,19 @@ pm.expect(json.expiresIn).to.eql(900);
 ["password", "passwd", "hash", "persona", "roles"].forEach(k => pm.expect(json).not.to.have.property(k));
 ```
 
-## 4–5. Login WEB y cookie HttpOnly
+## 4-5. Login WEB y cookie HttpOnly
 
 Use el mismo endpoint con `deviceId={{deviceWeb}}`, nombre de navegador y `clientType=WEB`. El JSON contiene access token pero no `refreshToken`. Abra **Cookies** en Postman para `localhost`: deben existir `orman_refresh` HttpOnly y `XSRF-TOKEN`; la respuesta también expone el header `X-XSRF-TOKEN`. La cookie refresh usa path `/api/v1/auth`, `Max-Age=2592000`, `SameSite=Lax` y `Secure=false` solo en local. No copie valores vigentes a documentación o consola.
+
+Script opcional de **Tests** para WEB (no intenta leer la cookie HttpOnly):
+
+```javascript
+pm.test("login WEB", () => pm.response.to.have.status(200));
+const json = pm.response.json();
+pm.environment.set("accessToken", json.accessToken);
+pm.environment.set("sid", json.sid);
+pm.expect(json).not.to.have.property("refreshToken");
+```
 
 ## 6–7. Access token y claims
 
@@ -69,6 +92,8 @@ Content-Type: application/json
 
 {"refreshToken":"{{refreshToken}}"}
 ```
+
+Antes de probar MOBILE, elimine del cookie jar de Postman la cookie `orman_refresh` (y cualquier cookie `XSRF-TOKEN`) del host. Si queda una cookie WEB, el backend clasifica la solicitud como WEB y un refresh MOBILE puede terminar en `403 INVALID_REQUEST` por CSRF. No envíe `X-XSRF-TOKEN` en MOBILE.
 
 ```javascript
 pm.test("refresh MOBILE", () => pm.response.to.have.status(200));
@@ -165,7 +190,7 @@ Todas las demás rutas requieren el access token:
 Authorization: Bearer {{accessToken}}
 ```
 
-El backend valida firma, algoritmo, issuer, expiración, `sub`, `sid`, sesión persistente no revocada/no expirada y Usuario/Persona activos. Después consulta en PostgreSQL los Roles activos asignados al login y los convierte a authorities `ROLE_<NOMBRE>`. Los Roles no están en el JWT y la matriz concreta por endpoint permanece pendiente de Fase 11.2.
+El backend valida firma, algoritmo, issuer, expiración, `sub`, `sid`, sesión persistente no revocada/no expirada y Usuario/Persona activos. Después consulta en PostgreSQL los Roles activos asignados al login y los convierte a authorities `ROLE_<NOMBRE>`. Los Roles no están en el JWT; la matriz vigente por endpoint está documentada en la guía de Fase 11.2.
 
 ## 26. Logout y logout global
 
@@ -232,4 +257,12 @@ Flutter envía `Authorization: Bearer {{accessToken}}`, ejecuta refresh mediante
 
 Para comprobar cambios inmediatos, conserve el mismo `{{accessToken}}` y `sid`, asigne o retire un Rol mediante la API de Roles y repita una petición protegida por método. En la siguiente petición, una asignación activa concede `ROLE_<NOMBRE>` y su retiro la elimina. Desactivar el Rol conserva la asignación pero deja de concederla; reactivarlo la restaura.
 
-Los cambios de Rol no revocan la sesión ni requieren login, refresh o un JWT nuevo. Un Usuario sin Roles continúa autenticado con authorities vacías y conserva sus operaciones propias de autenticación y sesiones. Actualmente no hay una matriz general por módulo ni un endpoint artificial para inspeccionar authorities; esa protección se incorporará únicamente en Fase 11.2.
+Los cambios de Rol no revocan la sesión ni requieren login, refresh o un JWT nuevo. Un Usuario sin Roles continúa autenticado con authorities vacías y conserva sus operaciones propias de autenticación y sesiones.
+
+## 34. Matriz de Fase 11.2
+
+Login y refresh siguen públicos. Logout, logout-all, listado y revocación de sesiones propias permiten cualquier Usuario autenticado, incluso sin Roles; una sesión ajena conserva la respuesta segura 404. No se añadieron endpoints para administrar sesiones de terceros.
+
+PROPIETARIO administra los módulos actuales. ADMINISTRADOR opera Personas y Usuarios comunes. INQUILINO conserva sesiones y contraseña propias. Las guías de Persona, Usuario, Rol y RolUsu detallan los casos 403 y `409 LAST_OWNER_REQUIRED`.
+
+Los contratos WEB/MOBILE, CORS y CSRF no cambiaron. Para las pruebas manuales completas siga [Fase 11.2](../fases/11-2-matriz-autorizacion-propietario.md#pruebas-manuales-mínimas).

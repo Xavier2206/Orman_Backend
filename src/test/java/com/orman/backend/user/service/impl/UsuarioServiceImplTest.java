@@ -3,6 +3,7 @@ package com.orman.backend.user.service.impl;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.service.SessionService;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.user.dto.ChangePasswordRequest;
@@ -44,6 +45,7 @@ class UsuarioServiceImplTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private EntityManager entityManager;
     @Mock private SessionService sessionService;
+    @Mock private OwnerProtectionService ownerProtectionService;
     @InjectMocks private UsuarioServiceImpl service;
 
     @Test

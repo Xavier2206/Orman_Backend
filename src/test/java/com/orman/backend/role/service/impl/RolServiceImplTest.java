@@ -1,6 +1,7 @@
 package com.orman.backend.role.service.impl;
 
 import com.orman.backend.common.exception.ConflictException;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.role.dto.request.CreateRolRequest;
 import com.orman.backend.role.dto.request.UpdateRolRequest;
@@ -34,6 +35,7 @@ class RolServiceImplTest {
     @Mock private RolRepository rolRepository;
     @Mock private RolMapper rolMapper;
     @Mock private EntityManager entityManager;
+    @Mock private OwnerProtectionService ownerProtectionService;
     @InjectMocks private RolServiceImpl service;
 
     @Test

@@ -19,7 +19,7 @@ La fase actual incluye:
 - validación de nombres y estados;
 - relación persistente `rolusu`.
 
-No incluye login, autenticación, JWT, sesiones, logout, authorities, autorización, permisos, OTP, menús ni procesos.
+Las operaciones de este catálogo requieren `ROLE_PROPIETARIO`. La autenticación, JWT, sesiones y authorities se prueban en [auth.md](auth.md). Los Roles no están dentro del JWT y los cambios de asignación o estado se reflejan en la siguiente petición sin revocar la sesión.
 
 ## 3. Requisitos previos
 
@@ -63,7 +63,7 @@ http://localhost:9090
 4. Guarde el entorno.
 5. Selecciónelo antes de ejecutar las solicitudes.
 
-No existe autenticación HTTP en esta fase, por lo que no agregue un header `Authorization`.
+Todas las solicitudes de este catálogo requieren `Authorization: Bearer {{accessTokenPropietario}}`. Obtenga el token mediante [auth.md](auth.md); no agregue `ROLE_PROPIETARIO` al JWT ni lo almacene en PostgreSQL.
 
 ## 6. Variables del entorno
 
@@ -73,6 +73,7 @@ Use estas variables:
 |---|---|---|---|
 | `baseUrl` | `http://localhost:9090` | `http://localhost:9090` | URL del backend. |
 | `loginRol` | `usuario.rol.postman` | `usuario.rol.postman` | Login de un Usuario de prueba. |
+| `accessTokenPropietario` | vacío | vacío | Access token temporal obtenido con login WEB o MOBILE de un PROPIETARIO. |
 | `codrUno` | vacío | vacío | Identificador del primer Rol. |
 | `codrDos` | vacío | vacío | Identificador del segundo Rol. |
 
@@ -147,27 +148,18 @@ Reemplace `1` por el `codper` real. La respuesta de Usuario no contiene `passwd`
 
 Si el CI o el login ya existen, use valores ficticios nuevos. La guía de Roles no crea Personas ni Usuarios automáticamente.
 
-## 10. Resumen completo de endpoints
+## Resumen completo de endpoints
 
-### Administración de Roles
+| Método | Ruta | Operación | Auth/regla | Body | Éxito | Errores principales |
+|---|---|---|---|---|---:|---|
+| POST | `/api/v1/roles` | [Crear Rol](#11-crear-rol) | Solo PROPIETARIO | Sí | 201 | 400, 401, 403, 409 |
+| GET | `/api/v1/roles/{codr}` | [Consultar Rol](#12-consultar-rol-por-codr) | Solo PROPIETARIO | No | 200 | 401, 403, 404 |
+| GET | `/api/v1/roles` | [Listar Roles](#13-listar-roles-con-paginación) | Solo PROPIETARIO; `page,size,sort` | No | 200 | 401, 403 |
+| PUT | `/api/v1/roles/{codr}` | [Actualizar Rol](#14-actualizar-nombre-del-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | Sí | 200 | 400, 401, 403, 404, 409 |
+| PATCH | `/api/v1/roles/{codr}/activar` | [Activar Rol](#15-activar-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | No | 200 | 401, 403, 404, 409 |
+| PATCH | `/api/v1/roles/{codr}/desactivar` | [Desactivar Rol](#16-desactivar-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | No | 200 | 401, 403, 404, 409 |
 
-| Método | Ruta | Éxito |
-|---|---|---|
-| POST | `/api/v1/roles` | `201 Created` con `Location`. |
-| GET | `/api/v1/roles/{codr}` | `200 OK`. |
-| GET | `/api/v1/roles` | `200 OK` con `PageResponse<RolResponse>`. |
-| PUT | `/api/v1/roles/{codr}` | `200 OK`; actualiza solo nombre. |
-| PATCH | `/api/v1/roles/{codr}/activar` | `200 OK`; operación idempotente. |
-| PATCH | `/api/v1/roles/{codr}/desactivar` | `200 OK`; operación idempotente. |
-
-### Asignaciones
-
-| Método | Ruta | Éxito |
-|---|---|---|
-| POST | `/api/v1/usuarios/{{loginRol}}/roles/{codr}` | `201 Created` con `Location`. |
-| DELETE | `/api/v1/usuarios/{{loginRol}}/roles/{codr}` | `204 No Content`. |
-| GET | `/api/v1/usuarios/{{loginRol}}/roles` | `200 OK` con arreglo. |
-| GET | `/api/v1/roles/{codr}/usuarios` | `200 OK` con arreglo. |
+Las asignaciones Usuario–Rol tienen su tabla completa en [rolusu.md](rolusu.md). No existe eliminación física de Roles.
 
 ## 11. Crear Rol
 
@@ -1186,22 +1178,11 @@ La creación de Roles y Usuarios deja datos persistentes si se ejecuta contra un
 
 ## 39. Limitaciones actuales
 
-Todavía no existen:
+- No existe alcance por propiedad, ciudad o sucursal.
+- No existe eliminación física de Roles.
+- Propiedades, permisos dinámicos, menús, procesos y OTP pertenecen a fases posteriores.
 
-- login;
-- autenticación;
-- JWT;
-- refresh token;
-- sesiones;
-- logout;
-- authorities;
-- autorización;
-- permisos;
-- menús;
-- procesos;
-- OTP.
-
-El estado de un Rol solo prepara el catálogo administrativo. La regla de que un Rol inactivo no otorga autorización futura pertenece a la fase de autorización.
+Un Rol inactivo conserva sus asignaciones, pero no concede authority en la siguiente petición. El Rol exacto `PROPIETARIO` está protegido por la regla del último propietario.
 
 ## 40. Checklist final
 
@@ -1237,4 +1218,12 @@ El estado de un Rol solo prepara el catálogo administrativo. La regla de que un
 - [ ] Se revisaron respuestas `ProblemDetail`.
 - [ ] Ninguna respuesta contiene `password`, `passwd`, `password_hash`, `hash` o BCrypt.
 - [ ] Ninguna respuesta de asignación contiene Persona, CI, correo, teléfono o foto.
-- [ ] No se probaron endpoints de autenticación porque todavía no existen.
+- [ ] PROPIETARIO administró un Rol común.
+- [ ] ADMINISTRADOR e INQUILINO recibieron `403 ACCESS_DENIED`.
+- [ ] Renombrar o desactivar PROPIETARIO devolvió `409 LAST_OWNER_REQUIRED`.
+
+## Autorización de Fase 11.2
+
+Todas las operaciones de Roles requieren `ROLE_PROPIETARIO`. ADMINISTRADOR, INQUILINO y Usuario sin Rol reciben 403. El Rol exacto `PROPIETARIO` está reservado: no puede renombrarse ni desactivarse. No existe endpoint de eliminación física y no se añadió.
+
+Las asignaciones se documentan por separado en [Guía Postman Usuario–Rol](rolusu.md).

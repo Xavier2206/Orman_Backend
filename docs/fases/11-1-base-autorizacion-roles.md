@@ -2,7 +2,7 @@
 
 ## Estado
 
-`COMPLETADA` el 2026-08-06. La Fase 11 global permanece `EN DESARROLLO`; la matriz concreta de la subfase 11.2 no se inició.
+`COMPLETADA` el 2026-08-06. Esta nota describe el estado al cierre de 11.1; posteriormente se implementó 11.2 y su validación manual de Postman queda pendiente.
 
 ## Objetivo y alcance
 

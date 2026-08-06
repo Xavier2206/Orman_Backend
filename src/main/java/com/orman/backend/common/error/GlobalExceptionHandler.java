@@ -3,6 +3,7 @@ package com.orman.backend.common.error;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.exception.LastOwnerRequiredException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.exception.ExpiredJwtException;
@@ -91,6 +92,13 @@ public class GlobalExceptionHandler {
     ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
         return problem(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED,
                 "Acceso denegado", "No tiene autorización para realizar esta operación.", request, List.of());
+    }
+
+    @ExceptionHandler(LastOwnerRequiredException.class)
+    ResponseEntity<ProblemDetail> handleLastOwnerRequired(
+            LastOwnerRequiredException exception, HttpServletRequest request) {
+        return problem(HttpStatus.CONFLICT, ErrorCode.LAST_OWNER_REQUIRED,
+                "Propietario requerido", exception.getMessage(), request, List.of());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

@@ -1,6 +1,7 @@
 package com.orman.backend.user.service.impl;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.auth.model.RevocationReason;
 import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.common.exception.ConflictException;
@@ -38,6 +39,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
     private final SessionService sessionService;
+    private final OwnerProtectionService ownerProtectionService;
 
     @Override
     @Transactional
@@ -71,7 +73,16 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UsuarioResponse> list(Pageable pageable) {
-        Page<UsuarioResponse> page = usuarioRepository.findAll(pageable).map(usuarioMapper::toResponse);
+        return pageResponse(usuarioRepository.findAll(pageable).map(usuarioMapper::toResponse));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UsuarioResponse> listCommon(Pageable pageable) {
+        return pageResponse(usuarioRepository.findAllCommon(pageable).map(usuarioMapper::toResponse));
+    }
+
+    private PageResponse<UsuarioResponse> pageResponse(Page<UsuarioResponse> page) {
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
     }
@@ -79,6 +90,9 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioResponse update(String login, UpdateUsuarioRequest request) {
+        if (Short.valueOf(INACTIVO).equals(request.estado())) {
+            ownerProtectionService.assertCanDeactivateUser(login);
+        }
         Usuario usuario = findUsuario(login);
         usuarioMapper.update(usuario, request);
         Usuario saved = usuarioRepository.saveAndFlush(usuario);
@@ -91,6 +105,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioResponse deactivate(String login) {
+        ownerProtectionService.assertCanDeactivateUser(login);
         return changeStatus(login, INACTIVO);
     }
 

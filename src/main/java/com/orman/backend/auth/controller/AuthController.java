@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,6 +65,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal AuthenticatedUser user) {
         sessionService.logout(user);
         return ResponseEntity.noContent()
@@ -72,6 +74,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout-all")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logoutAll(@AuthenticationPrincipal AuthenticatedUser user) {
         sessionService.logoutAll(user);
         return ResponseEntity.noContent()
@@ -80,11 +83,13 @@ public class AuthController {
     }
 
     @GetMapping("/sessions")
+    @PreAuthorize("isAuthenticated()")
     public List<SessionResponse> sessions(@AuthenticationPrincipal AuthenticatedUser user) {
         return sessionService.list(user);
     }
 
     @DeleteMapping("/sessions/{sid}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> revoke(@AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID sid) {
         sessionService.revoke(user, sid);

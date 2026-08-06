@@ -1,6 +1,7 @@
 package com.orman.backend.role.service.impl;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.role.dto.request.CreateRolRequest;
@@ -28,6 +29,7 @@ public class RolServiceImpl implements RolService {
     private final RolRepository rolRepository;
     private final RolMapper rolMapper;
     private final EntityManager entityManager;
+    private final OwnerProtectionService ownerProtectionService;
 
     @Override
     @Transactional
@@ -62,6 +64,7 @@ public class RolServiceImpl implements RolService {
     @Override
     @Transactional
     public RolResponse update(Integer codr, UpdateRolRequest request) {
+        ownerProtectionService.assertCanModifyProtectedRole(codr);
         Rol rol = findRol(codr);
         String nombre = rolMapper.normalizeNombre(request.nombre());
         if (rolRepository.existsByNombreAndCodrNot(nombre, codr)) {
@@ -84,6 +87,7 @@ public class RolServiceImpl implements RolService {
     @Override
     @Transactional
     public RolResponse deactivate(Integer codr) {
+        ownerProtectionService.assertCanModifyProtectedRole(codr);
         return changeStatus(codr, INACTIVO);
     }
 

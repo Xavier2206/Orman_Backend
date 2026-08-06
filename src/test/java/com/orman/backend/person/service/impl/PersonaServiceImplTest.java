@@ -3,6 +3,7 @@ package com.orman.backend.person.service.impl;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.service.SessionService;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
@@ -38,6 +39,7 @@ class PersonaServiceImplTest {
     @Mock private EntityManager entityManager;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private SessionService sessionService;
+    @Mock private OwnerProtectionService ownerProtectionService;
     @InjectMocks private PersonaServiceImpl service;
 
     @Test

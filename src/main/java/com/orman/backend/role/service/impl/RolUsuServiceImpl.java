@@ -1,6 +1,7 @@
 package com.orman.backend.role.service.impl;
 
 import com.orman.backend.common.exception.BusinessRuleException;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.role.dto.response.RolUsuResponse;
@@ -31,6 +32,7 @@ public class RolUsuServiceImpl implements RolUsuService {
     private final RolRepository rolRepository;
     private final RolUsuRepository rolUsuRepository;
     private final EntityManager entityManager;
+    private final OwnerProtectionService ownerProtectionService;
 
     @Override
     @Transactional
@@ -58,6 +60,7 @@ public class RolUsuServiceImpl implements RolUsuService {
     @Override
     @Transactional
     public void remove(String login, Integer codr) {
+        ownerProtectionService.assertCanRemoveAssignment(login, codr);
         Usuario usuario = findUsuario(login);
         Rol rol = findRol(codr);
         RolUsuId id = new RolUsuId(usuario.getLogin(), rol.getCodr());

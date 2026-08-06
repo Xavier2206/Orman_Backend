@@ -1,6 +1,7 @@
 package com.orman.backend.user.controller;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.authorization.service.AuthorizationService;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
@@ -37,6 +38,7 @@ class UsuarioControllerWebMvcTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private UsuarioService usuarioService;
+    @MockitoBean private AuthorizationService authorizationService;
 
     @Test
     void createsUsuarioWithLocationAndWithoutSensitiveFields() throws Exception {
@@ -75,6 +77,7 @@ class UsuarioControllerWebMvcTest {
 
         when(usuarioService.list(any())).thenReturn(new PageResponse<>(List.of(response("usuario.demo", (short) 1)),
                 0, 20, 1, 1, true, true));
+        when(authorizationService.isOwner(any())).thenReturn(true);
         mockMvc.perform(get(BASE_URL).param("page", "0").param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].login").value("usuario.demo"))

@@ -6,6 +6,29 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 11.2 — 2026-08-06
+
+### Agregado
+
+- Matriz `@PreAuthorize` para sesiones, Personas, Usuarios, Roles y asignaciones Usuario–Rol.
+- `AuthorizationService` para contraseña propia o propietario y alcance de objetivos comunes.
+- `OwnerProtectionService`, bloqueo pesimista y error `409 LAST_OWNER_REQUIRED` para mantener al menos un propietario activo.
+- Filtrado paginado de Usuarios propietarios en el listado del ADMINISTRADOR.
+- Pruebas unitarias, MVC, method security, persistencia, integración HTTP y concurrencia con PostgreSQL real.
+
+### Seguridad
+
+- PROPIETARIO administra los módulos actuales; ADMINISTRADOR opera Personas y Usuarios comunes; INQUILINO conserva sesiones y contraseña propias.
+- El Rol exacto PROPIETARIO no puede renombrarse ni desactivarse. Las desactivaciones indirectas por `PUT`, las directas por `PATCH`, el retiro de asignación y la eliminación de Persona protegen el último propietario.
+- Los cambios de Rol siguen reflejándose con el mismo JWT sin revocar sesiones. JWT, CORS, CSRF y contratos WEB/MOBILE permanecen intactos.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 165 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- Flyway permanece en V6, V1–V6 intactas y sin V7.
+- No se implementó alcance por propiedad ni se inició la Fase 12.
+- La validación manual de Postman de los escenarios de Fase 11.2 queda pendiente; este registro no declara pruebas manuales ejecutadas.
+
 ## Fase 11.1 — 2026-08-06
 
 ### Agregado

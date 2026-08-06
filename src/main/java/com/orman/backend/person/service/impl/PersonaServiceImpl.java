@@ -5,6 +5,7 @@ import com.orman.backend.auth.model.RevocationReason;
 import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
@@ -29,6 +30,7 @@ public class PersonaServiceImpl implements PersonaService {
     private final EntityManager entityManager;
     private final UsuarioRepository usuarioRepository;
     private final SessionService sessionService;
+    private final OwnerProtectionService ownerProtectionService;
 
     @Transactional
     public PersonaResponse create(CreatePersonaRequest request) {
@@ -46,6 +48,9 @@ public class PersonaServiceImpl implements PersonaService {
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isFirst(), page.isLast());
     }
     @Transactional public PersonaResponse update(Integer codper, UpdatePersonaRequest request) {
+        if ("0".equals(request.estado())) {
+            ownerProtectionService.assertCanDeactivatePerson(codper);
+        }
         Persona persona = find(codper);
         if (personaRepository.existsByCiAndCodperNot(request.ci().trim(), codper)) throw new ConflictException("El CI ya está registrado.");
         try {
@@ -56,9 +61,15 @@ public class PersonaServiceImpl implements PersonaService {
         }
         catch (DataIntegrityViolationException exception) { throw new ConflictException("El CI ya está registrado."); }
     }
-    @Transactional public PersonaResponse deactivate(Integer codper) { return changeStatus(codper, Short.valueOf((short) 0)); }
+    @Transactional public PersonaResponse deactivate(Integer codper) {
+        ownerProtectionService.assertCanDeactivatePerson(codper);
+        return changeStatus(codper, Short.valueOf((short) 0));
+    }
     @Transactional public PersonaResponse activate(Integer codper) { return changeStatus(codper, Short.valueOf((short) 1)); }
-    @Transactional public void delete(Integer codper) { personaRepository.delete(find(codper)); }
+    @Transactional public void delete(Integer codper) {
+        ownerProtectionService.assertCanDeactivatePerson(codper);
+        personaRepository.delete(find(codper));
+    }
     private PersonaResponse changeStatus(Integer codper, Short estado) {
         Persona persona = find(codper);
         persona.setEstado(estado);

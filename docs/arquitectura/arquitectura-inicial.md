@@ -35,7 +35,11 @@ La Fase 07 introdujo BCrypt, la Fase 09 validó credenciales y la Fase 10 incorp
 
 `tipo_persona` es clasificación de negocio y no sustituye roles, permisos ni autorización. Los JWT contienen exclusivamente `sub`, `sid`, `iss`, `iat` y `exp`; no contienen Roles. El filtro valida JWT, sesión, Usuario y Persona, consulta los nombres de Roles activos en PostgreSQL y crea un `Authentication` con authorities inmutables `ROLE_<NOMBRE>`. Esta consulta ocurre en cada petición protegida, de modo que los cambios confirmados de asignación o estado se reflejan sin renovar el token ni revocar la sesión.
 
-El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UTC, crea sesiones y emite tokens mediante login. `POST /api/v1/auth/refresh` rota el refresh bajo bloqueo pesimista. WEB usa cookie HttpOnly y MOBILE JSON. `@EnableMethodSecurity` deja disponibles `@PreAuthorize`, `hasRole` y `hasAnyRole`; la matriz de controladores se reserva para 11.2. Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`, mientras los fallos de autenticación conservan `401`.
+El módulo `auth` valida Usuario, Persona y BCrypt, actualiza `ultimo_acceso` UTC, crea sesiones y emite tokens mediante login. `POST /api/v1/auth/refresh` rota el refresh bajo bloqueo pesimista. WEB usa cookie HttpOnly y MOBILE JSON.
+
+La Fase 11.2 aplica `@PreAuthorize` a los controladores actuales. `AuthorizationService` resuelve alcance propio, Usuario común y Persona común; las consultas complejas no viven en SpEL. `OwnerProtectionService` mantiene las invariantes en la capa transaccional. Todas las operaciones que pueden reducir propietarios activos bloquean primero, con `PESSIMISTIC_WRITE`, la fila del Rol exacto `PROPIETARIO`; después cuentan asignación, Rol, Usuario y Persona activos. Esta fila actúa como mutex y evita que operaciones concurrentes dejen cero propietarios.
+
+Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; romper el mínimo devuelve `409 LAST_OWNER_REQUIRED`; la autenticación inválida conserva `401`. CORS, CSRF y los contratos WEB/MOBILE no se modificaron. El futuro alcance por propiedad requiere una relación persistente que todavía no existe y no se simula con `tipo_persona`.
 
 ## Evolución
 

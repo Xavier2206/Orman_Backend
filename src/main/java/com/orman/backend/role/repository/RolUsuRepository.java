@@ -20,6 +20,56 @@ public interface RolUsuRepository extends JpaRepository<RolUsu, RolUsuId> {
             """)
     List<String> findActiveRoleNamesByLogin(@Param("login") String login);
 
+    @Query("""
+            select (count(ru) > 0)
+            from RolUsu ru
+            where ru.id.login = :login
+              and ru.rol.nombre = 'PROPIETARIO'
+              and ru.rol.estado = 1
+            """)
+    boolean existsActiveOwnerRoleByLogin(@Param("login") String login);
+
+    @Query("""
+            select (count(ru) > 0)
+            from RolUsu ru
+            where ru.usuario.persona.codper = :codper
+              and ru.rol.nombre = 'PROPIETARIO'
+              and ru.rol.estado = 1
+            """)
+    boolean existsActiveOwnerRoleByPerson(@Param("codper") Integer codper);
+
+    @Query("""
+            select (count(ru) > 0)
+            from RolUsu ru
+            where ru.id.login = :login
+              and ru.rol.nombre = 'PROPIETARIO'
+              and ru.rol.estado = 1
+              and ru.usuario.estado = 1
+              and ru.usuario.persona.estado = 1
+            """)
+    boolean existsActiveOwnerByLogin(@Param("login") String login);
+
+    @Query("""
+            select (count(ru) > 0)
+            from RolUsu ru
+            where ru.usuario.persona.codper = :codper
+              and ru.rol.nombre = 'PROPIETARIO'
+              and ru.rol.estado = 1
+              and ru.usuario.estado = 1
+              and ru.usuario.persona.estado = 1
+            """)
+    boolean existsActiveOwnerByPerson(@Param("codper") Integer codper);
+
+    @Query("""
+            select count(ru)
+            from RolUsu ru
+            where ru.rol.nombre = 'PROPIETARIO'
+              and ru.rol.estado = 1
+              and ru.usuario.estado = 1
+              and ru.usuario.persona.estado = 1
+            """)
+    long countActiveOwners();
+
     List<RolUsu> findByIdLoginOrderByFechaAsignacionAsc(String login);
 
     List<RolUsu> findByIdCodrOrderByFechaAsignacionAsc(Integer codr);

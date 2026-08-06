@@ -1,6 +1,7 @@
 package com.orman.backend.user.controller;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.authorization.service.AuthorizationService;
 import com.orman.backend.user.dto.ChangePasswordRequest;
 import com.orman.backend.user.dto.CreateUsuarioRequest;
 import com.orman.backend.user.dto.UpdateUsuarioRequest;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,8 +34,10 @@ import java.net.URI;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final AuthorizationService authorizationService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
     public ResponseEntity<UsuarioResponse> create(@Valid @RequestBody CreateUsuarioRequest request) {
         UsuarioResponse response = usuarioService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{login}")
@@ -41,34 +46,44 @@ public class UsuarioController {
     }
 
     @GetMapping("/{login}")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public UsuarioResponse get(@PathVariable String login) {
         return usuarioService.get(login);
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
     public PageResponse<UsuarioResponse> list(
-            @PageableDefault(page = 0, size = 20, sort = "login", direction = Sort.Direction.ASC) Pageable pageable) {
-        return usuarioService.list(pageable.getPageSize() > 100
+            @PageableDefault(page = 0, size = 20, sort = "login", direction = Sort.Direction.ASC) Pageable pageable,
+            Authentication authentication) {
+        Pageable limited = pageable.getPageSize() > 100
                 ? PageRequest.of(pageable.getPageNumber(), 100, pageable.getSort())
-                : pageable);
+                : pageable;
+        return authorizationService.isOwner(authentication)
+                ? usuarioService.list(limited)
+                : usuarioService.listCommon(limited);
     }
 
     @PutMapping("/{login}")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public UsuarioResponse update(@PathVariable String login, @Valid @RequestBody UpdateUsuarioRequest request) {
         return usuarioService.update(login, request);
     }
 
     @PatchMapping("/{login}/desactivar")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public UsuarioResponse deactivate(@PathVariable String login) {
         return usuarioService.deactivate(login);
     }
 
     @PatchMapping("/{login}/activar")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public UsuarioResponse activate(@PathVariable String login) {
         return usuarioService.activate(login);
     }
 
     @PutMapping("/{login}/password")
+    @PreAuthorize("@authorizationService.isSelfOrOwner(authentication, #login)")
     public ResponseEntity<Void> changePassword(@PathVariable String login,
                                                 @Valid @RequestBody ChangePasswordRequest request) {
         usuarioService.changePassword(login, request);

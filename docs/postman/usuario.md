@@ -6,19 +6,7 @@ Esta guía permite probar manualmente, desde cero, toda la administración de Us
 
 La API recibe `password` únicamente en las solicitudes autorizadas. El backend la transforma inmediatamente a BCrypt y la persiste en `usuarios.passwd` como hash. Ninguna respuesta de la API devuelve `password`, `passwd` ni el hash.
 
-Todavía no existen:
-
-- login;
-- autenticación;
-- JWT;
-- refresh token;
-- logout;
-- sesiones;
-- roles;
-- autorización;
-- OTP.
-
-Por eso Postman permite comprobar la administración y la ausencia de secretos, pero no permite iniciar sesión ni validar una credencial mediante un endpoint de login.
+La autenticación JWT, las sesiones y la autorización por Roles ya están implementadas. Esta guía conserva las pruebas CRUD de Usuario y añade al final la matriz de Fase 11.2. Para obtener un `Authorization: Bearer` consulte [auth.md](auth.md); no incluya Roles dentro del JWT.
 
 ## 2. Requisitos previos
 
@@ -126,19 +114,19 @@ La relación es uno a uno:
 
 Para probar dos cuentas, prepare una segunda Persona sin Usuario y guarde su identificador en `personaIdDos`.
 
-## 8. Resumen completo de endpoints
+## Resumen completo de endpoints
 
-| Método | Ruta | Operación | Body | Éxito | Errores principales |
-|---|---|---|---|---:|---|
-| POST | `/api/v1/usuarios` | Crear Usuario | Sí | 201 | 400, 404, 409 |
-| GET | `/api/v1/usuarios/{login}` | Consultar por login | No | 200 | 404 |
-| GET | `/api/v1/usuarios` | Listar paginado | No | 200 | errores del resolver de paginación no forman contrato propio |
-| PUT | `/api/v1/usuarios/{login}` | Actualizar `estado` | Sí | 200 | 400, 404 |
-| PATCH | `/api/v1/usuarios/{login}/desactivar` | Estado a 0 | No | 200 | 404 |
-| PATCH | `/api/v1/usuarios/{login}/activar` | Estado a 1 | No | 200 | 404 |
-| PUT | `/api/v1/usuarios/{login}/password` | Cambiar contraseña | Sí | 204 | 400, 404 |
+| Método | Ruta | Operación | Auth/regla | Body | Éxito | Errores principales |
+|---|---|---|---|---|---:|---|
+| POST | `/api/v1/usuarios` | [Crear Usuario](#9-crear-usuario-correctamente) | PROPIETARIO o ADMINISTRADOR sobre Usuario común | Sí | 201 | 400, 401, 403, 404, 409 |
+| GET | `/api/v1/usuarios/{login}` | [Consultar Usuario](#11-consultar-usuario-por-login) | PROPIETARIO o ADMINISTRADOR sobre Usuario común | No | 200 | 401, 403, 404 |
+| GET | `/api/v1/usuarios` | [Listar Usuarios](#12-listar-usuarios-con-paginación) | PROPIETARIO o ADMINISTRADOR; ADMINISTRADOR ve solo comunes; `page,size,sort` | No | 200 | 401, 403 |
+| PUT | `/api/v1/usuarios/{login}` | [Modificar estado](#13-actualización-administrativa) | PROPIETARIO o ADMINISTRADOR sobre Usuario común | Sí | 200 | 400, 401, 403, 404, 409 |
+| PATCH | `/api/v1/usuarios/{login}/desactivar` | [Desactivar Usuario](#14-desactivar-usuario) | PROPIETARIO o ADMINISTRADOR sobre Usuario común; protege último propietario | No | 200 | 401, 403, 404, 409 |
+| PATCH | `/api/v1/usuarios/{login}/activar` | [Activar Usuario](#15-activar-usuario) | PROPIETARIO o ADMINISTRADOR sobre Usuario común | No | 200 | 401, 403, 404 |
+| PUT | `/api/v1/usuarios/{login}/password` | [Cambiar contraseña](#16-cambiar-o-restablecer-contraseña) | Usuario sobre sí mismo o PROPIETARIO sobre cualquier Usuario | Sí | 204 | 400, 401, 403, 404 |
 
-No existen `DELETE`, `/login`, `/logout`, `/refresh`, `/me` ni rutas de roles o sesiones.
+Los endpoints de login, refresh y sesiones están documentados en [auth.md](auth.md); no existe `DELETE`, `/me` ni otro endpoint de Usuario fuera de esta tabla.
 
 ## 9. Crear Usuario correctamente
 
@@ -507,7 +495,7 @@ Body real de `ChangePasswordRequest`:
 }
 ```
 
-`newPassword` es el único campo admitido por el DTO. No envíe el hash, `passwd`, `login` ni `oldPassword`. La contraseña anterior no se solicita porque todavía no existe un flujo de autenticación.
+`newPassword` es el único campo admitido por el DTO. No envíe el hash, `passwd`, `login` ni `oldPassword`. El cambio requiere autenticación y solo permite el propio `login` o un actor con `ROLE_PROPIETARIO`; además revoca las sesiones del Usuario objetivo conforme a Fase 10.
 
 Respuesta exitosa: `204 No Content`, sin body.
 
@@ -887,18 +875,12 @@ No guarde el valor de ninguna contraseña ni un hash en la evidencia. Si necesit
 
 ## 34. Limitaciones actuales
 
-- No existe login.
-- No se puede probar autenticación.
-- No existe JWT.
-- No existe logout.
-- No existe refresh token.
-- No existen sesiones ni `sesiones_usuario`.
-- No existen roles.
-- No existe autorización.
+- No existe alcance por propiedad, ciudad o sucursal.
+- No existe un perfil propio de Persona para INQUILINO en esta fase.
 - Activar Usuario no activa Persona.
 - Desactivar Usuario no desactiva Persona.
 - Reactivar Persona no activa Usuario automáticamente.
-- La futura autenticación exigirá Persona activa, Usuario activo y contraseña válida.
+- La autenticación exige Persona activa, Usuario activo y contraseña válida.
 
 ## 35. Errores frecuentes al usar Postman
 
@@ -912,7 +894,7 @@ No guarde el valor de ninguna contraseña ni un hash en la evidencia. Si necesit
 - Usar `passwd` en lugar de `password`: `passwd` no es un campo de creación.
 - Enviar password dentro del PUT general: use `/password`.
 - Enviar body en activar/desactivar: esas rutas no necesitan body.
-- Esperar login, JWT o refresh: pertenecen a fases posteriores.
+- Para login, refresh y sesiones use [auth.md](auth.md); no mezcle cookies WEB con refresh MOBILE.
 - Compartir capturas con passwords o hashes: elimine esos datos antes de guardar evidencia.
 
 ## 36. Checklist final
@@ -946,4 +928,15 @@ No guarde el valor de ninguna contraseña ni un hash en la evidencia. Si necesit
 - [ ] Se revisó ProblemDetail.
 - [ ] Ninguna respuesta contiene `password`, `passwd`, `hash` o BCrypt.
 - [ ] No se registraron credenciales ni hashes.
-- [ ] No se probaron endpoints de autenticación porque todavía no existen.
+- [ ] PROPIETARIO listó y operó sobre Usuarios comunes y propietarios.
+- [ ] ADMINISTRADOR listó solo Usuarios comunes y recibió 403 sobre un propietario.
+- [ ] INQUILINO recibió 403 en el CRUD genérico.
+- [ ] Cada Usuario pudo cambiar únicamente su propia contraseña; PROPIETARIO pudo cambiar una ajena.
+- [ ] ADMINISTRADOR recibió 403 al cambiar una contraseña ajena.
+- [ ] Desactivar al último propietario devolvió `409 LAST_OWNER_REQUIRED` sin cambios parciales.
+
+## Autorización de Fase 11.2
+
+Use `Authorization: Bearer` en todas las rutas. PROPIETARIO administra cualquier Usuario. ADMINISTRADOR crea y opera Usuarios comunes; su listado excluye Usuarios con asignación a un Rol PROPIETARIO activo. No puede consultar, activar, desactivar ni modificar esos objetivos. INQUILINO y Usuario sin Rol no acceden al CRUD.
+
+`PUT /api/v1/usuarios/{login}/password` permite únicamente `login autenticado == login objetivo` o `ROLE_PROPIETARIO`. El cambio sigue revocando todas las sesiones del objetivo.

@@ -2,7 +2,7 @@
 
 ## Estado
 
-`COMPLETADA` el 2026-08-04. Con este cierre, la Fase 10 global queda completada. La Fase 11 no fue iniciada.
+`COMPLETADA` el 2026-08-04. Con este cierre, la Fase 10 global queda completada. Esta frase refleja el estado al cierre de 10.2; las subfases 11.1 y 11.2 se ejecutaron posteriormente.
 
 ## Objetivo y alcance
 

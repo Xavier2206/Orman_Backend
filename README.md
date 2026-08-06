@@ -1,14 +1,14 @@
 # ORMAN-BACKEND
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 11 completó la autorización por Roles sobre autenticación JWT y sesiones persistentes.
+Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 12.1 incorpora el modelo persistente de Menús y Procesos sin alterar la autorización existente.
 
 ## Estado actual
 
-**Última subfase implementada: Fase 11.2 — Matriz de autorización y protección del propietario (validación manual pendiente)**
+**Última subfase completada: Fase 12.1 — Modelo persistente de Menús y Procesos**
 
-**Fase 10: `COMPLETADA`; Fase 11: `EN DESARROLLO` (11.2 implementada, validación manual pendiente); Fase 12 pendiente y no iniciada**
+**Fases 10, 11 y 12.1: `COMPLETADAS`; Fase 12.2 pendiente y no iniciada**
 
-El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, seguridad stateless y sesiones propias. En cada petición protegida carga Roles activos como authorities `ROLE_<NOMBRE>` sin incluirlos en el JWT. La matriz protege Personas, Usuarios, Roles y asignaciones; reserva PROPIETARIO y exige al menos uno activo. Flyway permanece en V6. Propiedades, permisos dinámicos, menús, procesos y OTP todavía no existen.
+El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, seguridad stateless y sesiones propias. En cada petición protegida carga Roles activos como authorities `ROLE_<NOMBRE>` sin incluirlos en el JWT. La matriz protege Personas, Usuarios, Roles y asignaciones; reserva PROPIETARIO y exige al menos uno activo. Flyway está en V7 con `menus`, `procesos`, `rolme` y `mepro`, sin endpoints ni autorización por Proceso.
 
 Antes de desplegar 11.2, el entorno debe tener un Rol activo exacto `PROPIETARIO` asignado a un Usuario y Persona activos. La base local auditada no cumple todavía esa precondición; consulte la [preparación manual](docs/fases/11-2-matriz-autorizacion-propietario.md#precondición-operativa). La aplicación no crea propietarios automáticamente.
 
@@ -121,6 +121,7 @@ Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring
 - [Fase 10.2 — Seguridad HTTP y administración de sesiones](docs/fases/10-2-seguridad-sesiones.md)
 - [Fase 11.1 — Carga de Roles activos y base de autorización](docs/fases/11-1-base-autorizacion-roles.md)
 - [Fase 11.2 — Matriz de autorización y protección del propietario](docs/fases/11-2-matriz-autorizacion-propietario.md)
+- [Fase 12.1 — Modelo persistente de Menús y Procesos](docs/fases/12-1-modelo-menus-procesos.md)
 - [Guía Postman de asignaciones Usuario–Rol](docs/postman/rolusu.md)
 - [Guía Postman de la API Persona](docs/postman/persona.md)
 - [Guía Postman de la API Usuario](docs/postman/usuario.md)

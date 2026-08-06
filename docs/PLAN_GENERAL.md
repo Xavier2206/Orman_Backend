@@ -8,7 +8,7 @@ Construir de forma incremental un backend mantenible para ORMAN, comenzando por 
 
 El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
-No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las Fases 10.1 y 10.2 están cerradas; 11.1 está completada y 11.2 está implementada en validación manual. La Fase 12 permanece pendiente y no se inició.
+No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las Fases 10 y 11 están completadas; la Fase 12.1 incorpora únicamente el modelo persistente de Menús y Procesos.
 
 ## Estados permitidos
 
@@ -24,12 +24,12 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 ## Estado actual
 
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
-- Última subfase implementada: **Fase 11.2 — Matriz de autorización y protección del propietario**; validación manual de Postman pendiente.
-- Siguiente fase autorizable: **Fase 12 — Menús y procesos dinámicos**, únicamente mediante autorización expresa.
+- Última subfase completada: **Fase 12.1 — Modelo persistente de Menús y Procesos**.
+- Siguiente subfase autorizable: **Fase 12.2**, únicamente mediante autorización expresa.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
 - Resultado de Fase 10: sesiones por dispositivo, JWT HS256, refresh rotatorio, autenticación HTTP stateless, logout y administración de sesiones sobre Flyway V6.
-- Estado de la Fase 11 global: **EN DESARROLLO**; 11.1 está completada y 11.2 está implementada, pendiente de validación manual.
+- Estado de la Fase 11 global: **COMPLETADA**.
 - Resultado de Fase 11.1: Roles activos consultados en PostgreSQL en cada petición protegida, convertidos a authorities de Spring Security, sin incluirlos en el JWT ni revocar sesiones por sus cambios.
 - Resultado de Fase 11.2: matriz aplicada a módulos actuales, objetivos propietarios protegidos, Rol PROPIETARIO reservado y mínimo concurrente de un propietario activo.
 - Fecha de actualización: **2026-08-06**.
@@ -67,8 +67,8 @@ Teoría: pendiente de creación cuando corresponda.
 |---|---|---|---|
 | 09 — Autenticación y validación de credenciales | `COMPLETADA` | Fases 07 y 08 | [Documento de Fase 09](fases/09-autenticacion-validacion-credenciales.md) |
 | 10 — JWT y control de sesiones | `COMPLETADA` | Fase 09 | [Subfase 10.1](fases/10-1-sesiones-jwt-refresh.md); [Subfase 10.2](fases/10-2-seguridad-sesiones.md) |
-| 11 — Autorización por roles | `EN DESARROLLO` (11.2 implementada; validación manual pendiente) | Fases 08 y 10 | [Subfase 11.1](fases/11-1-base-autorizacion-roles.md); [Subfase 11.2](fases/11-2-matriz-autorizacion-propietario.md) |
-| 12 — Menús y procesos dinámicos | `PENDIENTE` | Fase 11 | Documento pendiente de creación |
+| 11 — Autorización por roles | `COMPLETADA` | Fases 08 y 10 | [Subfase 11.1](fases/11-1-base-autorizacion-roles.md); [Subfase 11.2](fases/11-2-matriz-autorizacion-propietario.md) |
+| 12 — Menús y procesos dinámicos | `EN DESARROLLO` (12.1 completada; 12.2 pendiente) | Fase 11 | [Subfase 12.1](fases/12-1-modelo-menus-procesos.md); 12.2 no iniciada |
 | 13 — OTP y desafíos de autenticación | `PENDIENTE` | Fases 09 y 10 | Documento pendiente de creación |
 
 ### ETAPA 4 — Calidad y producción
@@ -149,6 +149,8 @@ Cada Usuario puede mantener varias sesiones activas, con una sola por combinaci�
 El alcance Administrador–Propiedad permanece pendiente porque todavía no existe el módulo ni su relación de asignación. No se simula mediante `tipo_persona`, dispositivo, ciudad u otro dato no autorizado.
 
 ### Fase 12 — Menús y procesos dinámicos
+
+**Subfase 12.1 completada el 2026-08-06:** modelo V7 con `menus`, `procesos`, `rolme` y `mepro`; relaciones explícitas por claves compuestas para el flujo Usuario–Rol–Menú–Proceso. No se añadieron `rolpro`, endpoints ni autorización por Proceso. Validación: 180 pruebas, 0 fallos, 0 errores y 0 omitidas.
 
 **Objetivo:** modelar menús, procesos y relaciones de acceso según roles.
 

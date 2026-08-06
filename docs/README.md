@@ -45,6 +45,10 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Guía Postman de asignaciones Usuario–Rol](postman/rolusu.md)
 - [Guías actualizadas de autenticación](postman/auth.md), [Personas](postman/persona.md), [Usuarios](postman/usuario.md) y [Roles](postman/rol.md)
 
+## Fase 12.1
+
+- [Modelo persistente de Menús y Procesos](fases/12-1-modelo-menus-procesos.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

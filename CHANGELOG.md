@@ -6,6 +6,23 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 No hay cambios adicionales registrados fuera de las fases cerradas.
 
+## Fase 12.1 — 2026-08-06
+
+### Agregado
+
+- Migración V7 con `menus`, `procesos`, `rolme` y `mepro`.
+- Entidades y repositorios persistentes para Menú, Proceso y sus relaciones explícitas por clave compuesta.
+- Pruebas PostgreSQL para schema, constraints, relaciones y recorrido Usuario–Rol–Menú–Proceso.
+
+### Exclusiones
+
+- Sin `rolpro`, datos iniciales, endpoints, CRUD, authorities ni cambios en JWT, sesiones, CORS, CSRF o autorización de Fase 11.2.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 180 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- Flyway validó V1–V7; no existe V8.
+
 ## Fase 11.2 — 2026-08-06
 
 ### Agregado

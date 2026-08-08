@@ -26,6 +26,15 @@ La tabla `rolusu` materializa la relación de muchos a muchos entre usuarios y r
 
 V6 incorpora sesiones persistentes. `sid UUID` es PK y `login VARCHAR(30)` referencia `usuarios(login)` con `ON DELETE CASCADE`. Solo existe una fila activa por `(login, device_id)` mediante índice único parcial. La fila conserva cliente WEB/MOBILE, fechas UTC, versión, revocación y exclusivamente el hash SHA-256 del refresh token; nunca el token original.
 
+### `otp_challenges`
+
+V9 incorpora challenges OTP con `id UUID` generado en Java y `login VARCHAR(30)`
+referenciado por una FK normal a `usuarios(login)`, sin cascada ni cláusula de
+borrado. El registro conserva únicamente `otp_digest VARCHAR(64)`, nunca el OTP
+en texto plano. Persiste cliente WEB/MOBILE, propósito LOGIN, estado, contadores,
+fechas UTC, IP y user-agent. Un índice único parcial limita a un PENDING por
+`(login, client_type, purpose)` sin impedir el historial no PENDING.
+
 ## Relaciones confirmadas
 
 - Una persona puede tener como máximo un usuario.

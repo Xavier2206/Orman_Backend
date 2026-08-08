@@ -56,6 +56,10 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Guía Postman de Menús y Rol–Menú](postman/menu.md)
 - [Guía Postman de Procesos y Menú–Proceso](postman/proceso.md)
 
+## Fase 13
+
+- [OTP y autenticación de doble factor](fases/13-otp-autenticacion-doble-factor.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

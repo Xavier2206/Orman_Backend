@@ -45,10 +45,10 @@ class RolIntegrationTest {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
-        assertThat(tables).containsExactly("flyway_schema_history", "menus", "mepro", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
+        assertThat(tables).containsExactly("flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7') AND success = true",
-                Integer.class)).isEqualTo(7);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9') AND success = true",
+                Integer.class)).isEqualTo(9);
 
         List<Map<String, Object>> rolesColumns = jdbcTemplate.queryForList("""
                 SELECT column_name, data_type, character_maximum_length, is_nullable
@@ -173,7 +173,7 @@ class RolIntegrationTest {
 
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona ficticia", null, null,
-                "F", null, null, "70000000", "A", null));
+                "F", null, "persona.role@example.test", "70000000", "A", null));
         return usuarioService.create(new CreateUsuarioRequest(login, "clave-ficticia", null, persona.codper()));
     }
 }

@@ -161,6 +161,33 @@ class PersonaControllerWebMvcTest {
                 .andExpect(jsonPath("$.instance").value(BASE_URL));
     }
 
+    @Test
+    void rejectsMissingNullEmptyAndBlankEmailOnCreateAndCompleteUpdate() throws Exception {
+        String omitted = validCreateJson().replace(",\"correo\":\"persona@example.test\"", "");
+        String nullEmail = validCreateJson().replace("\"persona@example.test\"", "null");
+
+        for (String body : List.of(omitted, nullEmail, json("correo", ""), json("correo", "   "))) {
+            mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+            mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        }
+    }
+
+    @Test
+    void acceptsValidEmailOfExactlyOneHundredCharacters() throws Exception {
+        String email = "a".repeat(64) + "@" + "b".repeat(31) + ".com";
+        when(personaService.create(any())).thenReturn(response(7, (short) 1));
+        when(personaService.update(any(), any())).thenReturn(response(7, (short) 1));
+
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(json("correo", email)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(json("correo", email)))
+                .andExpect(status().isOk());
+    }
+
     private static Stream<Arguments> invalidRequests() {
         return Stream.of(
                 Arguments.of(json("ci", ""), "ci"),
@@ -171,6 +198,7 @@ class PersonaControllerWebMvcTest {
                 Arguments.of(json("am", "a".repeat(41)), "am"),
                 Arguments.of(json("genero", "X"), "genero"),
                 Arguments.of(json("estado", "2"), "estado"),
+                Arguments.of(json("correo", "   "), "correo"),
                 Arguments.of(json("correo", "correo-invalido"), "correo"),
                 Arguments.of(json("correo", "c".repeat(90) + "@example.test"), "correo"),
                 Arguments.of(json("telefono", ""), "telefono"),
@@ -197,7 +225,7 @@ class PersonaControllerWebMvcTest {
     }
 
     private String validCreateJson() {
-        return "{\"ci\":\"CI-001\",\"nombre\":\"Nombre válido\",\"genero\":\"F\",\"estado\":\"1\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
+        return "{\"ci\":\"CI-001\",\"nombre\":\"Nombre válido\",\"genero\":\"F\",\"estado\":\"1\",\"correo\":\"persona@example.test\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
     }
 
     private String validUpdateJson() {
@@ -205,7 +233,7 @@ class PersonaControllerWebMvcTest {
     }
 
     private PersonaResponse response(Integer codper, short estado) {
-        return new PersonaResponse(codper, "CI-001", "Nombre válido", null, null, 'F', estado, null,
+        return new PersonaResponse(codper, "CI-001", "Nombre válido", null, null, 'F', estado, "persona@example.test",
                 "70000000", 'A', null, LocalDateTime.of(2026, 1, 1, 0, 0));
     }
 }

@@ -51,7 +51,7 @@ public class Persona {
     private Short estado;
 
     @Setter
-    @Column(name = "correo", length = 100)
+    @Column(name = "correo", nullable = false, length = 100)
     private String correo;
 
     @Setter

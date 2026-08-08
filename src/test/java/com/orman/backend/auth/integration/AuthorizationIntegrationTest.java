@@ -217,7 +217,7 @@ class AuthorizationIntegrationTest {
 
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona autorización", null,
-                null, "F", null, null, "70000000", "A", null));
+                null, "F", null, "persona.authorization@example.test", "70000000", "A", null));
         return usuarioService.create(new CreateUsuarioRequest(login, PASSWORD, null, persona.codper()));
     }
 

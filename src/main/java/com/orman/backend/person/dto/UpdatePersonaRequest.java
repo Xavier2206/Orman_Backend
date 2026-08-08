@@ -13,7 +13,7 @@ public record UpdatePersonaRequest(
         @Size(max = 40, message = "El apellido materno no puede superar 40 caracteres.") String am,
         @NotNull(message = "El género es obligatorio.") @Pattern(regexp = "(?i)[MF]", message = "El género debe ser M o F.") String genero,
         @NotNull(message = "El estado es obligatorio.") @Pattern(regexp = "[01]", message = "El estado debe ser 0 o 1.") String estado,
-        @Email(message = "El correo no tiene un formato válido.") @Size(max = 100, message = "El correo no puede superar 100 caracteres.") String correo,
+        @NotBlank(message = "El correo es obligatorio.") @Email(message = "El correo no tiene un formato válido.") @Size(max = 100, message = "El correo no puede superar 100 caracteres.") String correo,
         @NotBlank(message = "El teléfono es obligatorio.") @Size(max = 20, message = "El teléfono no puede superar 20 caracteres.") String telefono,
         @NotNull(message = "El tipo de persona es obligatorio.") @Pattern(regexp = "(?i)[AI]", message = "El tipo de persona debe ser A o I.") String tipoPersona,
         @Size(max = 255, message = "La foto no puede superar 255 caracteres.") String foto) {

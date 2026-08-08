@@ -6,6 +6,7 @@ package com.orman.backend.common.error;
 public enum ErrorCode {
 
     INVALID_CREDENTIALS,
+    OTP_DELIVERY_FAILED,
     INVALID_REFRESH_TOKEN,
     INVALID_TOKEN,
     TOKEN_EXPIRED,

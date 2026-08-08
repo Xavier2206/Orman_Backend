@@ -4,7 +4,94 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
-No hay cambios adicionales registrados fuera de las fases cerradas.
+## Fase 13.4 — correo, reenvío y cierre OTP
+
+### Agregado
+
+- Envío SMTP síncrono de OTP mediante Spring Mail, configuración exclusivamente
+  externa y respuesta segura `OTP_DELIVERY_FAILED` ante fallos de entrega.
+- Reenvío preautenticado con cooldown, máximo de reenvíos y confirmación del
+  nuevo OTP solamente después de una entrega SMTP exitosa.
+
+### Seguridad
+
+- Un fallo del primer envío cancela el challenge; un fallo de reenvío conserva
+  el OTP anterior, su digest, vencimiento y contadores.
+- No se versionan credenciales SMTP ni se exponen o registran OTP, digest,
+  tokens o datos de correo innecesarios.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 214 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. Flyway validó V1–V9 y dejó el esquema en V9, sin V10.
+
+## Fase 13.2 — generación, digest y ciclo de vida OTP
+
+## Fase 13.3 — integración con login WEB administrativo
+
+### Agregado
+
+- Política OTP centralizada para WEB con Roles administrativos activos y verify
+  preautenticado que crea sesión solamente después de OTP correcto.
+- Contrato `OTP_REQUIRED`, revalidación de Usuario, Persona y Roles, y guía
+  Postman de autenticación actualizada.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 212 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. Flyway validó V1–V9 y dejó el esquema en V9.
+
+### Agregado
+
+- Generación decimal de seis dígitos con `SecureRandom` y digest HMAC-SHA-256
+  con secreto externo validado.
+- Servicio interno transaccional para creación, cancelación, verify, bloqueo,
+  expiración, reenvío y cooldown, sin integrar HTTP ni correo.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 209 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. Flyway validó V1–V9 y dejó el esquema en V9.
+
+## Fase 13.1 — modelo y persistencia OTP
+
+### Agregado
+
+- Migración V9 con `otp_challenges`, UUID generado desde Java, FK normal hacia
+  `usuarios(login)`, checks, defaults e índice único parcial para PENDING.
+- Entidad, enums y repositorio mínimos de challenge OTP; el registro persiste
+  `login` como String y nunca el código OTP en texto plano.
+- Pruebas de persistencia para Flyway, esquema, constraints, índices, defaults,
+  FK e historial.
+
+### Exclusiones
+
+- Sin HMAC, generación o verificación OTP, correo, endpoints, cambios de login,
+  JWT, refresh, sesiones, filtros o seguridad HTTP. Las subfases 13.2, 13.3 y
+  13.4 permanecen pendientes.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 202 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. Flyway validó V1–V9 y dejó el esquema en V9.
+
+## Correccion tecnica — correo obligatorio de Persona
+
+### Agregado
+
+- Migracion V8 para hacer `personas.correo` `VARCHAR(100) NOT NULL` con
+  precondicion segura para datos historicos NULL.
+- Validacion obligatoria en Create y Update, pruebas y guia Postman actualizadas.
+
+### Exclusiones
+
+- Sin correos fabricados, sin UNIQUE, sin cambios en V1–V7, seguridad, Fase 11,
+  Fase 12, Angular u OTP.
+
+### Pendiente
+
+- La base local contiene 1 Persona con correo NULL; V8 debe reintentarse despues
+  de corregir manualmente ese registro.
 
 ## Fase 12.2 — 2026-08-06
 

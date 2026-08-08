@@ -32,15 +32,15 @@ class PersonaPersistenceIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayAppliesFiveVersionsAndCreatesPersonasUsuariosRolesAndRolUsu() {
+    void flywayAppliesEightVersionsAndCreatesPersonasUsuariosRolesAndRolUsu() {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
 
-        assertThat(tables).containsExactly("flyway_schema_history", "menus", "mepro", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
+        assertThat(tables).containsExactly("flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7') AND success = true",
-                Integer.class)).isEqualTo(7);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9') AND success = true",
+                Integer.class)).isEqualTo(9);
     }
 
     @Test
@@ -59,7 +59,7 @@ class PersonaPersistenceIntegrationTest {
         assertThat(columns).extracting(column -> column.get("character_maximum_length"))
                 .containsExactly(null, 20, 60, 40, 40, 1, null, 100, 20, 1, 255, null);
         assertThat(columns).extracting(column -> column.get("is_nullable"))
-                .containsExactly("NO", "NO", "NO", "YES", "YES", "NO", "NO", "YES", "NO", "NO", "YES", "NO");
+                .containsExactly("NO", "NO", "NO", "YES", "YES", "NO", "NO", "NO", "NO", "NO", "YES", "NO");
         assertThat(jdbcTemplate.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'personas' AND column_name = 'estado'", String.class))
                 .isEqualTo("1");
         assertThat(jdbcTemplate.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'personas' AND column_name = 'fecha_registro'", String.class))
@@ -76,6 +76,7 @@ class PersonaPersistenceIntegrationTest {
         persona.setCi("TEST-CI-VALIDO-01");
         persona.setNombre("Persona Ficticia");
         persona.setGenero('F');
+        persona.setCorreo("persistencia@example.test");
         persona.setTelefono("70000001");
         persona.setTipoPersona('A');
 
@@ -89,7 +90,7 @@ class PersonaPersistenceIntegrationTest {
         assertThat(persisted.getFechaRegistro()).isInstanceOf(LocalDateTime.class);
         assertThat(persisted.getAp()).isNull();
         assertThat(persisted.getAm()).isNull();
-        assertThat(persisted.getCorreo()).isNull();
+        assertThat(persisted.getCorreo()).isEqualTo("persistencia@example.test");
         assertThat(persisted.getFoto()).isNull();
     }
 
@@ -120,6 +121,12 @@ class PersonaPersistenceIntegrationTest {
     }
 
     @Test
+    void correoIsRequired() {
+        assertThatThrownBy(() -> jdbcTemplate.update("INSERT INTO personas (ci, nombre, genero, telefono, tipo_persona) VALUES ('TEST-CI-SIN-CORREO', 'Nombre ficticio', 'F', '70000004', 'A')"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void generoAcceptsOnlyApprovedValues() {
         assertThatThrownBy(() -> insertValid("TEST-CI-GENERO", 'X', (short) 1, 'A'))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -139,7 +146,7 @@ class PersonaPersistenceIntegrationTest {
 
     private void insertValid(String ci, Character genero, short estado, Character tipoPersona) {
         jdbcTemplate.update(
-                "INSERT INTO personas (ci, nombre, genero, estado, telefono, tipo_persona) VALUES (?, 'Nombre ficticio', ?, ?, '70000000', ?)",
+                "INSERT INTO personas (ci, nombre, genero, estado, correo, telefono, tipo_persona) VALUES (?, 'Nombre ficticio', ?, ?, 'persistencia@example.test', '70000000', ?)",
                 ci, genero, estado, tipoPersona);
     }
 }

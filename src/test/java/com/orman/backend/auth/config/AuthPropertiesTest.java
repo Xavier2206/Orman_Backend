@@ -17,7 +17,13 @@ class AuthPropertiesTest {
                     "security.cookie.refresh-name=orman_refresh",
                     "security.cookie.secure=false",
                     "security.cookie.same-site=Lax",
-                    "security.cors.allowed-origins[0]=http://localhost:4200");
+                    "security.cors.allowed-origins[0]=http://localhost:4200",
+                    "security.otp.hmac-secret=test-only-otp-hmac-secret-at-least-32-bytes",
+                    "security.otp.expiration-seconds=300",
+                    "security.otp.max-attempts=5",
+                    "security.otp.resend-cooldown-seconds=60",
+                    "security.otp.max-resends=3",
+                    "security.mail.from=no-reply@example.test");
 
     @Test
     void acceptsValidSecretAndRedactsItFromToString() {
@@ -50,5 +56,20 @@ class AuthPropertiesTest {
         assertThatThrownBy(() -> new CorsProperties(java.util.List.of("*")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no permite");
+    }
+
+    @Test
+    void validatesOtpSecretAndLoadsApprovedValues() {
+        assertThatThrownBy(() -> new OtpProperties("too-short", 300, 5, 60, 3))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("32 bytes");
+        contextRunner.withPropertyValues("security.jwt.secret=test-only-secret-with-at-least-32-bytes-for-binding")
+                .run(context -> {
+                    OtpProperties properties = context.getBean(OtpProperties.class);
+                    assertThat(properties.expirationSeconds()).isEqualTo(300);
+                    assertThat(properties.maxAttempts()).isEqualTo(5);
+                    assertThat(properties.resendCooldownSeconds()).isEqualTo(60);
+                    assertThat(properties.maxResends()).isEqualTo(3);
+                    assertThat(properties.toString()).doesNotContain(properties.hmacSecret());
+                });
     }
 }

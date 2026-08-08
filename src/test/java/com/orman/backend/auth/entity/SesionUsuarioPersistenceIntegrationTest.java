@@ -149,6 +149,7 @@ class SesionUsuarioPersistenceIntegrationTest {
         persona.setCi(ci);
         persona.setNombre("Persona ficticia");
         persona.setGenero('F');
+        persona.setCorreo("sesion@example.test");
         persona.setTelefono("70000000");
         persona.setTipoPersona('A');
         persona = personaRepository.saveAndFlush(persona);

@@ -5,6 +5,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.exception.LastOwnerRequiredException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
+import com.orman.backend.auth.exception.OtpDeliveryException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.exception.ExpiredJwtException;
 import com.orman.backend.auth.exception.ExpiredSessionException;
@@ -46,6 +47,12 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException exception, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS,
                 "Credenciales inválidas", "Las credenciales no son válidas.", request, List.of());
+    }
+
+    @ExceptionHandler(OtpDeliveryException.class)
+    ResponseEntity<ProblemDetail> handleOtpDelivery(OtpDeliveryException exception, HttpServletRequest request) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.OTP_DELIVERY_FAILED,
+                "Verificación no disponible", "No fue posible enviar el código de verificación.", request, List.of());
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)

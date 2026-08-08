@@ -185,11 +185,11 @@ class PersonaServiceImplTest {
     }
 
     private CreatePersonaRequest createRequest(String ci) {
-        return new CreatePersonaRequest(ci, "Nombre", null, null, "F", "1", null, "70000000", "A", null);
+        return new CreatePersonaRequest(ci, "Nombre", null, null, "F", "1", "persona.service@example.test", "70000000", "A", null);
     }
 
     private UpdatePersonaRequest updateRequest(String ci) {
-        return new UpdatePersonaRequest(ci, "Nombre", null, null, "F", "1", null, "70000000", "A", null);
+        return new UpdatePersonaRequest(ci, "Nombre", null, null, "F", "1", "persona.service@example.test", "70000000", "A", null);
     }
 
     private Persona persona(Integer codper, short estado) {

@@ -160,6 +160,7 @@ class UsuarioPersistenceIntegrationTest {
         persona.setCi(ci);
         persona.setNombre("Persona ficticia");
         persona.setGenero('F');
+        persona.setCorreo("usuario@example.test");
         persona.setTelefono("70000000");
         persona.setTipoPersona('A');
         return personaRepository.saveAndFlush(persona);

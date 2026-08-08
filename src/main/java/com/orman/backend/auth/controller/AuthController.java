@@ -3,6 +3,8 @@ package com.orman.backend.auth.controller;
 import com.orman.backend.auth.config.JwtProperties;
 import com.orman.backend.auth.config.RefreshCookieProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
+import com.orman.backend.auth.dto.request.OtpVerifyRequest;
+import com.orman.backend.auth.dto.request.OtpResendRequest;
 import com.orman.backend.auth.dto.request.RefreshRequest;
 import com.orman.backend.auth.dto.response.LoginResponse;
 import com.orman.backend.auth.dto.response.SessionResponse;
@@ -64,6 +66,19 @@ public class AuthController {
         return response(authService.refresh(input.token(), input.clientType()));
     }
 
+    @PostMapping("/otp/verify")
+    public ResponseEntity<LoginResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
+            HttpServletRequest httpRequest) {
+        CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
+        return response(authService.verifyOtp(request), csrfToken == null ? null : csrfToken.getToken());
+    }
+
+    @PostMapping("/otp/resend")
+    public ResponseEntity<Void> resendOtp(@Valid @RequestBody OtpResendRequest request) {
+        authService.resendOtp(request);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal AuthenticatedUser user) {
@@ -102,7 +117,7 @@ public class AuthController {
 
     private ResponseEntity<LoginResponse> response(AuthResult result, String csrfToken) {
         ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
-        if (result.clientType() == ClientType.WEB) {
+        if (result.clientType() == ClientType.WEB && result.refreshToken() != null) {
             builder.header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken()).toString());
         }
         if (csrfToken != null) {

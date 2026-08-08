@@ -2,6 +2,10 @@
 
 ## Estado final
 
+La correccion tecnica posterior mantiene este CRUD, pero `correo` es ahora
+obligatorio en POST y PUT; el detalle de V8 y sus pruebas esta en
+`ajuste-correo-obligatorio-persona.md`.
+
 `COMPLETADA` el 2026-07-31. El CRUD, las operaciones de estado y sus pruebas específicas cumplen el alcance autorizado.
 
 ## Arquitectura final

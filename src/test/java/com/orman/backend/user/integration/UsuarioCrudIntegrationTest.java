@@ -60,9 +60,9 @@ class UsuarioCrudIntegrationTest {
         assertThat(UsuarioResponse.class.getRecordComponents()).extracting(component -> component.getName())
                 .doesNotContain("passwd", "password", "hash");
         assertThat(jdbcTemplate.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class))
-                .containsExactly("flyway_schema_history", "menus", "mepro", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7') AND success", Integer.class))
-                .isEqualTo(7);
+                .containsExactly("flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "roles", "rolme", "rolusu", "sesiones_usuario", "usuarios");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9') AND success", Integer.class))
+                .isEqualTo(9);
     }
 
     @Test
@@ -80,6 +80,6 @@ class UsuarioCrudIntegrationTest {
 
     private PersonaResponse createPersona(String ci) {
         return personaService.create(new CreatePersonaRequest(ci, "Persona ficticia", null, null, "F", null,
-                null, "70000000", "A", null));
+                "persona@example.test", "70000000", "A", null));
     }
 }

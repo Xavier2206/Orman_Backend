@@ -111,7 +111,7 @@ class LastOwnerConcurrencyIntegrationTest {
 
     private Fixture createFixture(String ci, String login) {
         PersonaResponse person = personaService.create(new CreatePersonaRequest(ci, "Propietario concurrente", null,
-                null, "F", null, null, "70000000", "A", null));
+                null, "F", null, "persona.concurrent@example.test", "70000000", "A", null));
         UsuarioResponse user = usuarioService.create(new CreateUsuarioRequest(login, PASSWORD, null, person.codper()));
         return new Fixture(user.login(), person.codper());
     }

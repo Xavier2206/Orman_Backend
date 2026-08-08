@@ -3,6 +3,7 @@ package com.orman.backend.auth.controller;
 import com.orman.backend.auth.config.JwtProperties;
 import com.orman.backend.auth.config.RefreshCookieProperties;
 import com.orman.backend.auth.dto.response.LoginResponse;
+import com.orman.backend.auth.dto.request.OtpVerifyRequest;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
@@ -37,6 +38,8 @@ class AuthControllerWebMvcTest {
 
     private static final String LOGIN_URL = "/api/v1/auth/login";
     private static final String REFRESH_URL = "/api/v1/auth/refresh";
+    private static final String VERIFY_URL = "/api/v1/auth/otp/verify";
+    private static final String RESEND_URL = "/api/v1/auth/otp/resend";
     private static final UUID SID = UUID.fromString("8acbc3d8-d7a8-49d1-a1b1-35cecc45ad21");
 
     @Autowired private MockMvc mockMvc;
@@ -86,6 +89,33 @@ class AuthControllerWebMvcTest {
                 .andExpect(cookie().path("orman_refresh", "/api/v1/auth"))
                 .andExpect(cookie().maxAge("orman_refresh", 2_592_000))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, org.hamcrest.Matchers.containsString("SameSite=Lax")));
+    }
+
+    @Test
+    void returnsOtpRequiredWithoutCookieOrAuthenticationSecretsAndVerifiesOnlyValidRequest() throws Exception {
+        UUID challengeId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        when(authService.login(any())).thenReturn(new AuthResult(LoginResponse.otpRequired(challengeId, 300), null, ClientType.WEB));
+        when(authService.verifyOtp(any())).thenReturn(result(ClientType.WEB, null));
+
+        mockMvc.perform(post(LOGIN_URL).contentType(MediaType.APPLICATION_JSON).content(validRequest("WEB")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OTP_REQUIRED"))
+                .andExpect(jsonPath("$.challengeId").value(challengeId.toString()))
+                .andExpect(jsonPath("$.expiresIn").value(300))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(jsonPath("$.otp").doesNotExist())
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        mockMvc.perform(post(VERIFY_URL).contentType(MediaType.APPLICATION_JSON).content("""
+                {"challengeId":"11111111-2222-3333-4444-555555555555","code":"004812","deviceId":"browser-1","deviceName":"Browser"}
+                """))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AUTHENTICATED"));
+        mockMvc.perform(post(VERIFY_URL).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        mockMvc.perform(post(RESEND_URL).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"challengeId\":\"11111111-2222-3333-4444-555555555555\"}"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

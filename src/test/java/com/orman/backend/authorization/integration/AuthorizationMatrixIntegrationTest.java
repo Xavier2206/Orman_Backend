@@ -155,7 +155,7 @@ class AuthorizationMatrixIntegrationTest {
                 .andExpect(status().isOk());
 
         PersonaResponse newPerson = personaService.create(new CreatePersonaRequest("M112-USR-NEW", "Usuario nuevo",
-                null, null, "F", null, null, "70000000", "A", null));
+                null, null, "F", null, "persona.new@example.test", "70000000", "A", null));
         mockMvc.perform(post("/api/v1/usuarios").headers(bearer(administrator))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"login\":\"m112.created\",\"password\":\"" + PASSWORD
@@ -301,7 +301,7 @@ class AuthorizationMatrixIntegrationTest {
 
     private Fixture createFixture(String ci, String login, String device) {
         PersonaResponse person = personaService.create(new CreatePersonaRequest(ci, "Persona matriz", null, null,
-                "F", null, null, "70000000", "A", null));
+                "F", null, "persona.matrix@example.test", "70000000", "A", null));
         UsuarioResponse user = usuarioService.create(new CreateUsuarioRequest(login, PASSWORD, null, person.codper()));
         return new Fixture(person, user, null, device);
     }
@@ -337,12 +337,12 @@ class AuthorizationMatrixIntegrationTest {
 
     private String personJson(String ci) {
         return "{\"ci\":\"" + ci + "\",\"nombre\":\"Persona nueva\",\"genero\":\"F\","
-                + "\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
+                + "\"correo\":\"persona.matriz@example.test\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
     }
 
     private String personUpdateJson(String ci, String state) {
         return "{\"ci\":\"" + ci + "\",\"nombre\":\"Persona actualizada\",\"genero\":\"F\","
-                + "\"estado\":\"" + state + "\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
+                + "\"estado\":\"" + state + "\",\"correo\":\"persona.matriz@example.test\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
     }
 
     private String passwordJson() {

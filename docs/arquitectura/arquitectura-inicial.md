@@ -25,9 +25,26 @@ ORMAN-BACKEND comenzará como un monolito modular: una sola aplicación Spring B
 
 ## Datos y esquema
 
+La correccion tecnica de Persona establece que `personas.correo` es
+`VARCHAR(100) NOT NULL` desde V8. La validacion de entrada usa DTO y Bean
+Validation; Flyway mantiene la garantia de PostgreSQL. No se agrega unicidad ni
+se inicia OTP.
+
 PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia. No se usará generación automática `create` o `update`.
 
-El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu` y `sesiones_usuario`. `rolusu` materializa Usuario–Rol; `sesiones_usuario` pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita a una sesión activa por `(login, device_id)`.
+El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu`, `sesiones_usuario`
+y `otp_challenges`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
+pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita
+a una sesión activa por `(login, device_id)`. `otp_challenges` conserva `login`
+como identificador simple respaldado por FK de base de datos, sin relación JPA ni
+cascada, y limita a un challenge PENDING por cliente y propósito.
+
+La lógica OTP usa `SecureRandom`, HMAC-SHA-256 con secreto externo y `Clock`
+UTC. WEB con Roles administrativos activos recibe un challenge y correo SMTP
+síncrono antes de la sesión; MOBILE y WEB INQUILINO conservan autenticación
+directa. Verify vuelve a validar Usuario, Persona y Roles antes de crear la
+sesión/JWT existentes. El reenvío prepara el código nuevo y solo lo confirma
+después del éxito SMTP, para preservar el anterior ante fallos de entrega.
 
 ## Seguridad
 

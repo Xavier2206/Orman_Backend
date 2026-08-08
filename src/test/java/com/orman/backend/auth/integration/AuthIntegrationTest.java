@@ -152,13 +152,13 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void validatesFlywayV7SchemaConstraintsAndIndexes() {
+    void validatesFlywayV7SchemaConstraintsAndIndexesWithSubsequentMigrations() {
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7') AND success",
-                Integer.class)).isEqualTo(7);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9') AND success",
+                Integer.class)).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("7");
+                String.class)).isEqualTo("9");
         Map<String, Object> loginColumn = jdbcTemplate.queryForMap("""
                 SELECT data_type, character_maximum_length, is_nullable
                 FROM information_schema.columns
@@ -188,7 +188,7 @@ class AuthIntegrationTest {
 
     private UsuarioResponse createUsuario(String ci, String login, String password) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona ficticia", null, null,
-                "F", null, null, "70000000", "A", null));
+                "F", null, "persona.auth@example.test", "70000000", "A", null));
         return usuarioService.create(new CreateUsuarioRequest(login, password, null, persona.codper()));
     }
 }

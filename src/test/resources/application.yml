@@ -20,11 +20,24 @@ spring:
     validate-on-migrate: true
     baseline-on-migrate: false
     clean-disabled: true
+  mail:
+    host: smtp.example.test
+    port: 587
+    username: test-user
+    password: test-password
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 server:
   port: 9090
 
 security:
+  mail:
+    from: no-reply@example.test
   jwt:
     secret: test-only-secret-with-at-least-32-bytes-0001
     issuer: orman-backend-test
@@ -37,3 +50,9 @@ security:
   cors:
     allowed-origins:
       - http://localhost:4200
+  otp:
+    hmac-secret: test-only-otp-hmac-secret-at-least-32-bytes
+    expiration-seconds: 300
+    max-attempts: 5
+    resend-cooldown-seconds: 60
+    max-resends: 3

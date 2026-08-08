@@ -75,7 +75,7 @@ class OwnerAuthorizationPersistenceIntegrationTest {
 
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona matriz", null,
-                null, "F", null, null, "70000000", "A", null));
+                null, "F", null, "persona.owner@example.test", "70000000", "A", null));
         return usuarioService.create(new CreateUsuarioRequest(login, PASSWORD, null, persona.codper()));
     }
 

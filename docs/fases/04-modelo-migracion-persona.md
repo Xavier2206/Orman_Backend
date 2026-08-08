@@ -7,6 +7,11 @@
 
 ## Antecedente y fuente de verdad
 
+Nota posterior: V8 corrigio la nulabilidad historica de `correo`; desde esta
+correccion `personas.correo` es `VARCHAR(100) NOT NULL` para toda Persona. La
+descripcion nullable de la definicion original queda supersedida por
+`docs/fases/ajuste-correo-obligatorio-persona.md`.
+
 La fase se bloqueó inicialmente porque no existía una definición completa de `personas`. Posteriormente se autorizó el modelo definitivo y, después de detectar que V1 ya aplicada dejaba `fecha_registro` nullable, se autorizó expresamente V2 para corregir únicamente esa nulabilidad. La definición SQL y semántica proporcionadas por el usuario son la fuente de verdad de la fase.
 
 `tipo_persona` es una clasificación de negocio de Persona (`A` administrador, `I` inquilino). No es un sistema de roles, permisos ni autorización y no genera autoridades de Spring Security.

@@ -75,7 +75,7 @@ class MenuProcesoPersistenceIntegrationTest {
     }
 
     @Test
-    void v7CreatesOnlyApprovedTablesConstraintsAndNoInitialData() {
+    void v7CreatesApprovedMenuProcesoSchemaWithSubsequentV8AndV9Migrations() {
         List<String> tables = jdbcTemplate.queryForList("""
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = 'public' ORDER BY table_name
@@ -83,18 +83,20 @@ class MenuProcesoPersistenceIntegrationTest {
         assertThat(tables).contains("menus", "procesos", "rolme", "mepro").doesNotContain("rolpro");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM flyway_schema_history
-                WHERE version IN ('1','2','3','4','5','6','7') AND success
-                """, Integer.class)).isEqualTo(7);
+                WHERE version IN ('1','2','3','4','5','6','7','8','9') AND success
+                """, Integer.class)).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT version FROM flyway_schema_history
                 WHERE success ORDER BY installed_rank DESC LIMIT 1
-                """, String.class)).isEqualTo("7");
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8'", Integer.class))
+                """, String.class)).isEqualTo("9");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '7' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '9' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '10'", Integer.class))
                 .isZero();
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM menus", Integer.class)).isZero();
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM procesos", Integer.class)).isZero();
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM rolme", Integer.class)).isZero();
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM mepro", Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForList("SELECT conname FROM pg_constraint WHERE conrelid = 'menus'::regclass", String.class))
                 .containsExactlyInAnyOrder("pk_menus", "uk_menus_nombre", "ck_menus_estado");
         assertThat(jdbcTemplate.queryForList("SELECT conname FROM pg_constraint WHERE conrelid = 'procesos'::regclass", String.class))
@@ -247,7 +249,7 @@ class MenuProcesoPersistenceIntegrationTest {
 
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona prueba", null, null,
-                "F", null, null, "70000000", "A", null));
+                "F", null, "persona@example.test", "70000000", "A", null));
         return usuarioService.create(new CreateUsuarioRequest(login, "clave-ficticia", null, persona.codper()));
     }
 }

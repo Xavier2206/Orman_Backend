@@ -208,6 +208,40 @@ personaId = 1
 
 No incluya variables de PostgreSQL.
 
+## 18.1 Regla vigente para correo
+
+`correo` es obligatorio para toda Persona en `POST` y `PUT`. El backend exige
+un valor no nulo, no vacio, no compuesto solo por espacios, con formato de
+correo valido y un maximo de 100 caracteres. PostgreSQL tambien lo garantiza
+con `NOT NULL`. No es un campo `UNIQUE`.
+
+Casos de validacion:
+
+| Identificador | Caso | POST | PUT |
+|---|---|---:|---:|
+| PERSONA-CORREO-001 | correo omitido | 400 | 400 |
+| PERSONA-CORREO-002 | correo null | 400 | 400 |
+| PERSONA-CORREO-003 | correo vacio | 400 | 400 |
+| PERSONA-CORREO-004 | correo solo espacios | 400 | 400 |
+| PERSONA-CORREO-005 | correo invalido | 400 | 400 |
+| PERSONA-CORREO-006 | correo mayor a 100 caracteres | 400 | 400 |
+| PERSONA-CORREO-007 | correo valido | 201 | 200 |
+
+Ejemplo valido: `"correo": "persona@example.test"`.
+
+Un `PUT` completo que omite `correo` responde `400 VALIDATION_ERROR`. El
+ejemplo POST y el ejemplo PUT de esta guia ya incluyen correo. El orden
+recomendado es crear, consultar, listar, actualizar, probar los casos
+`PERSONA-CORREO-001` a `PERSONA-CORREO-007`, cambiar estados y eliminar.
+
+Checklist:
+
+- [ ] POST incluye correo valido.
+- [ ] PUT completo incluye correo valido.
+- [ ] Se probaron null, vacio, espacios, formato invalido y mas de 100 caracteres.
+- [ ] No se confundio obligatoriedad con unicidad.
+- [ ] OTP no forma parte de esta guia.
+
 ## 18. Autorización de Fase 11.2
 
 Todas las rutas requieren Bearer. PROPIETARIO realiza todas las operaciones. ADMINISTRADOR puede listar, crear y operar sobre Personas comunes, pero recibe `403 ACCESS_DENIED` al consultar individualmente, modificar, activar, desactivar o eliminar una Persona asociada a un Usuario con Rol PROPIETARIO activo. INQUILINO y Usuario sin Rol reciben 403 en el CRUD genérico.

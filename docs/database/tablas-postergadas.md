@@ -10,7 +10,6 @@ Estas tablas dependen de decisiones de autenticación o autorización que todav�
 | `procesos` | Representar acciones o capacidades asociables a menús y roles. | Fase 12 — Menús y procesos dinámicos |
 | `rol_menu` | Relacionar roles con menús disponibles. | Fase 12 — Menús y procesos dinámicos |
 | `menu_proceso` | Relacionar menús con procesos permitidos. | Fase 12 — Menús y procesos dinámicos |
-| `login_challenges` | Gestionar desafíos temporales del proceso OTP. | Fase 13 — OTP y desafíos de autenticación |
 | `sesiones_usuario` | Controlar una sola sesión activa, revocación y hash de refresh token. | Fase 10 — JWT y control de sesiones |
 
 ## Condición

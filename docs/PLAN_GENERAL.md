@@ -23,6 +23,9 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 ## Estado actual
 
+- Correccion tecnica vigente: `Persona.correo` obligatorio mediante V8; no es
+  una fase nueva ni inicia la Fase 13.
+
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
 - Última subfase completada: **Fase 12.2 — Administración REST de Menús, Procesos y relaciones**.
 - Fase 12.3: no iniciada.
@@ -162,9 +165,15 @@ El alcance Administrador–Propiedad permanece pendiente porque todavía no exis
 
 ### Fase 13 — OTP y desafíos de autenticación
 
+**Estado:** `COMPLETADA` — V9 aporta `otp_challenges`; las subfases 13.1 a
+13.4 completan persistencia, ciclo de vida, integración WEB administrativa,
+correo SMTP síncrono y reenvío seguro.
+
 **Objetivo:** implementar desafíos temporales de autenticación.
 
-**Incluye:** `login_challenges`, generación de OTP, expiración, consumo único, límites, intentos y pruebas.
+**Incluye:** persistencia de challenges OTP, generación posterior, expiración,
+consumo único, límites, intentos y pruebas. El documento único de la fase es
+`docs/fases/13-otp-autenticacion-doble-factor.md`.
 
 **Excluye:** sustituir BCrypt, eliminar JWT o cambiar la sesión única sin decisión explícita. **Dependencias:** Fases 09 y 10.
 

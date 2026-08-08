@@ -224,7 +224,7 @@ class SecurityHttpIntegrationTest {
 
     private void createUser(String ci, String login) {
         PersonaResponse person = personaService.create(new CreatePersonaRequest(ci, "Persona seguridad", null,
-                null, "F", null, null, "70000000", "A", null));
+                null, "F", null, "persona.security@example.test", "70000000", "A", null));
         usuarioService.create(new CreateUsuarioRequest(login, "clave-ficticia", null, person.codper()));
     }
 

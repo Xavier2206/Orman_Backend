@@ -41,13 +41,14 @@ public class SecurityConfig {
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
             JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrfRepository.setCookieCustomizer(cookie -> cookie.path("/api/v1/auth")
+        csrfRepository.setCookieCustomizer(cookie -> cookie.path("/")
                 .secure(cookieProperties.secure()).sameSite(cookieProperties.sameSite()));
 
         return http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository)
+                        .spa()
                         .requireCsrfProtectionMatcher(webRefreshCookieRequest()))
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()

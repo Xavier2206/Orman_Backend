@@ -46,7 +46,7 @@ No se exponen tokens, hashes, contraseñas, SQL, constraints ni stack traces.
 
 CORS permite credenciales únicamente desde `security.cors.allowed-origins`; `ORMAN_FRONTEND_URL` configura el origen Angular predeterminado y `*` es rechazado. Los métodos permitidos son GET, POST, PUT, PATCH, DELETE y OPTIONS; los headers admitidos son Authorization, Content-Type y X-XSRF-TOKEN.
 
-CSRF no se desactiva globalmente. Se exige doble envío cookie/header en `POST /api/v1/auth/refresh` cuando existe la cookie HttpOnly de refresh WEB, porque esa credencial sí puede ser adjuntada automáticamente por el navegador. Login genera la cookie `XSRF-TOKEN` y expone el valor en el header CORS `X-XSRF-TOKEN`; Angular conserva temporalmente ese valor y lo reenvía con el mismo nombre. Los endpoints Bearer y el refresh MOBILE no requieren CSRF: sus credenciales se envían explícitamente y no son cookies ambientales.
+CSRF no se desactiva globalmente. Se exige doble envío cookie/header en `POST /api/v1/auth/refresh` cuando existe la cookie HttpOnly de refresh WEB, porque esa credencial sí puede ser adjuntada automáticamente por el navegador. `CookieCsrfTokenRepository` mantiene `XSRF-TOKEN` legible, con `Path=/`; Angular reenvía su valor crudo en `X-XSRF-TOKEN`. La configuración SPA de Spring Security resuelve ese header crudo para validarlo contra la cookie y conserva el enmascaramiento XOR para el token expuesto como atributo, mitigando BREACH. Los endpoints Bearer y el refresh MOBILE no requieren CSRF: sus credenciales se envían explícitamente y no son cookies ambientales.
 
 ## Clientes
 
@@ -60,7 +60,7 @@ Se agregaron configuración de seguridad/CORS, filtro, principal, excepciones, s
 
 Las pruebas cubren JWT válido/expirado/manipulado/issuer incorrecto; token ausente o inválido; sesión revocada/expirada; Usuario/Persona inactivos; logout y motivos; logout-all; listado propio sin secretos; revocación propia/inexistente/ajena; cambio de contraseña y desactivaciones; CORS, CSRF y ProblemDetail.
 
-`./mvnw.cmd clean test` finalizó con `BUILD SUCCESS`: 141 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL 17.6 estuvo conectado, Flyway validó seis migraciones y confirmó el esquema en V6, e Hibernate inició con `ddl-auto=validate`.
+La corrección posterior de compatibilidad SPA ajustó el handler CSRF sin cambiar el matcher: el test HTTP usa `XSRF-TOKEN` crudo como `X-XSRF-TOKEN`, verifica que la ausencia o un valor incorrecto devuelven `403 INVALID_REQUEST` y preserva la rotación de refresh. La validación final vigente se registra en `CHANGELOG.md`.
 
 Una ejecución previa tuvo 1 fallo de fixture: cambiar el último carácter Base64 podía conservar los mismos bytes de firma por bits no significativos. Se corrigió la prueba para alterar el primer carácter de la firma; no se modificó ni debilitó la validación productiva, y la repetición completa fue exitosa.
 

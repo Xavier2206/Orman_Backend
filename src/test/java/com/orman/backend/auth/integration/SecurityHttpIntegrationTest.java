@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -191,19 +192,37 @@ class SecurityHttpIntegrationTest {
                                  "deviceName":"Chrome Test","clientType":"WEB"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie()
-                        .exists("XSRF-TOKEN"))
+                .andExpect(cookie().exists("orman_refresh"))
+                .andExpect(cookie().httpOnly("orman_refresh", true))
+                .andExpect(cookie().path("orman_refresh", "/api/v1/auth"))
+                .andExpect(cookie().exists("XSRF-TOKEN"))
+                .andExpect(cookie().httpOnly("XSRF-TOKEN", false))
+                .andExpect(cookie().path("XSRF-TOKEN", "/"))
                 .andExpect(header().exists("X-XSRF-TOKEN"))
                 .andReturn();
         jakarta.servlet.http.Cookie refreshCookie = webLogin.getResponse().getCookie("orman_refresh");
         jakarta.servlet.http.Cookie csrfCookie = webLogin.getResponse().getCookie("XSRF-TOKEN");
-        String csrfHeader = webLogin.getResponse().getHeader("X-XSRF-TOKEN");
+        String rawCsrfToken = csrfCookie.getValue();
         mockMvc.perform(post("/api/v1/auth/refresh").cookie(refreshCookie, csrfCookie))
                 .andExpect(status().isForbidden())
-                .andExpect(content().contentType("application/problem+json"));
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
         mockMvc.perform(post("/api/v1/auth/refresh").cookie(refreshCookie, csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfHeader))
-                .andExpect(status().isOk());
+                        .header("X-XSRF-TOKEN", "invalid-csrf-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
+        org.springframework.test.web.servlet.MvcResult refreshed = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(refreshCookie, csrfCookie)
+                        .header("X-XSRF-TOKEN", rawCsrfToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
+                .andExpect(cookie().exists("orman_refresh"))
+                .andExpect(cookie().httpOnly("orman_refresh", true))
+                .andExpect(cookie().path("orman_refresh", "/api/v1/auth"))
+                .andReturn();
+        assertThat(refreshed.getResponse().getCookie("orman_refresh").getValue())
+                .isNotEqualTo(refreshCookie.getValue());
     }
 
     private void expectUnauthorized(String token, String errorCode) throws Exception {

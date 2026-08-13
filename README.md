@@ -34,7 +34,7 @@ El servidor se configura para usar el puerto `9090`. La API de Persona está dis
 
 Para iniciar la aplicación se requiere PostgreSQL, `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` de al menos 32 bytes.
 
-`ORMAN_FRONTEND_URL` define el origen permitido para Angular. CORS admite credenciales y nunca usa `*`. Angular envía el access token mediante `Authorization: Bearer`, mantiene el refresh en cookie HttpOnly y reenvía `X-XSRF-TOKEN` al renovar. Flutter envía Bearer y conserva su refresh MOBILE en almacenamiento seguro.
+`ORMAN_FRONTEND_URL` define el origen permitido para Angular. CORS admite credenciales y nunca usa `*`. Angular envía el access token mediante `Authorization: Bearer`, mantiene el refresh en cookie HttpOnly y copia el valor crudo de la cookie `XSRF-TOKEN` al header `X-XSRF-TOKEN` al renovar. Flutter envía Bearer y conserva su refresh MOBILE en almacenamiento seguro.
 
 ## Configuración local de PostgreSQL
 

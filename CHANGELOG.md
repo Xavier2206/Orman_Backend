@@ -4,6 +4,29 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Corrección técnica — CSRF de refresh WEB para Angular
+
+### Modificado
+
+- Spring Security usa su configuración SPA de CSRF: el refresh WEB mantiene
+  `CookieCsrfTokenRepository`, exige CSRF solamente cuando recibe la cookie
+  `orman_refresh` y acepta el valor crudo de `XSRF-TOKEN` reenviado por Angular
+  en `X-XSRF-TOKEN`.
+- La prueba HTTP de refresh WEB reproduce cookie cruda → header crudo, sin
+  modificar el controller, la cookie refresh HttpOnly ni la rotación.
+
+### Seguridad
+
+- CSRF permanece activo: ausencia o valor incorrecto de `X-XSRF-TOKEN` devuelve
+  `403 INVALID_REQUEST`; Spring conserva el enmascaramiento XOR del token
+  expuesto como atributo para mitigación BREACH.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 214 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL 17.6, Flyway V1–V9 y Hibernate con
+  `ddl-auto=validate` se validaron correctamente.
+
 ## Fase 13.4 — correo, reenvío y cierre OTP
 
 ### Agregado

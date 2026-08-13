@@ -151,7 +151,7 @@ pm.environment.set("refreshToken", json.refreshToken);
 
 ## 13. Refresh WEB
 
-Envíe `POST {{baseUrl}}/api/v1/auth/refresh` sin body. Postman adjunta las cookies; agregue `X-XSRF-TOKEN` con el valor recibido en el header del login WEB. Debe llegar un access token nuevo, ninguna propiedad `refreshToken` y una nueva cookie `orman_refresh`.
+Envíe `POST {{baseUrl}}/api/v1/auth/refresh` sin body. Postman adjunta las cookies; copie el valor crudo de la cookie legible `XSRF-TOKEN` al header `X-XSRF-TOKEN`. Debe llegar un access token nuevo, ninguna propiedad `refreshToken` y una nueva cookie `orman_refresh`.
 
 ## 14–15. Rotación y reutilización
 
@@ -288,7 +288,7 @@ Todos usan `application/problem+json` con `type`, `title`, `status`, `detail`, `
 
 ## 31. Angular, CORS y CSRF
 
-Configure `ORMAN_FRONTEND_URL` con el origen exacto. Angular guarda temporalmente el access token, usa Bearer y envía `credentials` en login/refresh. El login entrega cookie refresh HttpOnly, cookie `XSRF-TOKEN` y el valor XSRF en el header CORS expuesto `X-XSRF-TOKEN`; Angular conserva temporalmente ese header y lo reenvía con el mismo nombre en refresh. Un refresh WEB con cookie pero sin header XSRF responde 403.
+Configure `ORMAN_FRONTEND_URL` con el origen exacto. Angular guarda temporalmente el access token, usa Bearer y envía `credentials` en login/refresh. El login entrega cookie refresh HttpOnly y cookie `XSRF-TOKEN`; Angular lee esta última y reenvía su valor crudo como header `X-XSRF-TOKEN` en refresh. Spring Security queda configurado en modo SPA para validar ese patrón y conservar la protección CSRF. Un refresh WEB con cookie pero sin header XSRF responde 403.
 
 ## 32. Flutter
 

@@ -110,7 +110,13 @@ class AuthControllerWebMvcTest {
         mockMvc.perform(post(VERIFY_URL).contentType(MediaType.APPLICATION_JSON).content("""
                 {"challengeId":"11111111-2222-3333-4444-555555555555","code":"004812","deviceId":"browser-1","deviceName":"Browser"}
                 """))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AUTHENTICATED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
+                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(cookie().value("orman_refresh", "rotated-refresh"))
+                .andExpect(cookie().httpOnly("orman_refresh", true))
+                .andExpect(cookie().path("orman_refresh", "/api/v1/auth"));
         mockMvc.perform(post(VERIFY_URL).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         mockMvc.perform(post(RESEND_URL).contentType(MediaType.APPLICATION_JSON)

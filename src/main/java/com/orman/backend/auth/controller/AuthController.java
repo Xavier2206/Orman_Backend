@@ -8,10 +8,12 @@ import com.orman.backend.auth.dto.request.OtpResendRequest;
 import com.orman.backend.auth.dto.request.RefreshRequest;
 import com.orman.backend.auth.dto.response.LoginResponse;
 import com.orman.backend.auth.dto.response.SessionResponse;
+import com.orman.backend.auth.dto.response.AuthContextResponse;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
 import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.AuthService;
+import com.orman.backend.auth.service.AuthContextService;
 import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,6 +47,7 @@ public class AuthController {
 
     private static final String REFRESH_PATH = "/api/v1/auth";
     private final AuthService authService;
+    private final AuthContextService authContextService;
     private final SessionService sessionService;
     private final RefreshCookieProperties cookieProperties;
     private final JwtProperties jwtProperties;
@@ -101,6 +104,12 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     public List<SessionResponse> sessions(@AuthenticationPrincipal AuthenticatedUser user) {
         return sessionService.list(user);
+    }
+
+    @GetMapping("/context")
+    @PreAuthorize("isAuthenticated()")
+    public AuthContextResponse context(@AuthenticationPrincipal AuthenticatedUser user) {
+        return authContextService.getCurrentContext(user);
     }
 
     @DeleteMapping("/sessions/{sid}")

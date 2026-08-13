@@ -17,6 +17,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, String> {
 
     Optional<Usuario> findByPersonaCodper(Integer codper);
 
+    @EntityGraph(attributePaths = "persona")
+    @Query("select u from Usuario u where u.login = :login")
+    Optional<Usuario> findByLoginWithPersona(@Param("login") String login);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = "persona")
     @Query("select u from Usuario u where u.login = :login")

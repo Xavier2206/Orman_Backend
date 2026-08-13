@@ -9,6 +9,7 @@ import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
 import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.AuthService;
+import com.orman.backend.auth.service.AuthContextService;
 import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import java.util.UUID;
@@ -44,6 +45,7 @@ class AuthControllerWebMvcTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AuthService authService;
+    @MockitoBean private AuthContextService authContextService;
     @MockitoBean private SessionService sessionService;
     @MockitoBean private JwtProperties jwtProperties;
     @MockitoBean private RefreshCookieProperties cookieProperties;

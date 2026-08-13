@@ -8,7 +8,7 @@ Las guías usan `{{baseUrl}}` y Bearer de un Usuario autorizado. No contienen to
 | [proceso.md](proceso.md) | Catálogo de Procesos |
 | [rolme.md](rolme.md) | Asignación Roles–Menús |
 | [mepro.md](mepro.md) | Asignación Menús–Procesos |
-| [auth.md](auth.md) | Login, JWT, refresh y sesiones |
+| [auth.md](auth.md) | Login, JWT, refresh, sesiones y contexto autenticado |
 | [persona.md](persona.md) | CRUD de Personas |
 | [usuario.md](usuario.md) | CRUD de Usuarios y contraseñas |
 | [rol.md](rol.md) | Catálogo de Roles |

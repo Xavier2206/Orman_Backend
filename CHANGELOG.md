@@ -4,6 +4,24 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Fase 12.3 — contexto del usuario autenticado
+
+### Agregado
+
+- `GET /api/v1/auth/context` para reconstruir el contexto vigente de Usuario, Persona, Roles, Menús y Procesos desde el principal autenticado.
+- DTOs y mapper específicos de contexto; consulta de Persona junto a Usuario y proyección JPQL única de navegación activa, sin HTTP interno ni N+1 evidente.
+- Pruebas unitarias y de integración PostgreSQL para identidad propia, Usuario normal, ADMINISTRADOR, PROPIETARIO, foto, filtros de estado, asociaciones eliminadas y Menú compartido.
+
+### Seguridad
+
+- El endpoint requiere solo autenticación y no acepta identificadores de Usuario para seleccionar el contexto.
+- JWT, sesiones, OTP, refresh, authorities, `@PreAuthorize` administrativo y APIs existentes no cambiaron; Menú y Proceso siguen fuera de `GrantedAuthority`.
+- `foto` conserva la referencia textual opcional existente; no se exponen secretos ni datos personales administrativos.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 218 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL validó Flyway V1–V9 y Hibernate `ddl-auto=validate`.
+
 ## Corrección técnica — CSRF de refresh WEB para Angular
 
 ### Modificado

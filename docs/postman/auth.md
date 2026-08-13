@@ -28,6 +28,7 @@ Use datos ficticios. No sincronice contraseñas, JWT, refresh tokens, cookies ni
 | POST | `/api/v1/auth/logout` | [Logout](#27-logout-y-logout-global) | Bearer; cualquier Usuario autenticado, solo su `sid` | No | 204 | 401, 404 |
 | POST | `/api/v1/auth/logout-all` | [Logout-all](#27-logout-y-logout-global) | Bearer; cualquier Usuario autenticado | No | 204 | 401 |
 | GET | `/api/v1/auth/sessions` | [Listar sesiones](#28-listar-sesiones-propias) | Bearer; cualquier Usuario autenticado | No | 200 | 401 |
+| GET | `/api/v1/auth/context` | [Contexto autenticado](#30-contexto-del-usuario-autenticado) | Bearer; cualquier Usuario autenticado, solo su contexto | No | 200 | 401 |
 | DELETE | `/api/v1/auth/sessions/{sid}` | [Revocar sesión](#29-revocar-una-sesión) | Bearer; solo sesión del Usuario autenticado | No | 204 | 401, 404 |
 
 `*` En WEB el refresh no lleva body; en MOBILE lleva `{"refreshToken":"..."}`. Una cookie WEB residual en Postman puede activar la validación CSRF y producir `403 INVALID_REQUEST` en una prueba MOBILE.
@@ -274,7 +275,43 @@ Authorization: Bearer {{accessToken}}
 
 Una sesión propia responde 204 y queda con `ADMIN_REVOKED`. Un `sid` inexistente o perteneciente a otro Usuario responde el mismo 404 `RESOURCE_NOT_FOUND`.
 
-## 30. Errores del access token
+## 30. Contexto del usuario autenticado
+
+```http
+GET {{baseUrl}}/api/v1/auth/context
+Authorization: Bearer {{accessToken}}
+```
+
+No envíe `login`, `codper` ni otro identificador para seleccionar al Usuario: el backend usa exclusivamente la identidad autenticada del Bearer. Cualquier Usuario autenticado, incluso sin Roles, recibe `200 OK`; sin Bearer válido responde `401 application/problem+json`.
+
+```json
+{
+  "usuario": { "login": "usuario.demo", "codper": 15 },
+  "persona": { "nombre": "Walter", "ap": "Pérez", "am": null, "foto": null },
+  "roles": [
+    {
+      "codr": 1,
+      "nombre": "ADMINISTRADOR",
+      "menus": [
+        {
+          "codm": 10,
+          "nombre": "USUARIOS",
+          "icono": "users",
+          "procesos": [
+            { "codp": 100, "nombre": "LISTAR USUARIOS", "enlace": "usuarios/listar" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+La Persona solo contiene datos visuales mínimos. `foto` es la referencia `String` ya guardada en Persona; no existe endpoint ni descarga binaria de fotografía. Roles, Menús y Procesos se leen en cada solicitud desde el estado actual: se excluyen Roles, Menús y Procesos inactivos, y se preserva un Menú compartido dentro de cada Rol que tenga la asociación. El orden es por nombre y luego identificador. `enlace` conserva su significado de dato persistente del Proceso y no implica una ruta Angular ni un authority.
+
+Consuma este endpoint después de login/OTP, después de cada refresh exitoso y al restaurar la aplicación tras F5. No deduplique Menús entre Roles.
+
+## 31. Errores del access token
 
 | Caso | HTTP | `errorCode` |
 |---|---:|---|
@@ -286,28 +323,28 @@ Una sesión propia responde 204 y queda con `ADMIN_REVOKED`. Un `sid` inexistent
 
 Todos usan `application/problem+json` con `type`, `title`, `status`, `detail`, `errorCode`, `timestamp`, `traceId` e `instance`.
 
-## 31. Angular, CORS y CSRF
+## 32. Angular, CORS y CSRF
 
 Configure `ORMAN_FRONTEND_URL` con el origen exacto. Angular guarda temporalmente el access token, usa Bearer y envía `credentials` en login/refresh. El login entrega cookie refresh HttpOnly y cookie `XSRF-TOKEN`; Angular lee esta última y reenvía su valor crudo como header `X-XSRF-TOKEN` en refresh. Spring Security queda configurado en modo SPA para validar ese patrón y conservar la protección CSRF. Un refresh WEB con cookie pero sin header XSRF responde 403.
 
-## 32. Flutter
+## 33. Flutter
 
 Flutter envía `Authorization: Bearer {{accessToken}}`, ejecuta refresh mediante body JSON en `POST /api/v1/auth/refresh` y guarda el refresh token en almacenamiento seguro. El refresh MOBILE no usa cookies ni requiere XSRF.
 
-## 33. Revocaciones administrativas
+## 34. Revocaciones administrativas
 
 - Cambio de contraseña: `PASSWORD_CHANGED`.
 - Desactivar Usuario: `USER_DISABLED`.
 - Desactivar Persona vinculada: `PERSON_DISABLED`.
 - Reactivar Usuario o Persona no restaura ninguna sesión; se debe iniciar sesión nuevamente.
 
-## 34. Base de autorización por Roles
+## 35. Base de autorización por Roles
 
 Para comprobar cambios inmediatos, conserve el mismo `{{accessToken}}` y `sid`, asigne o retire un Rol mediante la API de Roles y repita una petición protegida por método. En la siguiente petición, una asignación activa concede `ROLE_<NOMBRE>` y su retiro la elimina. Desactivar el Rol conserva la asignación pero deja de concederla; reactivarlo la restaura.
 
 Los cambios de Rol no revocan la sesión ni requieren login, refresh o un JWT nuevo. Un Usuario sin Roles continúa autenticado con authorities vacías y conserva sus operaciones propias de autenticación y sesiones.
 
-## 35. Matriz de Fase 11.2
+## 36. Matriz de Fase 11.2
 
 Login y refresh siguen públicos. Logout, logout-all, listado y revocación de sesiones propias permiten cualquier Usuario autenticado, incluso sin Roles; una sesión ajena conserva la respuesta segura 404. No se añadieron endpoints para administrar sesiones de terceros.
 

@@ -14,20 +14,20 @@ ORMAN expone un backend Spring Boot para Personas, Usuarios, Roles, autenticaci�
 - Seguridad HTTP stateless, CORS, CSRF para refresh WEB y OTP por correo.
 - Autorización por `PROPIETARIO` y `ADMINISTRADOR`.
 - Menús, Procesos, Rol–Menú y Menú–Proceso.
+- Contexto post-login del Usuario autenticado (`GET /api/v1/auth/context`).
 - Errores RFC 9457 con `ProblemDetail`.
 - Flyway V1–V9.
 
 ### ⚠️ Inferencia / parcial
 
 - `INQUILINO` puede existir como nombre de Rol, pero el código no le concede privilegios administrativos especiales.
-- No existe endpoint para consultar el perfil, los roles o el menú del usuario autenticado.
+- El cliente debe consumir el contexto autenticado para perfil y navegación; no debe inferirlo desde el JWT.
 
 ### ❌ Pendiente en backend
 
 - Propiedades/inmuebles.
 - Imágenes y upload de propiedades.
 - Contacto, consultas, reservas o interesados.
-- Menú dinámico del usuario autenticado.
 - OpenAPI.
 
 ## 2. URL y configuración
@@ -526,4 +526,3 @@ Persona
                     └── RolMe ── Menu
                                   └── MePro ── Proceso
 ```
-

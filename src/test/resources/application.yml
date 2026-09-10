@@ -56,3 +56,8 @@ security:
     max-attempts: 5
     resend-cooldown-seconds: 60
     max-resends: 3
+storage:
+  personas:
+    root: ./target/test-storage
+    max-file-size-bytes: 2097152
+    max-dimension: 320

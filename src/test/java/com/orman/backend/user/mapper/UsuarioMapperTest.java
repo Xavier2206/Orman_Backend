@@ -42,7 +42,8 @@ class UsuarioMapperTest {
         UsuarioResponse response = mapper.toResponse(usuario());
 
         assertThat(response).isEqualTo(new UsuarioResponse("usuario.demo", (short) 1, 7,
-                LocalDateTime.of(2026, 1, 1, 10, 0), LocalDateTime.of(2026, 1, 2, 10, 0)));
+                LocalDateTime.of(2026, 1, 1, 10, 0), LocalDateTime.of(2026, 1, 2, 10, 0),
+                "Persona", "Paterno", "Materno"));
         assertThat(UsuarioResponse.class.getRecordComponents()).extracting(component -> component.getName())
                 .doesNotContain("password", "passwd", "hash", "persona");
     }
@@ -50,6 +51,9 @@ class UsuarioMapperTest {
     private Persona persona(Integer codper) {
         Persona persona = new Persona();
         ReflectionTestUtils.setField(persona, "codper", codper);
+        persona.setNombre("Persona");
+        persona.setAp("Paterno");
+        persona.setAm("Materno");
         return persona;
     }
 

@@ -4,6 +4,90 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Gestión remota de Menús — 2026-09-08
+
+### Agregado
+
+- Filtros remotos opcionales `q` y `estado` en `GET /api/v1/menus`, combinables
+  con `AND`, paginados y ordenados directamente por PostgreSQL.
+- `GET /api/v1/menus/resumen` y `MenuResumenResponse` con `totalMenus`,
+  `activos` e `inactivos`, calculados mediante conteos de BD.
+- Pruebas MVC, unitarias, de integración PostgreSQL y de autorización para
+  filtros, paginación, resumen y `400 VALIDATION_ERROR` ante `estado` inválido.
+
+### Preservado
+
+- POST/GET por ID/PUT/PATCH existentes, autenticación/JWT, relaciones
+  Rol–Menú y Menú–Proceso, permisos y ausencia de DELETE de Menús no
+  cambiaron.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 244 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL validó Flyway V1–V9 y Hibernate `ddl-auto=validate`.
+- `.\mvnw.cmd package -DskipTests`: **BUILD SUCCESS**; JAR empaquetado.
+
+## Gestión remota de Roles — 2026-09-05
+
+### Agregado
+
+- Filtros remotos opcionales `q` y `estado` en `GET /api/v1/roles`, combinables
+  con `AND`, paginados y ordenados directamente por PostgreSQL.
+- `GET /api/v1/roles/resumen` y `RolResumenResponse` con `totalRoles`,
+  `activos` e `inactivos`, calculados mediante conteos de BD.
+- Pruebas MVC, unitarias, integración PostgreSQL y de autorización para filtros,
+  paginación, resumen y `400 VALIDATION_ERROR` ante `estado` inválido.
+
+### Preservado
+
+- POST/GET por ID/PUT/PATCH existentes, protección del Rol PROPIETARIO,
+  autenticación/JWT, Usuario–Rol, Rol–Menú, permisos y ausencia de DELETE de
+  Roles no cambiaron.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 237 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL validó Flyway V1–V9 y Hibernate `ddl-auto=validate`.
+- `./mvnw.cmd package -DskipTests`: **BUILD SUCCESS**; JAR empaquetado.
+- `git diff --check`: sin errores de espacios.
+
+## Resumen global de Personas — 2026-08-17
+
+### Agregado
+
+- `GET /api/v1/personas/resumen` con `totalPersonas`, `activas`, `inactivas` y
+  `conUsuario` globales, independiente de filtros y paginación.
+- DTO `PersonaResumenResponse` y consulta agregada PostgreSQL con `COUNT`,
+  `FILTER` y `LEFT JOIN`, sin cargar Personas ni ejecutar N+1.
+- Pruebas MVC, unitarias, integración PostgreSQL y autorización para la ruta
+  dedicada, incluyendo Usuarios vinculados activos e inactivos.
+
+### Seguridad y preservación
+
+- La ruta requiere `PROPIETARIO` o `ADMINISTRADOR`, igual que el listado actual.
+- `conUsuario` cuenta Personas con Usuario vinculado, independientemente del
+  estado del Usuario.
+- `GET /api/v1/personas`, sus filtros, paginación y `PersonaResponse` no fueron
+  modificados. No se agregaron migraciones.
+
+### Verificación
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 232 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL 17.6 validó Flyway V1–V9 y Hibernate
+  `ddl-auto=validate`.
+- `.\mvnw.cmd package -DskipTests`: **BUILD SUCCESS**; JAR empaquetado.
+
+## Contrato Personas para Angular — 2026-08-14
+
+### Agregado
+
+- Filtros de Personas (`q`, `tipoPersona`, `estado`), resumen no sensible de Usuario, capacidades de UI y fotografía local JPEG/PNG.
+- Consultas por lote para evitar N+1 en la página de Personas.
+
+### Preservado
+
+- APIs de Usuario, BCrypt, JWT y matriz de autorización. DELETE Persona continúa siendo físico; PATCH de estado continúa siendo lógico.
+
 ## Fase 12.3 — contexto del usuario autenticado
 
 ### Agregado

@@ -106,6 +106,29 @@ class UsuarioServiceImplTest {
     }
 
     @Test
+    void searchesUsuariosRemotelyAndNormalizesQuery() {
+        Usuario usuario = usuario("xavier.login", persona(7), (short) 1);
+        UsuarioResponse response = new UsuarioResponse("xavier.login", (short) 1, 7,
+                LocalDateTime.of(2026, 1, 1, 0, 0), null, "Xavier", "Ortega", null);
+        PageRequest pageable = PageRequest.of(0, 5);
+        when(usuarioRepository.search("xavier", pageable)).thenReturn(new PageImpl<>(List.of(usuario), pageable, 1));
+        when(usuarioMapper.toResponse(usuario)).thenReturn(response);
+
+        assertThat(service.list(" Xavier ", pageable).content()).containsExactly(response);
+        verify(usuarioRepository).search("xavier", pageable);
+    }
+
+    @Test
+    void keepsCurrentQueryWhenSearchIsBlank() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(usuarioRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        assertThat(service.list("   ", pageable).content()).isEmpty();
+        verify(usuarioRepository).findAll(pageable);
+        verify(usuarioRepository, never()).search(any(), any());
+    }
+
+    @Test
     void updatesAndChangesStatusIdempotently() {
         Usuario usuario = usuario("usuario.demo", persona(7), (short) 1);
         UsuarioResponse inactive = response("usuario.demo", (short) 0, 7);

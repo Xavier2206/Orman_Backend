@@ -26,6 +26,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class UsuarioServiceImpl implements UsuarioService {
@@ -78,13 +80,40 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<UsuarioResponse> list(String q, Pageable pageable) {
+        String normalizedQuery = normalizeQuery(q);
+        if (normalizedQuery == null) {
+            return list(pageable);
+        }
+        return pageResponse(usuarioRepository.search(normalizedQuery, pageable).map(usuarioMapper::toResponse));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<UsuarioResponse> listCommon(Pageable pageable) {
         return pageResponse(usuarioRepository.findAllCommon(pageable).map(usuarioMapper::toResponse));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UsuarioResponse> listCommon(String q, Pageable pageable) {
+        String normalizedQuery = normalizeQuery(q);
+        if (normalizedQuery == null) {
+            return listCommon(pageable);
+        }
+        return pageResponse(usuarioRepository.searchCommon(normalizedQuery, pageable).map(usuarioMapper::toResponse));
     }
 
     private PageResponse<UsuarioResponse> pageResponse(Page<UsuarioResponse> page) {
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
+    }
+
+    private String normalizeQuery(String q) {
+        if (q == null || q.trim().isEmpty()) {
+            return null;
+        }
+        return q.trim().toLowerCase(Locale.ROOT);
     }
 
     @Override

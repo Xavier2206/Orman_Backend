@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -54,14 +55,18 @@ public class UsuarioController {
     @GetMapping
     @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
     public PageResponse<UsuarioResponse> list(
+            @RequestParam(required = false) String q,
             @PageableDefault(page = 0, size = 20, sort = "login", direction = Sort.Direction.ASC) Pageable pageable,
             Authentication authentication) {
         Pageable limited = pageable.getPageSize() > 100
                 ? PageRequest.of(pageable.getPageNumber(), 100, pageable.getSort())
                 : pageable;
-        return authorizationService.isOwner(authentication)
-                ? usuarioService.list(limited)
-                : usuarioService.listCommon(limited);
+        boolean owner = authorizationService.isOwner(authentication);
+        boolean hasQuery = q != null && !q.isBlank();
+        if (owner) {
+            return hasQuery ? usuarioService.list(q, limited) : usuarioService.list(limited);
+        }
+        return hasQuery ? usuarioService.listCommon(q, limited) : usuarioService.listCommon(limited);
     }
 
     @PutMapping("/{login}")

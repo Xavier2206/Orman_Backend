@@ -6,6 +6,8 @@ public interface AuthorizationService {
 
     boolean isOwner(Authentication authentication);
 
+    boolean isAdministrator(Authentication authentication);
+
     boolean isSelfOrOwner(Authentication authentication, String login);
 
     boolean canManageUser(Authentication authentication, String login);

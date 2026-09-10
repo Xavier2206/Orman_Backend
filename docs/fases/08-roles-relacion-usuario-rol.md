@@ -108,3 +108,17 @@ No se implementaron login, autenticación, JWT, refresh token, sesiones, logout,
 Riesgo conocido no bloqueante: Mockito informa una advertencia del JDK sobre carga dinámica de agente durante las pruebas; no hubo fallos y no se modificó la configuración de pruebas, por quedar fuera del alcance de la fase.
 
 El usuario debe revisar los cambios y ejecutar Git manualmente.
+
+## Actualización posterior — Gestión remota de Roles (2026-09-05)
+
+Se amplió exclusivamente el catálogo de Roles para preparar la pantalla de gestión, sin modificar migraciones, autenticación/JWT, la relación Usuario–Rol, la relación Rol–Menú, permisos, DELETE ni los contratos CRUD existentes.
+
+- `GET /api/v1/roles` acepta `q` y `estado` opcionales además de `page`, `size` y `sort`.
+- `q` aplica búsqueda parcial por `nombre`, case-insensitive y con `trim`; valores vacíos no filtran.
+- `estado` acepta `0` o `1`; un valor inválido devuelve `400 VALIDATION_ERROR` mediante el `ProblemDetail` existente.
+- Los filtros se combinan con `AND` y se resuelven en PostgreSQL mediante una consulta JPQL paginada, sin cargar ni filtrar el catálogo en memoria.
+- `GET /api/v1/roles/resumen` devuelve `RolResumenResponse(totalRoles, activos, inactivos)` para todo el catálogo, calculado mediante `count` y `countByEstado` en BD.
+
+No se creó índice adicional: `roles.nombre` ya está cubierto por `uk_roles_nombre`; el catálogo esperado es pequeño y `estado` por sí solo no justifica optimización prematura.
+
+Se agregaron pruebas MVC, unitarias, integración PostgreSQL y autorización del resumen. La validación final ejecutó `./mvnw.cmd clean test` con **BUILD SUCCESS**: 237 pruebas, 0 fallos, 0 errores y 0 omitidas; PostgreSQL validó Flyway V1–V9 y Hibernate permaneció en `ddl-auto=validate`. `./mvnw.cmd package -DskipTests` también generó el JAR correctamente.

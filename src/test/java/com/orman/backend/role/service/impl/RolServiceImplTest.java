@@ -5,6 +5,7 @@ import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.role.dto.request.CreateRolRequest;
 import com.orman.backend.role.dto.request.UpdateRolRequest;
+import com.orman.backend.role.dto.response.RolResumenResponse;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.entity.Rol;
 import com.orman.backend.role.mapper.RolMapper;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -83,9 +85,37 @@ class RolServiceImplTest {
         assertThat(service.activate(1)).isEqualTo(active);
         assertThat(rol.getEstado()).isEqualTo((short) 1);
 
-        when(rolRepository.findAllByOrderByNombreAsc(PageRequest.of(0, 20)))
+        when(rolRepository.search(null, null, PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "nombre"))))
                 .thenReturn(new PageImpl<>(List.of(rol), PageRequest.of(0, 20), 1));
         assertThat(service.list(PageRequest.of(0, 20)).content()).containsExactly(active);
+    }
+
+    @Test
+    void searchesInDatabaseWithNormalizedQueryAndBuildsGlobalResumen() {
+        Rol rol = rol(1, "ADMINISTRADOR", (short) 1);
+        RolResponse response = new RolResponse(1, "ADMINISTRADOR", (short) 1);
+        PageRequest pageable = PageRequest.of(0, 10, Sort.by("nombre").ascending());
+        when(rolRepository.search("admin", (short) 1, pageable))
+                .thenReturn(new PageImpl<>(List.of(rol), pageable, 1));
+        when(rolMapper.toResponse(rol)).thenReturn(response);
+        when(rolRepository.count()).thenReturn(5L);
+        when(rolRepository.countByEstado((short) 1)).thenReturn(3L);
+        when(rolRepository.countByEstado((short) 0)).thenReturn(2L);
+
+        assertThat(service.list(" admin ", (short) 1, pageable).content()).containsExactly(response);
+        assertThat(service.resumen()).isEqualTo(new RolResumenResponse(5, 3, 2));
+    }
+
+    @Test
+    void supportsSummariesWithOnlyOneEstado() {
+        when(rolRepository.count()).thenReturn(2L);
+        when(rolRepository.countByEstado((short) 1)).thenReturn(2L);
+        when(rolRepository.countByEstado((short) 0)).thenReturn(0L);
+        assertThat(service.resumen()).isEqualTo(new RolResumenResponse(2, 2, 0));
+
+        when(rolRepository.countByEstado((short) 1)).thenReturn(0L);
+        when(rolRepository.countByEstado((short) 0)).thenReturn(2L);
+        assertThat(service.resumen()).isEqualTo(new RolResumenResponse(2, 0, 2));
     }
 
     private Rol rol(Integer codr, String nombre, short estado) {

@@ -8,6 +8,7 @@ import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.role.dto.request.CreateRolRequest;
 import com.orman.backend.role.dto.request.UpdateRolRequest;
+import com.orman.backend.role.dto.response.RolResumenResponse;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.dto.response.RolUsuResponse;
 import com.orman.backend.role.service.RolService;
@@ -25,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -109,6 +114,56 @@ class RolIntegrationTest {
         assertThatThrownBy(() -> rolService.get(999999)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> jdbcTemplate.update("INSERT INTO roles (nombre, estado) VALUES ('INVALIDO', 2)"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void filtersRolesInPostgreSqlAndPaginatesOnlyMatchingRows() {
+        String filterMarker = "QADMINISTRADOR" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        RolResponse active = rolService.create(new CreateRolRequest(filterMarker + "-ACTIVO", (short) 1));
+        RolResponse inactive = rolService.create(new CreateRolRequest(filterMarker + "-INACTIVO", (short) 0));
+
+        var byQuery = rolService.list(" admin ", null, PageRequest.of(0, 100, Sort.by("nombre").ascending()));
+        assertThat(byQuery.content()).extracting(RolResponse::codr).contains(active.codr(), inactive.codr());
+        assertThat(rolService.list("mini", null, PageRequest.of(0, 100)).content())
+                .extracting(RolResponse::codr).contains(active.codr(), inactive.codr());
+        assertThat(rolService.list("AdMiN", null, PageRequest.of(0, 100)).content())
+                .extracting(RolResponse::codr).contains(active.codr(), inactive.codr());
+
+        var onlyActive = rolService.list(filterMarker, (short) 1, PageRequest.of(0, 100));
+        assertThat(onlyActive.content()).extracting(RolResponse::codr).containsExactly(active.codr());
+        var onlyInactive = rolService.list(filterMarker, (short) 0, PageRequest.of(0, 100));
+        assertThat(onlyInactive.content()).extracting(RolResponse::codr).containsExactly(inactive.codr());
+        assertThat(rolService.list(filterMarker + "-SIN-RESULTADO", (short) 1, PageRequest.of(0, 10)).content())
+                .isEmpty();
+        assertThat(rolService.list(filterMarker + "-SIN-RESULTADO", (short) 1, PageRequest.of(0, 10))
+                .totalElements()).isZero();
+
+        String pageMarker = "QPAG" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        rolService.create(new CreateRolRequest(pageMarker + "-A", (short) 1));
+        rolService.create(new CreateRolRequest(pageMarker + "-B", (short) 1));
+        rolService.create(new CreateRolRequest(pageMarker + "-C", (short) 1));
+        var filteredPage = rolService.list(pageMarker, (short) 1,
+                PageRequest.of(1, 2, Sort.by("nombre").ascending()));
+        assertThat(filteredPage.content()).hasSize(1);
+        assertThat(filteredPage.totalElements()).isEqualTo(3);
+        assertThat(filteredPage.totalPages()).isEqualTo(2);
+        assertThat(filteredPage.page()).isEqualTo(1);
+        assertThat(filteredPage.first()).isFalse();
+        assertThat(filteredPage.last()).isTrue();
+    }
+
+    @Test
+    void calculatesGlobalRoleSummaryInPostgreSql() {
+        RolResumenResponse before = rolService.resumen();
+        String marker = "QRES" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        rolService.create(new CreateRolRequest(marker + "-ACTIVO-1", (short) 1));
+        rolService.create(new CreateRolRequest(marker + "-ACTIVO-2", (short) 1));
+        rolService.create(new CreateRolRequest(marker + "-ACTIVO-3", (short) 1));
+        rolService.create(new CreateRolRequest(marker + "-INACTIVO-1", (short) 0));
+        rolService.create(new CreateRolRequest(marker + "-INACTIVO-2", (short) 0));
+
+        assertThat(rolService.resumen()).isEqualTo(new RolResumenResponse(before.totalRoles() + 5,
+                before.activos() + 3, before.inactivos() + 2));
     }
 
     @Test

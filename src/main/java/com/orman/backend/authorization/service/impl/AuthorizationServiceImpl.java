@@ -25,6 +25,11 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     }
 
     @Override
+    public boolean isAdministrator(Authentication authentication) {
+        return hasAuthority(authentication, ADMIN_AUTHORITY);
+    }
+
+    @Override
     public boolean isSelfOrOwner(Authentication authentication, String login) {
         return isOwner(authentication) || authenticatedLogin(authentication).map(login::equals).orElse(false);
     }

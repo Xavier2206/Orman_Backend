@@ -58,3 +58,9 @@ security:
     max-attempts: ${OTP_MAX_ATTEMPTS:5}
     resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
     max-resends: ${OTP_MAX_RESENDS:3}
+
+storage:
+  personas:
+    root: ${PERSONA_PHOTO_STORAGE_ROOT:./storage}
+    max-file-size-bytes: ${PERSONA_PHOTO_MAX_FILE_SIZE_BYTES:2097152}
+    max-dimension: ${PERSONA_PHOTO_MAX_DIMENSION:320}

@@ -5,7 +5,9 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.person.dto.PersonaResponse;
+import com.orman.backend.person.dto.PersonaResumenResponse;
 import com.orman.backend.person.service.PersonaService;
+import com.orman.backend.person.service.PersonaPhotoService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Stream;
@@ -21,7 +23,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,10 +46,11 @@ class PersonaControllerWebMvcTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private PersonaService personaService;
+    @MockitoBean private PersonaPhotoService personaPhotoService;
 
     @Test
     void createsPersonaWithLocationAndResponseBody() throws Exception {
-        when(personaService.create(any())).thenReturn(response(7, (short) 1));
+        when(personaService.create(any(), any())).thenReturn(response(7, (short) 1));
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(validCreateJson()))
                 .andExpect(status().isCreated())
@@ -55,7 +61,7 @@ class PersonaControllerWebMvcTest {
 
     @Test
     void returnsProblemDetailForDuplicateCiOnCreate() throws Exception {
-        when(personaService.create(any())).thenThrow(new ConflictException("El CI ya está registrado."));
+        when(personaService.create(any(), any())).thenThrow(new ConflictException("El CI ya está registrado."));
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(validCreateJson()))
                 .andExpect(status().isConflict())
@@ -68,12 +74,12 @@ class PersonaControllerWebMvcTest {
 
     @Test
     void getsPersonaAndReturnsNotFoundWhenMissing() throws Exception {
-        when(personaService.get(7)).thenReturn(response(7, (short) 1));
+        when(personaService.get(org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(response(7, (short) 1));
         mockMvc.perform(get(BASE_URL + "/7"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codper").value(7));
 
-        when(personaService.get(8)).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
+        when(personaService.get(org.mockito.ArgumentMatchers.eq(8), any())).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
         mockMvc.perform(get(BASE_URL + "/8"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"))
@@ -81,8 +87,23 @@ class PersonaControllerWebMvcTest {
     }
 
     @Test
+    void getsGlobalSummaryThroughDedicatedRouteAndNotCodperRoute() throws Exception {
+        when(personaService.resumen()).thenReturn(new PersonaResumenResponse(37, 31, 6, 24));
+
+        mockMvc.perform(get(BASE_URL + "/resumen"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPersonas").value(37))
+                .andExpect(jsonPath("$.activas").value(31))
+                .andExpect(jsonPath("$.inactivas").value(6))
+                .andExpect(jsonPath("$.conUsuario").value(24));
+
+        verify(personaService).resumen();
+        verify(personaService, never()).get(anyInt(), any());
+    }
+
+    @Test
     void listsPaginatedResponse() throws Exception {
-        when(personaService.list(any())).thenReturn(new PageResponse<>(List.of(response(7, (short) 1)), 0, 20, 1, 1, true, true));
+        when(personaService.list(any(), any(), any())).thenReturn(new PageResponse<>(List.of(response(7, (short) 1)), 0, 20, 1, 1, true, true));
 
         mockMvc.perform(get(BASE_URL).param("page", "0").param("size", "20"))
                 .andExpect(status().isOk())
@@ -94,13 +115,25 @@ class PersonaControllerWebMvcTest {
     }
 
     @Test
+    void rejectsInvalidListFiltersAsProblemDetail() throws Exception {
+        mockMvc.perform(get(BASE_URL).param("tipoPersona", "X"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("tipoPersona"));
+        mockMvc.perform(get(BASE_URL).param("estado", "2"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("estado"));
+    }
+
+    @Test
     void updatesPersonaAndHandlesConflict() throws Exception {
-        when(personaService.update(any(), any())).thenReturn(response(7, (short) 1));
+        when(personaService.update(any(), any(), any())).thenReturn(response(7, (short) 1));
         mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(validUpdateJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Nombre válido"));
 
-        when(personaService.update(any(), any())).thenThrow(new ConflictException("El CI ya está registrado."));
+        when(personaService.update(any(), any(), any())).thenThrow(new ConflictException("El CI ya está registrado."));
         mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(validUpdateJson()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("CONFLICT"));
@@ -120,20 +153,20 @@ class PersonaControllerWebMvcTest {
 
     @Test
     void deactivatesAndActivatesAndHandlesMissingPersonas() throws Exception {
-        when(personaService.deactivate(7)).thenReturn(response(7, (short) 0));
+        when(personaService.deactivate(org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(response(7, (short) 0));
         mockMvc.perform(patch(BASE_URL + "/7/desactivar"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value(0));
-        when(personaService.deactivate(8)).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
+        when(personaService.deactivate(org.mockito.ArgumentMatchers.eq(8), any())).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
         mockMvc.perform(patch(BASE_URL + "/8/desactivar"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
 
-        when(personaService.activate(7)).thenReturn(response(7, (short) 1));
+        when(personaService.activate(org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(response(7, (short) 1));
         mockMvc.perform(patch(BASE_URL + "/7/activar"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value(1));
-        when(personaService.activate(8)).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
+        when(personaService.activate(org.mockito.ArgumentMatchers.eq(8), any())).thenThrow(new ResourceNotFoundException("Persona no encontrada."));
         mockMvc.perform(patch(BASE_URL + "/8/activar"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
@@ -179,8 +212,8 @@ class PersonaControllerWebMvcTest {
     @Test
     void acceptsValidEmailOfExactlyOneHundredCharacters() throws Exception {
         String email = "a".repeat(64) + "@" + "b".repeat(31) + ".com";
-        when(personaService.create(any())).thenReturn(response(7, (short) 1));
-        when(personaService.update(any(), any())).thenReturn(response(7, (short) 1));
+        when(personaService.create(any(), any())).thenReturn(response(7, (short) 1));
+        when(personaService.update(any(), any(), any())).thenReturn(response(7, (short) 1));
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(json("correo", email)))
                 .andExpect(status().isCreated());
@@ -234,6 +267,7 @@ class PersonaControllerWebMvcTest {
 
     private PersonaResponse response(Integer codper, short estado) {
         return new PersonaResponse(codper, "CI-001", "Nombre válido", null, null, 'F', estado, "persona@example.test",
-                "70000000", 'A', null, LocalDateTime.of(2026, 1, 1, 0, 0));
+                "70000000", 'A', null, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                new com.orman.backend.person.dto.PersonaActionsResponse(false, false, false, false, false, false));
     }
 }

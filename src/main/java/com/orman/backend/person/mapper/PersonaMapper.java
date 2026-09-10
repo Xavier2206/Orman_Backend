@@ -4,6 +4,8 @@ import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.entity.Persona;
+import com.orman.backend.person.dto.PersonaActionsResponse;
+import com.orman.backend.person.dto.PersonaUsuarioResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -35,7 +37,16 @@ public class PersonaMapper {
                 persona.getTelefono(),
                 persona.getTipoPersona(),
                 persona.getFoto(),
-                persona.getFechaRegistro());
+                persona.getFechaRegistro(), null,
+                new PersonaActionsResponse(false, false, false, false, false, false));
+    }
+
+    public PersonaResponse toResponse(Persona persona, PersonaUsuarioResponse usuario,
+                                      PersonaActionsResponse acciones) {
+        PersonaResponse base = toResponse(persona);
+        return new PersonaResponse(base.codper(), base.ci(), base.nombre(), base.ap(), base.am(), base.genero(),
+                base.estado(), base.correo(), base.telefono(), base.tipoPersona(), base.foto(),
+                base.fechaRegistro(), usuario, acciones);
     }
 
     private void apply(Persona persona, String ci, String nombre, String ap, String am, String genero, String estado,

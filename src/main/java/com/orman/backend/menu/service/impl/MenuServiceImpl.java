@@ -5,6 +5,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.menu.dto.request.CreateMenuRequest;
 import com.orman.backend.menu.dto.request.UpdateMenuRequest;
+import com.orman.backend.menu.dto.response.MenuResumenResponse;
 import com.orman.backend.menu.dto.response.MenuResponse;
 import com.orman.backend.menu.entity.Menu;
 import com.orman.backend.menu.mapper.MenuMapper;
@@ -14,7 +15,9 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,8 +44,19 @@ public class MenuServiceImpl implements MenuService {
     public MenuResponse get(Integer codm) { return menuMapper.toResponse(findMenu(codm)); }
     @Override @Transactional(readOnly = true)
     public PageResponse<MenuResponse> list(Pageable pageable) {
-        Page<MenuResponse> page = menuRepository.findAllByOrderByNombreAsc(pageable).map(menuMapper::toResponse);
+        return list(null, null, pageable);
+    }
+    @Override @Transactional(readOnly = true)
+    public PageResponse<MenuResponse> list(String q, Short estado, Pageable pageable) {
+        Page<MenuResponse> page = menuRepository.search(normalizeQuery(q), estado, defaultSort(pageable))
+                .map(menuMapper::toResponse);
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isFirst(), page.isLast());
+    }
+    @Override @Transactional(readOnly = true)
+    public MenuResumenResponse resumen() {
+        long activos = menuRepository.countByEstado(ACTIVO);
+        long inactivos = menuRepository.countByEstado(INACTIVO);
+        return new MenuResumenResponse(menuRepository.count(), activos, inactivos);
     }
     @Override @Transactional
     public MenuResponse update(Integer codm, UpdateMenuRequest request) {
@@ -56,5 +70,10 @@ public class MenuServiceImpl implements MenuService {
     @Override @Transactional public MenuResponse deactivate(Integer codm) { return changeStatus(codm, INACTIVO); }
     private MenuResponse changeStatus(Integer codm, short estado) { Menu menu = findMenu(codm); menu.setEstado(estado); return menuMapper.toResponse(menuRepository.save(menu)); }
     private Menu findMenu(Integer codm) { return menuRepository.findById(codm).orElseThrow(() -> new ResourceNotFoundException("Menú no encontrado.")); }
+    private String normalizeQuery(String q) { return q == null || q.trim().isEmpty() ? null : q.trim(); }
+    private Pageable defaultSort(Pageable pageable) {
+        if (pageable.getSort().isSorted()) return pageable;
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.ASC, "nombre"));
+    }
     private ConflictException duplicateNombre() { return new ConflictException("El nombre del Menú ya está registrado."); }
 }

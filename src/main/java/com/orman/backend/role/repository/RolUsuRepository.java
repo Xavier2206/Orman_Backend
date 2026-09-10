@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Collection;
 
 public interface RolUsuRepository extends JpaRepository<RolUsu, RolUsuId> {
 
@@ -69,6 +70,21 @@ public interface RolUsuRepository extends JpaRepository<RolUsu, RolUsuId> {
               and ru.usuario.persona.estado = 1
             """)
     long countActiveOwners();
+
+    @Query("""
+            select distinct ru.usuario.persona.codper from RolUsu ru
+            where ru.usuario.persona.codper in :codpers
+              and ru.rol.nombre = 'PROPIETARIO' and ru.rol.estado = 1
+            """)
+    List<Integer> findPersonCodpersWithActiveOwnerRole(@Param("codpers") Collection<Integer> codpers);
+
+    @Query("""
+            select distinct ru.usuario.persona.codper from RolUsu ru
+            where ru.usuario.persona.codper in :codpers
+              and ru.rol.nombre = 'PROPIETARIO' and ru.rol.estado = 1
+              and ru.usuario.estado = 1 and ru.usuario.persona.estado = 1
+            """)
+    List<Integer> findActiveOwnerPersonCodpers(@Param("codpers") Collection<Integer> codpers);
 
     List<RolUsu> findByIdLoginOrderByFechaAsignacionAsc(String login);
 

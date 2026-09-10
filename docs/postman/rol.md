@@ -21,6 +21,34 @@ La fase actual incluye:
 
 Las operaciones de este catálogo requieren `ROLE_PROPIETARIO`. La autenticación, JWT, sesiones y authorities se prueban en [auth.md](auth.md). Los Roles no están dentro del JWT y los cambios de asignación o estado se reflejan en la siguiente petición sin revocar la sesión.
 
+### Gestión remota para la pantalla de Roles
+
+`GET /api/v1/roles` conserva `page`, `size` y `sort`, y acepta los filtros opcionales `q` y `estado` en una única consulta paginada de PostgreSQL:
+
+```http
+GET {{baseUrl}}/api/v1/roles?q=admin&estado=1&page=0&size=10&sort=nombre,asc
+```
+
+- `q` busca parcialmente en `nombre`, sin distinguir mayúsculas/minúsculas; se aplica `trim` y un valor nulo, vacío o solo espacios no filtra.
+- `estado` admite únicamente `1` (activo) o `0` (inactivo); si se omite devuelve ambos estados. Otro valor responde `400 VALIDATION_ERROR` en `application/problem+json`.
+- Los filtros se combinan con `AND`; `totalElements`, `totalPages`, `first` y `last` describen solamente el conjunto filtrado.
+
+El resumen es global e independiente de filtros y paginación:
+
+```http
+GET {{baseUrl}}/api/v1/roles/resumen
+```
+
+```json
+{
+  "totalRoles": 8,
+  "activos": 6,
+  "inactivos": 2
+}
+```
+
+El Backend calcula los tres valores directamente en base de datos. No hay filtrado local requerido en Frontend.
+
 ## 3. Requisitos previos
 
 Antes de comenzar:
@@ -154,7 +182,8 @@ Si el CI o el login ya existen, use valores ficticios nuevos. La guía de Roles 
 |---|---|---|---|---|---:|---|
 | POST | `/api/v1/roles` | [Crear Rol](#11-crear-rol) | Solo PROPIETARIO | Sí | 201 | 400, 401, 403, 409 |
 | GET | `/api/v1/roles/{codr}` | [Consultar Rol](#12-consultar-rol-por-codr) | Solo PROPIETARIO | No | 200 | 401, 403, 404 |
-| GET | `/api/v1/roles` | [Listar Roles](#13-listar-roles-con-paginación) | Solo PROPIETARIO; `page,size,sort` | No | 200 | 401, 403 |
+| GET | `/api/v1/roles/resumen` | Resumen global | Solo PROPIETARIO | No | 200 | 401, 403 |
+| GET | `/api/v1/roles` | [Listar Roles](#13-listar-roles-con-paginación) | Solo PROPIETARIO; `q,estado,page,size,sort` | No | 200 | 400, 401, 403 |
 | PUT | `/api/v1/roles/{codr}` | [Actualizar Rol](#14-actualizar-nombre-del-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | Sí | 200 | 400, 401, 403, 404, 409 |
 | PATCH | `/api/v1/roles/{codr}/activar` | [Activar Rol](#15-activar-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | No | 200 | 401, 403, 404, 409 |
 | PATCH | `/api/v1/roles/{codr}/desactivar` | [Desactivar Rol](#16-desactivar-rol) | Solo PROPIETARIO; Rol `PROPIETARIO` protegido | No | 200 | 401, 403, 404, 409 |
@@ -375,6 +404,16 @@ Campos:
 | `last` | Indica si es la última página. |
 
 El controller limita `size` a 100 cuando se solicita un valor superior. Por ejemplo, `size=150` se procesa con tamaño efectivo 100. El repositorio ordena por `nombre` ascendente.
+
+Filtros remotos opcionales:
+
+- `q=admin`: encuentra Roles cuyo nombre contiene `admin`, sin distinguir mayúsculas/minúsculas.
+- `estado=1`: devuelve solo Roles activos.
+- `estado=0`: devuelve solo Roles inactivos.
+- `q=admin&estado=1`: aplica ambos criterios con `AND`.
+- `q=%20%20`: equivale a no enviar `q`.
+
+`estado=2` y cualquier valor distinto de `0` o `1` devuelven `400 VALIDATION_ERROR` con `application/problem+json`.
 
 Casos:
 

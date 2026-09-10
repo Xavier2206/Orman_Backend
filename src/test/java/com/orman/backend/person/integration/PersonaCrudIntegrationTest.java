@@ -4,6 +4,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
+import com.orman.backend.person.dto.PersonaSearchCriteria;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.person.service.PersonaService;
@@ -61,6 +62,24 @@ class PersonaCrudIntegrationTest {
 
         assertThatThrownBy(() -> personaService.create(createRequest("TEST-CRUD-DUP-001", "1")))
                 .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void filtersInPostgreSqlBySearchTypeAndStatusWithPaginationAndSort() {
+        PersonaResponse ana = personaService.create(new CreatePersonaRequest("TEST-FILTER-ANA", "Ana", "Ortega", "Mora",
+                "F", "1", "ana.filter@example.test", "70000001", "A", null));
+        PersonaResponse bruno = personaService.create(new CreatePersonaRequest("TEST-FILTER-BRU", "Bruno", "Pérez", "Ortega",
+                "M", "0", "bruno.filter@example.test", "70000002", "I", null));
+
+        var byName = personaService.list(PersonaSearchCriteria.from("ANA", null, null),
+                org.springframework.data.domain.PageRequest.of(0, 10), null);
+        assertThat(byName.content()).extracting(PersonaResponse::codper).contains(ana.codper());
+        assertThat(personaService.list(PersonaSearchCriteria.from("orteg", "A", "1"),
+                org.springframework.data.domain.PageRequest.of(0, 10, org.springframework.data.domain.Sort.by("ap")), null)
+                .content()).extracting(PersonaResponse::codper).contains(ana.codper());
+        assertThat(personaService.list(PersonaSearchCriteria.from("FILTER-BRU", "I", "0"),
+                org.springframework.data.domain.PageRequest.of(0, 1), null).content())
+                .extracting(PersonaResponse::codper).containsExactly(bruno.codper());
     }
 
     @Test

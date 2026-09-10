@@ -2,6 +2,9 @@ package com.orman.backend.menu.integration;
 
 import com.orman.backend.menu.entity.MePro;
 import com.orman.backend.menu.entity.Menu;
+import com.orman.backend.menu.dto.request.CreateMenuRequest;
+import com.orman.backend.menu.dto.response.MenuResumenResponse;
+import com.orman.backend.menu.dto.response.MenuResponse;
 import com.orman.backend.menu.repository.MeProRepository;
 import com.orman.backend.menu.repository.MenuRepository;
 import com.orman.backend.menu.service.MeProService;
@@ -21,17 +24,19 @@ import com.orman.backend.role.repository.RolMeRepository;
 import com.orman.backend.role.service.RolService;
 import com.orman.backend.role.service.RolUsuService;
 import com.orman.backend.role.service.RolMeService;
-import com.orman.backend.menu.dto.request.CreateMenuRequest;
 import com.orman.backend.process.dto.request.CreateProcesoRequest;
 import com.orman.backend.user.dto.CreateUsuarioRequest;
 import com.orman.backend.user.dto.UsuarioResponse;
 import com.orman.backend.user.service.UsuarioService;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
@@ -241,6 +246,68 @@ class MenuProcesoPersistenceIntegrationTest {
                 usuario.login(), rol.codr())).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'rolpro'", Integer.class))
                 .isZero();
+    }
+
+    @Test
+    void searchesMenusInPostgreSqlWithCombinedFiltersAndBlankQuery() {
+        String marker = "QMENU" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        MenuResponse activeControl = menuService.create(new CreateMenuRequest("CONTROL DE ACCESO " + marker,
+                "shield", (short) 1));
+        MenuResponse inactiveControl = menuService.create(new CreateMenuRequest("CONTROL INACTIVO " + marker,
+                "shield_off", (short) 0));
+        MenuResponse personas = menuService.create(new CreateMenuRequest("PERSONAS " + marker, "users", (short) 1));
+        MenuResponse reportes = menuService.create(new CreateMenuRequest("REPORTES " + marker, "assessment", (short) 1));
+        var pageable = PageRequest.of(0, 100, Sort.by("nombre").ascending());
+
+        assertThat(menuService.list("control", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm(), inactiveControl.codm());
+        assertThat(menuService.list("acceso", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm());
+        assertThat(menuService.list("pers", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(personas.codm());
+        assertThat(menuService.list("CoNtRoL", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm(), inactiveControl.codm());
+        assertThat(menuService.list(" control ", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm(), inactiveControl.codm());
+        assertThat(menuService.list("   ", null, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm(), inactiveControl.codm(), personas.codm(), reportes.codm());
+
+        assertThat(menuService.list(null, (short) 1, pageable).content()).extracting(MenuResponse::estado)
+                .containsOnly((short) 1);
+        assertThat(menuService.list(null, (short) 0, pageable).content()).extracting(MenuResponse::estado)
+                .containsOnly((short) 0);
+        assertThat(menuService.list(marker, null, pageable).content()).extracting(MenuResponse::codm)
+                .containsExactly(activeControl.codm(), inactiveControl.codm(), personas.codm(), reportes.codm());
+        assertThat(menuService.list("control", (short) 1, pageable).content()).extracting(MenuResponse::codm)
+                .contains(activeControl.codm());
+        assertThat(menuService.list("control", (short) 0, pageable).content()).extracting(MenuResponse::codm)
+                .contains(inactiveControl.codm());
+        var empty = menuService.list("SIN RESULTADOS " + marker, (short) 1, pageable);
+        assertThat(empty.content()).isEmpty();
+        assertThat(empty.totalElements()).isZero();
+    }
+
+    @Test
+    void paginatesOnlyTheFilteredMenuUniverseAndCalculatesGlobalResumen() {
+        String marker = "QPAGMENU" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        MenuResumenResponse before = menuService.resumen();
+        menuService.create(new CreateMenuRequest("CONTROL PAG A " + marker, null, (short) 1));
+        menuService.create(new CreateMenuRequest("CONTROL PAG B " + marker, null, (short) 1));
+        menuService.create(new CreateMenuRequest("CONTROL PAG C " + marker, null, (short) 1));
+        menuService.create(new CreateMenuRequest("INACTIVO PAG A " + marker, null, (short) 0));
+        menuService.create(new CreateMenuRequest("INACTIVO PAG B " + marker, null, (short) 0));
+
+        var page = menuService.list(marker, (short) 1,
+                PageRequest.of(1, 2, Sort.by("nombre").ascending()));
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.totalElements()).isEqualTo(3);
+        assertThat(page.totalPages()).isEqualTo(2);
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.first()).isFalse();
+        assertThat(page.last()).isTrue();
+
+        assertThat(menuService.resumen()).isEqualTo(new MenuResumenResponse(before.totalMenus() + 5,
+                before.activos() + 3, before.inactivos() + 2));
     }
 
     private Rol rolEntity(Integer codr) {

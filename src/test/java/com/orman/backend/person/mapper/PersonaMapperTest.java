@@ -61,7 +61,8 @@ class PersonaMapperTest {
         PersonaResponse response = mapper.toResponse(persona);
 
         assertThat(response).isEqualTo(new PersonaResponse(10, "CI-003", "Nombre", "Paterno", "Materno",
-                'F', (short) 1, "correo@example.test", "70000000", 'A', "foto", fechaRegistro));
+                'F', (short) 1, "correo@example.test", "70000000", 'A', "foto", fechaRegistro, null,
+                new com.orman.backend.person.dto.PersonaActionsResponse(false, false, false, false, false, false)));
     }
 
     private Persona persona(Integer codper, String ci, LocalDateTime fechaRegistro) {

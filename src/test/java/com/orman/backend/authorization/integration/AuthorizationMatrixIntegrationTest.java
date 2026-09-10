@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -110,6 +111,12 @@ class AuthorizationMatrixIntegrationTest {
     void appliesPersonMatrixAndProtectsOwnerTargetFromAdministrator() throws Exception {
         mockMvc.perform(get("/api/v1/personas").headers(bearer(owner)))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/personas/resumen").headers(bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPersonas").isNumber())
+                .andExpect(jsonPath("$.activas").isNumber())
+                .andExpect(jsonPath("$.inactivas").isNumber())
+                .andExpect(jsonPath("$.conUsuario").isNumber());
         mockMvc.perform(post("/api/v1/personas").headers(bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content(personJson("M112-NEW-O")))
                 .andExpect(status().isCreated());
@@ -118,6 +125,8 @@ class AuthorizationMatrixIntegrationTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/personas").headers(bearer(administrator)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/personas/resumen").headers(bearer(administrator)))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/personas/{codper}", common.person().codper())
                         .headers(bearer(administrator)))
@@ -132,10 +141,50 @@ class AuthorizationMatrixIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(personUpdateJson("M112-OWN", "1")), administrator);
         expectForbidden(patch("/api/v1/personas/{codper}/desactivar", owner.person().codper()), administrator);
         expectForbidden(get("/api/v1/personas"), tenant);
+        expectForbidden(get("/api/v1/personas/resumen"), tenant);
 
         mockMvc.perform(get("/api/v1/personas"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+        mockMvc.perform(get("/api/v1/personas/resumen"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+    }
+
+    @Test
+    void appliesHttpAuthorizationMatrixToPersonaPhotos() throws Exception {
+        var invalidPhoto = new org.springframework.mock.web.MockMultipartFile("foto", "foto.jpg", "image/jpeg",
+                "not-an-image".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(administrator)))
+                .andExpect(status().isBadRequest());
+        expectForbidden(multipart("/api/v1/personas/{codper}/foto", owner.person().codper()).file(invalidPhoto)
+                .with(request -> { request.setMethod("PUT"); return request; }), administrator);
+        expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+                .with(request -> { request.setMethod("PUT"); return request; }), tenant);
+        expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+                .with(request -> { request.setMethod("PUT"); return request; }), withoutRoles);
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+                        .with(request -> { request.setMethod("PUT"); return request; }))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(administrator)))
+                .andExpect(status().isNotFound());
+        expectForbidden(get("/api/v1/personas/{codper}/foto", owner.person().codper()), administrator);
+        expectForbidden(get("/api/v1/personas/{codper}/foto", common.person().codper()), tenant);
+
+        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(administrator)))
+                .andExpect(status().isNotFound());
+        expectForbidden(delete("/api/v1/personas/{codper}/foto", owner.person().codper()), administrator);
+        expectForbidden(delete("/api/v1/personas/{codper}/foto", common.person().codper()), withoutRoles);
     }
 
     @Test
@@ -195,6 +244,8 @@ class AuthorizationMatrixIntegrationTest {
     void restrictsRolesAndAssignmentsAndReflectsDelegationWithSameJwt() throws Exception {
         expectForbidden(get("/api/v1/roles"), administrator);
         expectForbidden(get("/api/v1/roles"), tenant);
+        expectForbidden(get("/api/v1/roles/resumen"), administrator);
+        expectForbidden(get("/api/v1/roles/resumen"), tenant);
         expectForbidden(post("/api/v1/usuarios/{login}/roles/{codr}", administrator.login(), ownerRole.getCodr()),
                 administrator);
 
@@ -203,6 +254,8 @@ class AuthorizationMatrixIntegrationTest {
                 .andExpect(status().isCreated());
         Rol commonRole = activeRole("OPERADOR_COMUN_112");
         mockMvc.perform(get("/api/v1/roles/{codr}", commonRole.getCodr()).headers(bearer(owner)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/roles/resumen").headers(bearer(owner)))
                 .andExpect(status().isOk());
         mockMvc.perform(put("/api/v1/roles/{codr}", commonRole.getCodr()).headers(bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"OPERADOR_EDITADO_112\"}"))
@@ -237,6 +290,22 @@ class AuthorizationMatrixIntegrationTest {
 
         assertThat(sesionUsuarioRepository.findById(withoutRoles.auth().response().sid()).orElseThrow().isRevoked())
                 .isFalse();
+    }
+
+    @Test
+    void allowsOnlyOwnerToListMenusAndReadMenuResumen() throws Exception {
+        mockMvc.perform(get("/api/v1/menus").headers(bearer(owner)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/menus/resumen").headers(bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalMenus").isNumber())
+                .andExpect(jsonPath("$.activos").isNumber())
+                .andExpect(jsonPath("$.inactivos").isNumber());
+
+        expectForbidden(get("/api/v1/menus"), administrator);
+        expectForbidden(get("/api/v1/menus/resumen"), administrator);
+        expectForbidden(get("/api/v1/menus"), tenant);
+        expectForbidden(get("/api/v1/menus/resumen"), tenant);
     }
 
     @Test
@@ -276,7 +345,7 @@ class AuthorizationMatrixIntegrationTest {
         assertThat(rolUsuRepository.existsById(new RolUsuId(owner.login(), ownerRole.getCodr()))).isTrue();
     }
 
-    private void expectForbidden(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
+    private void expectForbidden(org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder<?> request,
             Fixture actor) throws Exception {
         mockMvc.perform(request.headers(bearer(actor)))
                 .andExpect(status().isForbidden())

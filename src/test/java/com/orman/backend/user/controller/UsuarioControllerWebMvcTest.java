@@ -18,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
@@ -82,6 +83,23 @@ class UsuarioControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].login").value("usuario.demo"))
                 .andExpect(jsonPath("$.content[0].passwd").doesNotExist());
+    }
+
+    @Test
+    void forwardsRemoteQueryAndKeepsPagination() throws Exception {
+        when(usuarioService.list(eq("Xavier"), any())).thenReturn(new PageResponse<>(
+                List.of(new UsuarioResponse("xavier.login", (short) 1, 7,
+                        LocalDateTime.of(2026, 1, 1, 0, 0), null, "Xavier", "Ortega", null)),
+                0, 5, 1, 1, true, true));
+        when(authorizationService.isOwner(any())).thenReturn(true);
+
+        mockMvc.perform(get(BASE_URL).param("q", "Xavier").param("page", "0").param("size", "5")
+                        .param("sort", "login,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].login").value("xavier.login"))
+                .andExpect(jsonPath("$.content[0].nombre").value("Xavier"))
+                .andExpect(jsonPath("$.content[0].ap").value("Ortega"))
+                .andExpect(jsonPath("$.content[0].am").doesNotExist());
     }
 
     @Test

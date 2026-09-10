@@ -298,7 +298,16 @@ El controller establece:
 - `page` predeterminado: `0`;
 - `size` predeterminado: `20`;
 - orden predeterminado: `login` ascendente;
-- tamaño máximo aplicado por el controller: `100`.
+- tamaño máximo aplicado por el controller: `100`;
+- `q` opcional: búsqueda remota sin distinción de mayúsculas/minúsculas en `login`, `Persona.nombre`, `Persona.ap` y `Persona.am`.
+
+Para buscar en todo el universo permitido, no filtre únicamente la página en el frontend:
+
+```text
+GET {{baseUrl}}/api/v1/usuarios?q=Xavier&page=0&size=5&sort=login,asc
+```
+
+La búsqueda se ejecuta antes de paginar y conserva las restricciones actuales de propietario y administrador. Si `q` se omite, está vacío o contiene solo espacios, se mantiene el listado normal.
 
 La estructura real es:
 
@@ -310,7 +319,10 @@ La estructura real es:
       "estado": 1,
       "codper": 1,
       "fechaCreacion": "2026-08-02T11:30:00",
-      "ultimoAcceso": null
+      "ultimoAcceso": null,
+      "nombre": "Persona",
+      "ap": "Paterno",
+      "am": null
     }
   ],
   "page": 0,

@@ -4,6 +4,7 @@ import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.role.dto.response.RolResumenResponse;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.service.RolService;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -55,7 +57,7 @@ class RolControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("ADMINISTRADOR"));
 
-        when(rolService.list(any())).thenReturn(new PageResponse<>(List.of(response(1, "ADMINISTRADOR", (short) 1)),
+        when(rolService.list(any(), any(), any())).thenReturn(new PageResponse<>(List.of(response(1, "ADMINISTRADOR", (short) 1)),
                 0, 20, 1, 1, true, true));
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
@@ -76,6 +78,25 @@ class RolControllerWebMvcTest {
     }
 
     @Test
+    void listsWithCombinedFiltersAndReturnsGlobalResumen() throws Exception {
+        when(rolService.list(eq(" admin "), eq((short) 1), any())).thenReturn(new PageResponse<>(
+                List.of(response(1, "ADMINISTRADOR", (short) 1)), 0, 10, 1, 1, true, true));
+
+        mockMvc.perform(get(BASE_URL).param("q", " admin ").param("estado", "1")
+                        .param("page", "0").param("size", "10").param("sort", "nombre,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].nombre").value("ADMINISTRADOR"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        when(rolService.resumen()).thenReturn(new RolResumenResponse(5, 3, 2));
+        mockMvc.perform(get(BASE_URL + "/resumen"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRoles").value(5))
+                .andExpect(jsonPath("$.activos").value(3))
+                .andExpect(jsonPath("$.inactivos").value(2));
+    }
+
+    @Test
     void returnsProblemDetailsForConflictMissingAndInvalidRequests() throws Exception {
         when(rolService.create(any())).thenThrow(new ConflictException("El nombre del Rol ya está registrado."));
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
@@ -89,6 +110,10 @@ class RolControllerWebMvcTest {
                 .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"  \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(get(BASE_URL).param("estado", "2"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
     }

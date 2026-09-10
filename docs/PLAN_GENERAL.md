@@ -25,6 +25,15 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 - Correccion tecnica vigente: `Persona.correo` obligatorio mediante V8; no es
   una fase nueva ni inicia la Fase 13.
+- Corrección contractual vigente: Personas preparado para integración Angular
+  (filtros, Usuario vinculado, capacidades, fotografía local y resumen global), sin migración;
+  ver `fases/contrato-personas-angular.md`.
+- Mejora puntual vigente: Roles preparado para gestión remota con filtros `q` y
+  `estado`, paginación/ordenamiento conservados y resumen global, sin migración
+  ni cambios en seguridad, relaciones o CRUD existente.
+- Mejora puntual vigente: Menús preparado para gestión remota con filtros `q` y
+  `estado`, paginación/ordenamiento conservados y resumen global, sin migración
+  ni cambios en seguridad, relaciones o CRUD existente.
 
 - Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
 - Última subfase completada: **Fase 12.3 — Contexto del usuario autenticado**.
@@ -36,7 +45,7 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de Fase 11.1: Roles activos consultados en PostgreSQL en cada petición protegida, convertidos a authorities de Spring Security, sin incluirlos en el JWT ni revocar sesiones por sus cambios.
 - Resultado de Fase 11.2: matriz aplicada a módulos actuales, objetivos propietarios protegidos, Rol PROPIETARIO reservado y mínimo concurrente de un propietario activo.
 - Estado de la Fase 13 global: **COMPLETADA**; OTP WEB administrativo por correo, verify y resend cerrados.
-- Fecha de actualización: **2026-08-13**.
+- Fecha de actualización: **2026-08-17**.
 
 ## Etapas y fases previstas
 

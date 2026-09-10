@@ -2,6 +2,14 @@
 
 Esta guía se basa exclusivamente en la API implementada. Use datos ficticios para las pruebas.
 
+## Actualización contractual Angular (2026-08-14)
+
+`GET /api/v1/personas` admite filtros de PostgreSQL: `q`, `tipoPersona` (`A`/`I`), `estado` (`1`/`0`), `page`, `size` y `sort` (por ejemplo, `sort=ap,asc`). `q` busca parcialmente y sin distinción de mayúsculas en nombre, ap, am y CI; vacío equivale a ausencia. Los filtros inválidos devuelven `400 VALIDATION_ERROR`.
+
+Cada Persona incluye `usuario` (`null` o `{ "login", "estado" }`) y `acciones` con `puedeEditar`, `puedeDesactivar`, `puedeActivar`, `puedeEliminar`, `puedeCrearUsuario` y `puedeCambiarPassword`. Son ayudas visuales: Backend sigue autorizando. No se devuelven password, hashes, roles, tokens ni sesiones.
+
+Foto: `PUT /api/v1/personas/{codper}/foto` (multipart, parte `foto`), `GET` y `DELETE` en la misma ruta. Solo JPEG/PNG reales hasta 2 MiB; ImageIO los decodifica y normaliza a JPEG optimizado (calidad 0.85), con un máximo de 320 px por lado y sin ampliar imágenes pequeñas. Se conserva la proporción; PNG transparente se compone sobre blanco para permitir JPEG. La referencia es `personas/{codper}/{uuid}.jpg`, bajo `PERSONA_PHOTO_STORAGE_ROOT` (por defecto `./storage`), sin Base64/BLOB. Solo existe una foto vigente: se guarda y confirma la nueva antes de eliminar la anterior. Referencias inválidas o traversal se rechazan. Sin foto: `404 RESOURCE_NOT_FOUND`.
+
 ## 1. Requisitos previos
 
 - PostgreSQL activo.
@@ -32,6 +40,7 @@ Activar, desactivar, consultar y eliminar no requieren body.
 |---|---|---|---|---|---:|---|
 | POST | `/api/v1/personas` | [Crear Persona](#5-crear-persona) | PROPIETARIO o ADMINISTRADOR | Sí | 201 | 400, 401, 403, 409 |
 | GET | `/api/v1/personas` | [Listar Personas](#7-listar-paginado) | PROPIETARIO o ADMINISTRADOR; `page,size,sort` | No | 200 | 401, 403 |
+| GET | `/api/v1/personas/resumen` | [Resumen global de Personas](#71-resumen-global-de-personas) | PROPIETARIO o ADMINISTRADOR | No | 200 | 401, 403 |
 | GET | `/api/v1/personas/{codper}` | [Consultar Persona](#6-consultar-por-identificador) | PROPIETARIO o ADMINISTRADOR sobre Persona común | No | 200 | 401, 403, 404 |
 | PUT | `/api/v1/personas/{codper}` | [Actualizar Persona](#8-actualizar-persona) | PROPIETARIO o ADMINISTRADOR sobre Persona común | Sí | 200 | 400, 401, 403, 404, 409 |
 | PATCH | `/api/v1/personas/{codper}/desactivar` | [Desactivar Persona](#9-desactivar-persona) | PROPIETARIO o ADMINISTRADOR sobre Persona común; protege último propietario | No | 200 | 401, 403, 404, 409 |
@@ -93,6 +102,30 @@ El valor por defecto es `page=0`, `size=20`, ordenado por `codper` ascendente. U
 ```
 
 Cada elemento de `content` es un `PersonaResponse`.
+
+## 7.1 Resumen global de Personas
+
+`GET /api/v1/personas/resumen`
+
+Devuelve los conteos globales de toda la base de Personas. No utiliza ni
+depende de `q`, `tipoPersona`, `estado`, `page`, `size` o `sort`.
+
+```json
+{
+  "totalPersonas": 37,
+  "activas": 31,
+  "inactivas": 6,
+  "conUsuario": 24
+}
+```
+
+`conUsuario` significa Persona con Usuario vinculado, independientemente de
+que el Usuario esté activo o inactivo.
+
+- `200 OK`: devuelve `PersonaResumenResponse`.
+- `401 Unauthorized`: autenticación ausente o inválida.
+- `403 Forbidden`: el Usuario autenticado no tiene Rol `PROPIETARIO` ni
+  `ADMINISTRADOR`.
 
 ## 8. Actualizar Persona
 
@@ -248,4 +281,4 @@ Todas las rutas requieren Bearer. PROPIETARIO realiza todas las operaciones. ADM
 
 Desactivar mediante `PUT` o `PATCH`, o eliminar la Persona del último propietario activo, devuelve `409 LAST_OWNER_REQUIRED`. Con dos propietarios puede desactivarse uno. `tipo_persona` no identifica propietarios.
 
-Todavía no existen carga física de fotos, perfil propio, restauración de registros eliminados ni alcance por propiedad.
+La carga física de fotos está disponible mediante los tres endpoints documentados. Perfil propio, restauración de registros eliminados y alcance por propiedad no forman parte de esta API. La eliminación física se mantiene; si la Persona tiene un Usuario vinculado, la FK actual puede rechazarla por integridad.

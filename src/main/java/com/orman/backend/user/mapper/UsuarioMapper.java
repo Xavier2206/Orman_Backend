@@ -24,6 +24,7 @@ public class UsuarioMapper {
 
     public UsuarioResponse toResponse(Usuario usuario) {
         return new UsuarioResponse(usuario.getLogin(), usuario.getEstado(), usuario.getPersona().getCodper(),
-                usuario.getFechaCreacion(), usuario.getUltimoAcceso());
+                usuario.getFechaCreacion(), usuario.getUltimoAcceso(), usuario.getPersona().getNombre(),
+                usuario.getPersona().getAp(), usuario.getPersona().getAm());
     }
 }

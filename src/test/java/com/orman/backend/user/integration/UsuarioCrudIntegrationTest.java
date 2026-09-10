@@ -27,6 +27,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Rollback
 class UsuarioCrudIntegrationTest {
 
+    private static final String SEARCH_TERM = "RemoteXavier2026";
+
     @Autowired private UsuarioService usuarioService;
     @Autowired private PersonaService personaService;
     @Autowired private UsuarioRepository usuarioRepository;
@@ -78,8 +80,54 @@ class UsuarioCrudIntegrationTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    @Test
+    void searchesUsuariosGloballyByLoginAndPersonaNamesWithPagination() {
+        PersonaResponse loginMatch = createPersona("TUSR-SRCH-01", "Persona neutra", null, null);
+        PersonaResponse nombreMatch = createPersona("TUSR-SRCH-02", SEARCH_TERM, null, null);
+        PersonaResponse apMatch = createPersona("TUSR-SRCH-03", "Persona neutra", SEARCH_TERM, null);
+        PersonaResponse amMatch = createPersona("TUSR-SRCH-04", "Persona neutra", null, SEARCH_TERM);
+
+        usuarioService.create(new CreateUsuarioRequest("remotexavier2026.login", "clave-ficticia", null, loginMatch.codper()));
+        usuarioService.create(new CreateUsuarioRequest("remotexavier2026.nombre", "clave-ficticia", null, nombreMatch.codper()));
+        usuarioService.create(new CreateUsuarioRequest("remotexavier2026.ap", "clave-ficticia", null, apMatch.codper()));
+        usuarioService.create(new CreateUsuarioRequest("remotexavier2026.am", "clave-ficticia", null, amMatch.codper()));
+
+        var firstPage = usuarioService.list(" " + SEARCH_TERM + " ",
+                org.springframework.data.domain.PageRequest.of(0, 2,
+                        org.springframework.data.domain.Sort.by("login").ascending()));
+        var secondPage = usuarioService.list(SEARCH_TERM,
+                org.springframework.data.domain.PageRequest.of(1, 2,
+                        org.springframework.data.domain.Sort.by("login").ascending()));
+
+        assertThat(firstPage.content()).hasSize(2);
+        assertThat(secondPage.content()).hasSize(2);
+        assertThat(firstPage.totalElements()).isEqualTo(4);
+        assertThat(firstPage.content()).extracting(UsuarioResponse::login)
+                .containsExactly("remotexavier2026.am", "remotexavier2026.ap");
+        assertThat(secondPage.content()).extracting(UsuarioResponse::login)
+                .containsExactly("remotexavier2026.login", "remotexavier2026.nombre");
+        assertThat(secondPage.content()).filteredOn(usuario -> usuario.login().endsWith(".nombre"))
+                .singleElement().satisfies(usuario -> {
+                    assertThat(usuario.nombre()).isEqualTo(SEARCH_TERM);
+                    assertThat(usuario.am()).isNull();
+                });
+    }
+
+    @Test
+    void returnsEmptyPageWhenUsuarioSearchHasNoMatches() {
+        var page = usuarioService.list("sin-coincidencias", org.springframework.data.domain.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+        assertThat(page.totalElements()).isZero();
+        assertThat(page.totalPages()).isZero();
+    }
+
     private PersonaResponse createPersona(String ci) {
-        return personaService.create(new CreatePersonaRequest(ci, "Persona ficticia", null, null, "F", null,
+        return createPersona(ci, "Persona ficticia", null, null);
+    }
+
+    private PersonaResponse createPersona(String ci, String nombre, String ap, String am) {
+        return personaService.create(new CreatePersonaRequest(ci, nombre, ap, am, "F", null,
                 "persona@example.test", "70000000", "A", null));
     }
 }

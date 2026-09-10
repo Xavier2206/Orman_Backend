@@ -27,6 +27,7 @@ En cada request protegido use `Authorization: Bearer {{accessTokenPropietario}}`
 |---|---|---|---|---|---:|---|
 | POST | `/api/v1/menus` | [Crear Menu](#4-crear-menu) | Solo PROPIETARIO | Sí | 201 | 400, 401, 403, 409 |
 | GET | `/api/v1/menus` | [Listar Menus](#5-listar-menus) | Solo PROPIETARIO | No | 200 | 401, 403 |
+| GET | `/api/v1/menus/resumen` | [Resumen global](#51-resumen-global) | Solo PROPIETARIO | No | 200 | 401, 403 |
 | GET | `/api/v1/menus/{codm}` | [Consultar Menu](#6-consultar-menu) | Solo PROPIETARIO | No | 200 | 401, 403, 404 |
 | PUT | `/api/v1/menus/{codm}` | [Actualizar Menu](#7-actualizar-menu) | Solo PROPIETARIO | Sí | 200 | 400, 401, 403, 404, 409 |
 | PATCH | `/api/v1/menus/{codm}/activar` | [Activar Menu](#8-activar-menu) | Solo PROPIETARIO | No | 200 | 401, 403, 404 |
@@ -98,7 +99,17 @@ Casos negativos: nombre vacío/tipo incorrecto → `400 VALIDATION_ERROR`; nombr
 
 `GET {{baseUrl}}/api/v1/menus?page=0&size=20&sort=nombre,asc`
 
-No lleva body. El backend limita `size` a 100. El éxito es `200` con `PageResponse<MenuResponse>`:
+No lleva body. El backend limita `size` a 100. Los filtros opcionales son `q` y `estado`:
+
+```text
+GET {{baseUrl}}/api/v1/menus?q=control&estado=1&page=0&size=10&sort=nombre,asc
+```
+
+- `q`: busca `nombre` por coincidencia parcial, sin distinguir mayúsculas y minúsculas; los espacios exteriores se ignoran. Si es vacío, no filtra.
+- `estado`: admite solamente `0` o `1`. Si se omite, se devuelven ambos estados. Un valor distinto devuelve `400 VALIDATION_ERROR`.
+- Ambos filtros se combinan con `AND` y la paginación se calcula sobre el resultado filtrado en PostgreSQL.
+
+El éxito es `200` con `PageResponse<MenuResponse>`:
 
 ```json
 {"content":[{"codm":12,"nombre":"PERSONAS","icono":"users","estado":1}],"page":0,"size":20,"totalElements":1,"totalPages":1,"first":true,"last":true}
@@ -114,6 +125,16 @@ pm.test("PageResponse de menus", () => {
 ```
 
 Una lista vacía es un `200` válido con `content: []`, no un `404`.
+
+## 5.1 Resumen global
+
+`GET {{baseUrl}}/api/v1/menus/resumen` no lleva filtros ni body. Devuelve el conteo global del catálogo, independiente de la paginación:
+
+```json
+{"totalMenus":8,"activos":6,"inactivos":2}
+```
+
+`totalMenus` es igual a `activos + inactivos` porque el estado persistente solo admite `0` y `1`.
 
 ## 6. Consultar Menu
 
@@ -148,7 +169,7 @@ El `PUT` no cambia `estado`; use los endpoints de estado para ello. Devuelve `20
 
 ## 10. ProblemDetail y errores
 
-Los errores usan `application/problem+json` y pueden incluir `type`, `title`, `status`, `detail`, `instance`, `errorCode`, `timestamp` y `traceId`. En esta guía son aplicables `400 VALIDATION_ERROR`, `400 INVALID_REQUEST` para requests mal formados, `401`, `403 ACCESS_DENIED`, `404 RESOURCE_NOT_FOUND`, `409 CONFLICT` y `422 BUSINESS_RULE_VIOLATION`. Un `500 INTERNAL_ERROR` es inesperado y no debe provocarse como prueba.
+Los errores usan `application/problem+json` y pueden incluir `type`, `title`, `status`, `detail`, `instance`, `errorCode`, `timestamp` y `traceId`. En esta guía son aplicables `400 VALIDATION_ERROR` para `estado` distinto de `0` o `1`, `400 INVALID_REQUEST` para requests mal formados, `401`, `403 ACCESS_DENIED`, `404 RESOURCE_NOT_FOUND`, `409 CONFLICT` y `422 BUSINESS_RULE_VIOLATION`. Un `500 INTERNAL_ERROR` es inesperado y no debe provocarse como prueba.
 
 ## 11. Orden recomendado y matriz manual
 
@@ -162,6 +183,9 @@ Los errores usan `application/problem+json` y pueden incluir `type`, `title`, `s
 | MENU-06 | DELETE `/menus/{codm}` | DELETE físico | `menuId` | 405 | — | ruta inexistente |
 | MENU-07 | POST `/menus` | Sin autenticación | sin Bearer | 401 | contrato auth | no expone datos |
 | MENU-08 | GET `/menus` | Rol no propietario | token válido | 403 | ACCESS_DENIED | ProblemDetail seguro |
+| MENU-09 | GET `/menus` | Filtros combinados | `q=control`, `estado=1` | 200 | — | total paginado filtrado |
+| MENU-10 | GET `/menus` | Estado inválido | `estado=2` | 400 | VALIDATION_ERROR | ProblemDetail seguro |
+| MENU-11 | GET `/menus/resumen` | Resumen global | propietario | 200 | — | total, activos e inactivos |
 
 ## 12. Checklist y limitaciones
 
@@ -169,7 +193,9 @@ Los errores usan `application/problem+json` y pueden incluir `type`, `title`, `s
 - [ ] Token de PROPIETARIO vigente en `accessTokenPropietario`.
 - [ ] Se guardó `menuId` desde `codm`, nunca desde un valor asumido.
 - [ ] Se verificó `Location` sin imprimir el token.
+- [ ] Se probaron `q`, `estado`, filtros combinados y paginación filtrada.
+- [ ] Se verificó el resumen global sin enviar filtros.
 - [ ] No se intentó DELETE físico de Menú.
 - [ ] Las relaciones se prueban en [rolme.md](rolme.md) y [mepro.md](mepro.md).
 
-No existe todavía menú del Usuario autenticado ni authorities basadas en Procesos; esta guía no prueba Fase 12.3.
+La navegación del Usuario autenticado se documenta en [auth.md](auth.md); esta guía cubre exclusivamente la administración de Menús.

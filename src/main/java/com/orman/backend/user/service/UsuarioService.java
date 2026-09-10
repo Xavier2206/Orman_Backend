@@ -15,7 +15,11 @@ public interface UsuarioService {
 
     PageResponse<UsuarioResponse> list(Pageable pageable);
 
+    PageResponse<UsuarioResponse> list(String q, Pageable pageable);
+
     PageResponse<UsuarioResponse> listCommon(Pageable pageable);
+
+    PageResponse<UsuarioResponse> listCommon(String q, Pageable pageable);
 
     UsuarioResponse update(String login, UpdateUsuarioRequest request);
 

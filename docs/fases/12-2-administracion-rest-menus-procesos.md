@@ -52,3 +52,14 @@ No se creó V8, `rolpro`, datos iniciales, menú del Usuario autenticado, author
 ## Validación
 
 La fase cubre DTO/mappers, servicios transaccionales, contratos MVC y persistencia PostgreSQL. Flyway conserva V7 como última migración y Hibernate sigue validando el esquema.
+
+## Actualización posterior — Gestión remota de Menús
+
+Sin modificar el CRUD, las relaciones, Flyway, JWT ni la autorización existente, `GET /api/v1/menus` incorpora filtros opcionales `q` y `estado`, combinables con `AND`, paginados y ordenados en PostgreSQL. `q` usa coincidencia parcial case-insensitive sobre `nombre` y omite espacios exteriores; `estado` solo admite `0` o `1` y conserva `400 VALIDATION_ERROR` para valores inválidos.
+
+Se agrega `GET /api/v1/menus/resumen`, exclusivo de `ROLE_PROPIETARIO`, con `MenuResumenResponse(totalMenus, activos, inactivos)`. El resumen es global, independiente de filtros y paginación, y usa conteos directos de base de datos. No se crean tablas, migraciones, índices ni dependencias: el índice único de `menus.nombre` se conserva; `lower(nombre) LIKE '%q%'` no necesariamente lo aprovecha, una decisión aceptable para el tamaño previsto del catálogo.
+
+### Validación de la actualización
+
+- `.\mvnw.cmd clean test`: **BUILD SUCCESS**; 244 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- `.\mvnw.cmd package -DskipTests`: **BUILD SUCCESS**; JAR empaquetado.

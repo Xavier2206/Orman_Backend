@@ -12,6 +12,8 @@ import com.orman.backend.auth.exception.ExpiredSessionException;
 import com.orman.backend.auth.exception.InvalidJwtException;
 import com.orman.backend.auth.exception.RevokedSessionException;
 import com.orman.backend.auth.exception.SecurityAccessDeniedException;
+import com.orman.backend.person.exception.InvalidPersonaFilterException;
+import com.orman.backend.person.exception.InvalidPersonaPhotoException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -126,6 +128,22 @@ public class GlobalExceptionHandler {
             BusinessRuleException exception, HttpServletRequest request) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, ErrorCode.BUSINESS_RULE_VIOLATION,
                 "Regla de negocio no cumplida", exception.getMessage(), request, List.of());
+    }
+
+    @ExceptionHandler(InvalidPersonaFilterException.class)
+    ResponseEntity<ProblemDetail> handleInvalidPersonaFilter(
+            InvalidPersonaFilterException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "Uno o más parámetros no son válidos.", request,
+                List.of(new FieldError(exception.getField(), exception.getMessage())));
+    }
+
+    @ExceptionHandler(InvalidPersonaPhotoException.class)
+    ResponseEntity<ProblemDetail> handleInvalidPersonaPhoto(
+            InvalidPersonaPhotoException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "La fotografía no es válida.", request,
+                List.of(new FieldError("foto", exception.getMessage())));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

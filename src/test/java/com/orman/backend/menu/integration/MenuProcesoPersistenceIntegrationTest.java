@@ -88,12 +88,12 @@ class MenuProcesoPersistenceIntegrationTest {
         assertThat(tables).contains("menus", "procesos", "rolme", "mepro").doesNotContain("rolpro");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM flyway_schema_history
-                WHERE version IN ('1','2','3','4','5','6','7','8','9','10') AND success
-                """, Integer.class)).isEqualTo(10);
+                WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11') AND success
+                """, Integer.class)).isEqualTo(11);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT version FROM flyway_schema_history
                 WHERE success ORDER BY installed_rank DESC LIMIT 1
-                """, String.class)).isEqualTo("10");
+                """, String.class)).isEqualTo("11");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '7' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8' AND success", Integer.class))
@@ -101,6 +101,8 @@ class MenuProcesoPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '9' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '10' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '11' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForList("SELECT conname FROM pg_constraint WHERE conrelid = 'menus'::regclass", String.class))
                 .containsExactlyInAnyOrder("pk_menus", "uk_menus_nombre", "ck_menus_estado");

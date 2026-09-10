@@ -4,6 +4,32 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Etapa 4.2 — Contratos y Cuotas — 2026-09-10
+
+### Agregado
+
+- Migración Flyway V11 para `contratos`, `contrato_archivos` y `cuotas`, con
+  claves, FKs restrictivas, checks de estados y fechas mensuales, importes
+  `NUMERIC`, cuotas únicas por período y un contrato vigente por Unidad.
+- Módulo `contract` con entidades JPA, DTO separados, mappers explícitos,
+  repositorios, servicios transaccionales y controladores REST.
+- Borradores, confirmación, cuotas mensuales `PENDIENTE`, finalización,
+  renovación con `codcon_origen`, rescisión básica y archivos por URL.
+- Pruebas de mapper, MVC, persistencia, integración PostgreSQL y autorización
+  por propiedad, junto con la guía Postman del módulo.
+
+### Preservado
+
+- JWT, `SecurityConfig`, Roles, Menús y Procesos no fueron modificados.
+- No se implementaron pagos, comprobantes, recibos, cuentas de pago ni
+  notificaciones. La rescisión no evalúa ni actualiza pagos o cuotas.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 272 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL validó Flyway V1–V11 y Hibernate
+  `ddl-auto=validate`.
+
 ## Etapa 4.1 — Propiedades, Unidades y Fotografías — 2026-09-10
 
 ### Agregado

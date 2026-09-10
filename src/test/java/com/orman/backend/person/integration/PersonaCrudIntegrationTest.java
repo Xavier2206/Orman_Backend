@@ -88,10 +88,10 @@ class PersonaCrudIntegrationTest {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
 
-        assertThat(tables).containsExactly("flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "propiedades", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
+        assertThat(tables).containsExactly("contrato_archivos", "contratos", "cuotas", "flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "propiedades", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10') AND success = true", Integer.class))
-                .isEqualTo(10);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11') AND success = true", Integer.class))
+                .isEqualTo(11);
     }
 
     private CreatePersonaRequest createRequest(String ci, String estado) {

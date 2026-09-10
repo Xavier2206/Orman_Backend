@@ -62,9 +62,9 @@ class UsuarioCrudIntegrationTest {
         assertThat(UsuarioResponse.class.getRecordComponents()).extracting(component -> component.getName())
                 .doesNotContain("passwd", "password", "hash");
         assertThat(jdbcTemplate.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class))
-                .containsExactly("flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "propiedades", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10') AND success", Integer.class))
-                .isEqualTo(10);
+                .containsExactly("contrato_archivos", "contratos", "cuotas", "flyway_schema_history", "menus", "mepro", "otp_challenges", "personas", "procesos", "propiedades", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11') AND success", Integer.class))
+                .isEqualTo(11);
     }
 
     @Test

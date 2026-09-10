@@ -65,6 +65,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Propiedades, Unidades y Fotografías](fases/14-propiedades-unidades-fotografias.md)
 - [Guía Postman del módulo inmobiliario](postman/property.md)
 
+## Etapa 4.2
+
+- [Contratos y Cuotas](fases/15-contratos-cuotas.md)
+- [Guía Postman de contratos](postman/contract.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

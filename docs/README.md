@@ -60,6 +60,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 
 - [OTP y autenticación de doble factor](fases/13-otp-autenticacion-doble-factor.md)
 
+## Etapa 4.1
+
+- [Propiedades, Unidades y Fotografías](fases/14-propiedades-unidades-fotografias.md)
+- [Guía Postman del módulo inmobiliario](postman/property.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

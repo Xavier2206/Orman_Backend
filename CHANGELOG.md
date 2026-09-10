@@ -4,6 +4,32 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Etapa 4.1 — Propiedades, Unidades y Fotografías — 2026-09-10
+
+### Agregado
+
+- Migración Flyway V10 para `propiedades`, `unidades` y `unidad_fotos`, con
+  claves, FKs restrictivas, checks, importes `NUMERIC`, índices y garantía de
+  una sola portada por unidad.
+- Módulo `property` con entidades JPA, DTO separados, mappers explícitos,
+  repositorios, servicios transaccionales y controladores REST para las tres
+  entidades del alcance.
+- Autorización de dominio para `ROLE_PROPIETARIO`: cada operación verifica la
+  cadena Usuario autenticado -> Persona asociada -> Propiedad propietaria.
+- Pruebas de mapper, servicio, MVC, persistencia e integración con PostgreSQL,
+  y guía Postman del módulo.
+
+### Preservado
+
+- JWT, `SecurityConfig`, Roles, Menús y Procesos no fueron modificados.
+- No se implementaron contratos, cuotas, pagos, recibos ni notificaciones.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 262 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL validó Flyway V1–V10 y Hibernate
+  `ddl-auto=validate`.
+
 ## Gestión remota de Menús — 2026-09-08
 
 ### Agregado

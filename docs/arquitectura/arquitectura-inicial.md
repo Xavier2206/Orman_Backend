@@ -32,8 +32,8 @@ se inicia OTP.
 
 PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema mediante migraciones versionadas; Hibernate validará la correspondencia. No se usará generación automática `create` o `update`.
 
-El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu`, `sesiones_usuario`
-y `otp_challenges`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
+El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu`, `sesiones_usuario`,
+`otp_challenges`, `propiedades`, `unidades` y `unidad_fotos`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
 pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita
 a una sesión activa por `(login, device_id)`. `otp_challenges` conserva `login`
 como identificador simple respaldado por FK de base de datos, sin relación JPA ni
@@ -58,7 +58,7 @@ La Fase 11.2 aplica `@PreAuthorize` a los controladores actuales. `Authorization
 
 Las Fases 12.1 y 12.2 incorporan el flujo persistente `Usuario -> RolUsu -> Rol -> RolMe -> Menu -> MePro -> Proceso` y su administración REST exclusiva de PROPIETARIO. `RolMe` y `MePro` son entidades explícitas con claves compuestas; no existe `rolpro`, `@ManyToMany` automático, authorities por Proceso ni menú del Usuario autenticado.
 
-Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; romper el mínimo devuelve `409 LAST_OWNER_REQUIRED`; la autenticación inválida conserva `401`. CORS, CSRF y los contratos WEB/MOBILE no se modificaron. El futuro alcance por propiedad requiere una relación persistente que todavía no existe y no se simula con `tipo_persona`.
+Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; romper el mínimo devuelve `409 LAST_OWNER_REQUIRED`; la autenticación inválida conserva `401`. CORS, CSRF y los contratos WEB/MOBILE no se modificaron. El módulo `property` restringe sus controladores a `ROLE_PROPIETARIO` y, en su capa transaccional, resuelve `Usuario autenticado -> Persona asociada -> Propiedad.codper_propietaria`; no crea un administrador inmobiliario, no deriva autorización de `tipo_persona` y no modifica la seguridad transversal.
 
 ## Evolución
 

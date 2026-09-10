@@ -4,7 +4,7 @@ Cada archivo registra el alcance, ejecución, validaciones y resultado de una fa
 
 ## Fases documentadas
 
-Las Fases 00 a 13 están completadas, incluida la subfase 12.3 de contexto del usuario autenticado.
+Las Fases 00 a 13 y la Etapa 4.1 están completadas, incluida la subfase 12.3 de contexto del usuario autenticado.
 
 | Fase | Estado | Documento |
 |---|---|---|
@@ -26,6 +26,7 @@ Las Fases 00 a 13 están completadas, incluida la subfase 12.3 de contexto del u
 | 12.2 — Administración REST de Menús, Procesos y relaciones | `COMPLETADA` | [Abrir documento](12-2-administracion-rest-menus-procesos.md) |
 | 12.3 — Contexto del usuario autenticado | `COMPLETADA` | [Abrir documento](12-3-contexto-usuario-autenticado.md) |
 | 13 — OTP y autenticación de doble factor | `COMPLETADA` | [Abrir documento](13-otp-autenticacion-doble-factor.md) |
+| 14 — Propiedades, Unidades y Fotografías | `COMPLETADA` | [Abrir documento](14-propiedades-unidades-fotografias.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
-Las Fases 11, 12, 12.3 y 13 están completadas.
+Las Fases 11, 12, 12.3 y 13, y la Etapa 4.1, están completadas.

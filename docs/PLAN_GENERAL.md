@@ -2,11 +2,11 @@
 
 ## Objetivo general
 
-Construir de forma incremental un backend mantenible para ORMAN, comenzando por la gestión de personas y usuarios, e incorporando posteriormente roles, autenticación, autorización, calidad y preparación para producción. La solución parte como un monolito modular con Java 21, Spring Boot, Maven y PostgreSQL.
+Construir de forma incremental un backend mantenible para ORMAN, comenzando por la gestión de personas y usuarios, incorporando roles, autenticación y autorización, y continuando con la gestión inmobiliaria, la calidad y la preparación para producción. El plan organiza exclusivamente modelo de datos, entidades, migraciones, repositories, services, controllers, DTOs, validaciones, seguridad, pruebas backend y documentación API. La solución parte como un monolito modular con Java 21, Spring Boot, Maven y PostgreSQL.
 
 ## Forma de trabajo
 
-El desarrollo se divide en etapas temáticas y fases acotadas. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
+El desarrollo se divide en etapas temáticas, subetapas funcionales y fases acotadas exclusivamente de backend. Solo una fase autorizada puede estar activa; cada fase debe documentar su alcance, cambios, validaciones y pendientes. Cada bloque funcional de la Gestión Inmobiliaria ORMAN tendrá análisis del módulo, diseño técnico, implementación backend, pruebas backend y documentación propios. La teoría transversal se mantiene en el documento de su etapa. Al cerrar una fase se actualizan este plan, su documento individual y `CHANGELOG.md`.
 
 No se adelantan código, tablas, migraciones, dependencias o funcionalidades de una fase futura. Las Fases 10, 11, 12 y 13 están completadas; la Fase 12.3 se cerró mediante autorización explícita.
 
@@ -25,9 +25,8 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 - Correccion tecnica vigente: `Persona.correo` obligatorio mediante V8; no es
   una fase nueva ni inicia la Fase 13.
-- Corrección contractual vigente: Personas preparado para integración Angular
-  (filtros, Usuario vinculado, capacidades, fotografía local y resumen global), sin migración;
-  ver `fases/contrato-personas-angular.md`.
+- Corrección contractual vigente: Personas preparado para integración mediante API
+  (filtros, Usuario vinculado, capacidades, fotografía local y resumen global), sin migración.
 - Mejora puntual vigente: Roles preparado para gestión remota con filtros `q` y
   `estado`, paginación/ordenamiento conservados y resumen global, sin migración
   ni cambios en seguridad, relaciones o CRUD existente.
@@ -35,8 +34,9 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
   `estado`, paginación/ordenamiento conservados y resumen global, sin migración
   ni cambios en seguridad, relaciones o CRUD existente.
 
-- Etapa actual: **ETAPA 3 — Autenticación, sesiones y autorización**.
-- Última subfase completada: **Fase 12.3 — Contexto del usuario autenticado**.
+- Etapas 1, 2 y 3: **COMPLETADAS**.
+- Etapa actual de planificación: **ETAPA 4 — Gestión inmobiliaria ORMAN**.
+- Última subetapa completada: **ETAPA 4.1 — Propiedades, unidades y fotografías**.
 - Fase 12.3: **COMPLETADA**; consulta post-login actual de Usuario, Persona, Roles, Menús y Procesos mediante `/api/v1/auth/context`.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
@@ -45,7 +45,9 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de Fase 11.1: Roles activos consultados en PostgreSQL en cada petición protegida, convertidos a authorities de Spring Security, sin incluirlos en el JWT ni revocar sesiones por sus cambios.
 - Resultado de Fase 11.2: matriz aplicada a módulos actuales, objetivos propietarios protegidos, Rol PROPIETARIO reservado y mínimo concurrente de un propietario activo.
 - Estado de la Fase 13 global: **COMPLETADA**; OTP WEB administrativo por correo, verify y resend cerrados.
-- Fecha de actualización: **2026-08-17**.
+- Resultado de ETAPA 4.1: módulo backend `property`, Flyway V10 con Propiedades, Unidades y UnidadFotos, acceso exclusivo de la Persona propietaria autenticada con `ROLE_PROPIETARIO`, y 262 pruebas totales sin fallos.
+- Próxima fase autorizable: **ETAPA 4.2.1 — Análisis de Contratos y cuotas**; requiere autorización explícita independiente.
+- Fecha de actualización: **2026-09-10**.
 
 ## Etapas y fases previstas
 
@@ -85,18 +87,114 @@ Teoría: pendiente de creación cuando corresponda.
 | 12.3 — Contexto del usuario autenticado | `COMPLETADA` | Fases 10, 11 y 12.2 | [Documento de Fase 12.3](fases/12-3-contexto-usuario-autenticado.md) |
 | 13 — OTP y desafíos de autenticación | `COMPLETADA` | Fases 09 y 10 | [Documento de Fase 13](fases/13-otp-autenticacion-doble-factor.md) |
 
-### ETAPA 4 — Calidad y producción
+### ETAPA 4 — Gestión inmobiliaria ORMAN
+
+Esta etapa es el agrupador principal del módulo de negocio inmobiliario. Cada subetapa es un bloque funcional backend independiente, con análisis del módulo, diseño técnico, implementación backend, pruebas backend y documentación propios.
+
+Teoría: pendiente de creación cuando corresponda.
+
+#### ETAPA 4.1 — Propiedades, unidades y fotografías
+
+| Fase interna | Estado | Dependencia | Documento |
+|---|---|---|---|
+| 4.1.1 — Análisis | `COMPLETADA` | Etapas 1, 2 y 3 completadas | [Documento de ETAPA 4.1](fases/14-propiedades-unidades-fotografias.md) |
+| 4.1.2 — Diseño | `COMPLETADA` | Fase 4.1.1 | [Documento de ETAPA 4.1](fases/14-propiedades-unidades-fotografias.md) |
+| 4.1.3 — Implementación backend | `COMPLETADA` | Fase 4.1.2 | [Documento de ETAPA 4.1](fases/14-propiedades-unidades-fotografias.md) |
+| 4.1.4 — Pruebas backend | `COMPLETADA` | Fase 4.1.3 | [Documento de ETAPA 4.1](fases/14-propiedades-unidades-fotografias.md) |
+| 4.1.5 — Documentación | `COMPLETADA` | Fase 4.1.4 | [Documento de ETAPA 4.1](fases/14-propiedades-unidades-fotografias.md) |
+
+**Alcance de las fases internas:**
+
+- **4.1.1 — Análisis:** requisitos, reglas de negocio, relaciones y permisos.
+- **4.1.2 — Diseño:** modelo entidad-relación, DTOs, endpoints y migraciones.
+- **4.1.3 — Implementación backend:** entidades, repositories, services, controllers, validaciones y Flyway.
+- **4.1.4 — Pruebas backend:** pruebas unitarias, integración, persistencia y autorización.
+- **4.1.5 — Documentación:** OpenAPI, decisiones técnicas y cierre de fase.
+
+**Objetivo:** implementar la administración backend de inmuebles.
+
+**Incluye:** Propiedades; Unidades; Fotografías; propietario asociado mediante Persona; estados; disponibilidad.
+
+**Dependencias:** Personas, Usuarios, Roles y Autorización.
+
+**Resultado esperado:** el sistema permite registrar propiedades como edificios o casas y administrar sus unidades.
+
+#### ETAPA 4.2 — Contratos y cuotas
+
+| Fase interna | Estado | Dependencia | Documento |
+|---|---|---|---|
+| 4.2.1 — Análisis | `PENDIENTE` | Etapa 4.1 completada | Documento pendiente de creación |
+| 4.2.2 — Diseño | `PENDIENTE` | Fase 4.2.1 | Documento pendiente de creación |
+| 4.2.3 — Implementación backend | `PENDIENTE` | Fase 4.2.2 | Documento pendiente de creación |
+| 4.2.4 — Pruebas backend | `PENDIENTE` | Fase 4.2.3 | Documento pendiente de creación |
+| 4.2.5 — Documentación | `PENDIENTE` | Fase 4.2.4 | Documento pendiente de creación |
+
+**Objetivo:** implementar la gestión backend del alquiler.
+
+**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; renovaciones; rescisión básica.
+
+**Dependencia:** Etapa 4.1.
+
+**Resultado esperado:** administrar alquileres desde la firma del contrato hasta el seguimiento mensual.
+
+#### ETAPA 4.3 — Pagos y recibos
+
+| Fase interna | Estado | Dependencia | Documento |
+|---|---|---|---|
+| 4.3.1 — Análisis | `PENDIENTE` | Etapa 4.2 completada | Documento pendiente de creación |
+| 4.3.2 — Diseño | `PENDIENTE` | Fase 4.3.1 | Documento pendiente de creación |
+| 4.3.3 — Implementación backend | `PENDIENTE` | Fase 4.3.2 | Documento pendiente de creación |
+| 4.3.4 — Pruebas backend | `PENDIENTE` | Fase 4.3.3 | Documento pendiente de creación |
+| 4.3.5 — Documentación | `PENDIENTE` | Fase 4.3.4 | Documento pendiente de creación |
+
+**Objetivo:** implementar la gestión backend financiera del alquiler.
+
+**Incluye:** Pagos; pagos parciales; `PagoComprobantes`; validación manual; `CuentasPago`; QR; recibos.
+
+**Reglas:** una cuota puede tener múltiples pagos; los pagos pueden ser parciales; los comprobantes deben validarse; los recibos se generan después de confirmar pagos.
+
+**Excluye:** pasarela bancaria; integración bancaria; conciliación automática.
+
+**Dependencia:** Etapa 4.2.
+
+**Resultado esperado:** registrar pagos, aplicar pagos parciales y generar recibos después de la confirmación de los pagos.
+
+#### ETAPA 4.4 — Notificaciones
+
+| Fase interna | Estado | Dependencia | Documento |
+|---|---|---|---|
+| 4.4.1 — Análisis | `PENDIENTE` | Etapas 4.2 y 4.3 completadas | Documento pendiente de creación |
+| 4.4.2 — Diseño | `PENDIENTE` | Fase 4.4.1 | Documento pendiente de creación |
+| 4.4.3 — Implementación backend | `PENDIENTE` | Fase 4.4.2 | Documento pendiente de creación |
+| 4.4.4 — Pruebas backend | `PENDIENTE` | Fase 4.4.3 | Documento pendiente de creación |
+| 4.4.5 — Documentación | `PENDIENTE` | Fase 4.4.4 | Documento pendiente de creación |
+
+**Objetivo:** implementar notificaciones internas backend.
+
+**Incluye:** recordatorios de cuotas; pagos pendientes de revisión; pagos confirmados; pagos rechazados.
+
+**Usuarios:** Propietarios, Inquilinos y Administradores.
+
+**Considerar:** eventos; destinatarios; relación con Usuarios; persistencia de notificaciones.
+
+**Dependencias:** Etapas 4.2 y 4.3.
+
+**Resultado esperado:** los usuarios reciben avisos relacionados con el flujo de alquileres.
+
+### ETAPA 5 — Calidad y producción
+
+Esta etapa se ejecutará después de finalizar las cuatro subetapas de la Gestión Inmobiliaria ORMAN y concentra el cierre transversal de calidad y producción.
 
 Teoría: pendiente de creación cuando corresponda.
 
 | Fase | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 14 — Documentación OpenAPI | `PENDIENTE` | APIs principales estables | Documento pendiente de creación |
-| 15 — Pruebas de integración ampliadas | `PENDIENTE` | Fases 07 a 13 | Documento pendiente de creación |
-| 16 — Auditoría | `PENDIENTE` | Modelo y seguridad estables | Documento pendiente de creación |
-| 17 — Preparación para producción | `PENDIENTE` | Fases 14, 15 y 16 | Documento pendiente de creación |
+| 18 — Documentación OpenAPI | `PENDIENTE` | APIs principales estables | Documento pendiente de creación |
+| 19 — Pruebas de integración ampliadas | `PENDIENTE` | Etapas 4.1 a 4.4 | Documento pendiente de creación |
+| 20 — Auditoría técnica | `PENDIENTE` | Modelo inmobiliario y seguridad estables | Documento pendiente de creación |
+| 21 — Preparación para producción | `PENDIENTE` | Fases 18, 19 y 20 | Documento pendiente de creación |
 
-## Alcance aprobado de las fases futuras
+## Alcance aprobado de las fases futuras y bloques funcionales
 
 ### Fase 07 — Administración de Usuarios y Contraseñas
 
@@ -188,21 +286,137 @@ consumo único, límites, intentos y pruebas. El documento único de la fase es
 
 **Excluye:** sustituir BCrypt, eliminar JWT o cambiar la sesión única sin decisión explícita. **Dependencias:** Fases 09 y 10.
 
-### Fase 14 — Documentación OpenAPI
+#### Detalle funcional de ETAPA 4.1 — Propiedades, unidades y fotografías
 
-Documentar los contratos HTTP ya implementados. Depende de APIs principales estables.
+Este bloque conserva el alcance previamente definido como Fase 14 y se desarrollará mediante las fases internas 4.1.1 a 4.1.5.
 
-### Fase 15 — Pruebas de integración ampliadas
+**Objetivo:** implementar la administración backend de inmuebles.
 
-Validar flujos completos de persistencia, API, autenticación, JWT, sesiones, roles, autorización y OTP. No reemplaza las pruebas creadas en cada fase anterior. Depende de las Fases 07 a 13.
+**Incluye:** Propiedades; Unidades; Fotografías; propietario asociado mediante Persona; estados; disponibilidad.
 
-### Fase 16 — Auditoría
+**Excluye:** contratos, cuotas, pagos, recibos y notificaciones, que corresponden a fases posteriores.
 
-Revisar seguridad, logs, trazabilidad, datos sensibles, sesiones y operaciones críticas. Depende del modelo y seguridad estables.
+**Dependencias:** Personas, Usuarios, Roles y Autorización.
 
-### Fase 17 — Preparación para producción
+**Resultado esperado:** el sistema permite registrar propiedades como edificios o casas y administrar sus unidades disponibles.
 
-Completar configuración, perfiles, secretos externos, observabilidad, empaquetado, despliegue y controles operativos. Depende de las Fases 14, 15 y 16.
+**Resultado de implementación:** Flyway V10 creó `propiedades`, `unidades` y `unidad_fotos`; el módulo `property` incorpora entidades, DTOs, mappers, repositories, servicios, controladores y guía API. Las relaciones JPA son unidireccionales y LAZY desde Propiedad a Persona, Unidad a Propiedad y UnidadFoto a Unidad, sin colecciones ni cascadas.
+
+**Autorización implementada:** todas las rutas requieren `ROLE_PROPIETARIO`; el servicio verifica además que la Persona asociada al Usuario autenticado coincida con `codper_propietaria`. No existe alcance de ADMINISTRADOR, ni se modificaron JWT, `SecurityConfig`, Roles, Menús o Procesos.
+
+**Validaciones y pruebas:** campos, estados, importes, área, conteos, coordenadas, URLs, pertenencia de rutas anidadas, orden único y única portada por Unidad; pruebas unitarias, MVC, persistencia e integración contra PostgreSQL real. `./mvnw.cmd clean test`: 262 pruebas, 0 fallos, 0 errores y 0 omitidas.
+
+#### Detalle funcional de ETAPA 4.2 — Contratos y cuotas
+
+Este bloque conserva el alcance previamente definido como Fase 15 y se desarrollará mediante las fases internas 4.2.1 a 4.2.5.
+
+**Objetivo:** implementar la gestión backend del alquiler.
+
+**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; renovaciones; rescisión básica.
+
+**Reglas:** un contrato pertenece a una Unidad; un contrato tiene un inquilino responsable; una Unidad puede tener múltiples contratos históricos; un contrato confirmado genera cuotas automáticamente.
+
+**Excluye:** pagos, recibos y notificaciones, que corresponden a fases posteriores.
+
+**Dependencia:** Etapa 4.1.
+
+**Resultado esperado:** administrar alquileres desde la firma del contrato hasta el seguimiento mensual.
+
+**Validaciones:** cardinalidad Unidad–Contrato e inquilino–Contrato; consistencia del historial; generación idempotente de cuotas; estados, renovaciones y rescisión; autorización; pruebas unitarias, de servicio, persistencia, MVC e integración.
+
+#### Detalle funcional de ETAPA 4.3 — Pagos y recibos
+
+Este bloque conserva el alcance previamente definido como Fase 16 y se desarrollará mediante las fases internas 4.3.1 a 4.3.5.
+
+**Objetivo:** implementar la gestión backend financiera del alquiler.
+
+**Incluye:** Pagos; pagos parciales; `PagoComprobantes`; validación manual; `CuentasPago`; QR; recibos.
+
+**Reglas:** una cuota puede tener múltiples pagos; un pago puede requerir comprobante; el propietario valida pagos; el recibo se genera después de confirmar el pago.
+
+**Excluye:** pasarela bancaria, API bancaria y conciliación automática.
+
+**Dependencia:** Etapa 4.2.
+
+**Resultado esperado:** registrar pagos y generar respaldo documental.
+
+**Validaciones:** aplicación de pagos parciales; estados y transiciones; comprobantes; validación manual; generación posterior del recibo; idempotencia; autorización; pruebas unitarias, MVC, persistencia e integración.
+
+#### Detalle funcional de ETAPA 4.4 — Notificaciones
+
+Este bloque conserva el alcance previamente definido como Fase 17 y se desarrollará mediante las fases internas 4.4.1 a 4.4.5.
+
+**Objetivo:** implementar notificaciones internas backend.
+
+**Incluye:** recordatorios de cuotas; pagos pendientes de revisión; pagos confirmados; pagos rechazados.
+
+**Usuarios:** Propietarios, Inquilinos y Administradores.
+
+**Considerar:** eventos; destinatarios; relación con Usuarios; persistencia de notificaciones.
+
+**Excluye:** canales externos o funcionalidades de mensajería no definidas en esta fase.
+
+**Dependencias:** Etapas 4.2 y 4.3.
+
+**Resultado esperado:** los usuarios reciben avisos relacionados con el flujo de alquileres.
+
+**Validaciones:** destinatario y alcance por contrato o pago; estados de lectura y entrega definidos para la implementación; no exposición de datos de otros usuarios; pruebas unitarias, de servicio, persistencia, MVC e integración.
+
+### Fase 18 — Documentación OpenAPI (ETAPA 5)
+
+**Objetivo:** documentar los contratos HTTP implementados del backend, incluidos los módulos inmobiliarios.
+
+**Incluye:** especificación OpenAPI; modelos de solicitud y respuesta; códigos HTTP; errores `ProblemDetail`; autenticación y autorización; ejemplos de uso.
+
+**Excluye:** cambios funcionales o de contrato no aprobados.
+
+**Dependencia:** APIs principales estables.
+
+**Resultado esperado:** documentación OpenAPI coherente, versionada y revisable para las APIs del sistema.
+
+**Validaciones:** correspondencia con controladores y DTO; revisión de seguridad; verificación de respuestas exitosas y de error.
+
+### Fase 19 — Pruebas de integración ampliadas (ETAPA 5)
+
+**Objetivo:** validar el sistema completo sobre PostgreSQL real.
+
+**Incluye:** flujos de persistencia y API; autenticación; JWT; sesiones; roles; autorización; OTP; Propiedades; Unidades; Contratos; Cuotas; Pagos; Recibos y Notificaciones.
+
+**Excluye:** sustituir las pruebas unitarias y de integración creadas en las fases anteriores.
+
+**Dependencia:** Etapas 4.1 a 4.4.
+
+**Resultado esperado:** cobertura de los flujos críticos y de sus restricciones de datos con resultados reproducibles.
+
+**Validaciones:** pruebas contra PostgreSQL aislado; concurrencia en operaciones críticas; constraints, estados, idempotencia, autorización y no exposición de datos sensibles.
+
+### Fase 20 — Auditoría técnica (ETAPA 5)
+
+**Objetivo:** revisar la seguridad, arquitectura, trazabilidad y protección de datos del backend completo.
+
+**Incluye:** seguridad; arquitectura; trazabilidad; datos sensibles; sesiones; operaciones críticas; revisión de dependencias y configuración relevante.
+
+**Excluye:** implementar correcciones de fases posteriores sin autorización específica.
+
+**Dependencia:** modelo inmobiliario y seguridad estables.
+
+**Resultado esperado:** informe de auditoría con hallazgos clasificados, riesgos, decisiones pendientes y correcciones priorizadas.
+
+**Validaciones:** revisión documental y de código; pruebas de seguridad; verificación de logs, errores, permisos, secretos y contratos.
+
+### Fase 21 — Preparación para producción (ETAPA 5)
+
+**Objetivo:** preparar el backend para un despliegue operativo controlado.
+
+**Incluye:** configuración final; despliegue; observabilidad; controles operativos; gestión externa de secretos; perfiles; empaquetado y procedimientos de respaldo y restauración.
+
+**Excluye:** cambios de dominio o funcionalidades nuevas no contempladas en las etapas 4.1 a 4.4 y las fases 18 a 20.
+
+**Dependencias:** Fases 18, 19 y 20.
+
+**Resultado esperado:** aplicación empaquetada y documentada para operar en un entorno de producción con controles verificables.
+
+**Validaciones:** configuración por ambiente; migraciones Flyway; health checks; logs y métricas; manejo de secretos; despliegue reproducible; respaldo y restauración; ejecución final de pruebas.
 
 ## Decisiones pendientes
 
@@ -217,9 +431,13 @@ Completar configuración, perfiles, secretos externos, observabilidad, empaqueta
 - Fase 11 depende de Fases 08 y 10.
 - Fase 12 depende de Fase 11.
 - Fase 13 depende de Fases 09 y 10.
-- Fase 14 depende de APIs principales estables.
-- Fase 15 depende de Fases 07 a 13.
-- Fase 16 depende del modelo y seguridad estables.
-- Fase 17 depende de Fases 14, 15 y 16.
+- Etapa 4.1 depende de Personas, Usuarios, Roles y Autorización.
+- Etapa 4.2 depende de Etapa 4.1.
+- Etapa 4.3 depende de Etapa 4.2.
+- Etapa 4.4 depende de Etapas 4.2 y 4.3.
+- Fase 18 depende de APIs principales estables.
+- Fase 19 depende de Etapas 4.1 a 4.4.
+- Fase 20 depende del modelo inmobiliario y la seguridad estables.
+- Fase 21 depende de Fases 18, 19 y 20.
 
 Una dependencia expresa orden técnico, pero cada fase requiere además autorización explícita del usuario.

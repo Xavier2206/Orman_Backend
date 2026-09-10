@@ -1,0 +1,89 @@
+package com.orman.backend.property.controller;
+
+import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.property.dto.request.PropiedadRequest;
+import com.orman.backend.property.dto.response.PropiedadResponse;
+import com.orman.backend.property.service.PropiedadService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import java.net.URI;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+@RestController
+@RequestMapping("/api/v1/propiedades")
+@RequiredArgsConstructor
+@Validated
+@PreAuthorize("hasRole('PROPIETARIO')")
+public class PropiedadController {
+
+    private final PropiedadService propiedadService;
+
+    @PostMapping
+    public ResponseEntity<PropiedadResponse> create(@Valid @RequestBody PropiedadRequest request,
+                                                     Authentication authentication) {
+        PropiedadResponse response = propiedadService.create(request, authentication);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{codprop}")
+                .buildAndExpand(response.codprop()).toUri();
+        return ResponseEntity.created(location).body(response);
+    }
+
+    @GetMapping
+    public PageResponse<PropiedadResponse> list(@RequestParam(required = false) String q,
+                                                 @RequestParam(required = false)
+                                                 @Pattern(regexp = "(?i)CASA|EDIFICIO",
+                                                         message = "El tipo debe ser CASA o EDIFICIO.") String tipo,
+                                                 @RequestParam(required = false)
+                                                 @Pattern(regexp = "0|1", message = "El estado debe ser 0 o 1.")
+                                                 String estado,
+                                                 @PageableDefault(page = 0, size = 20, sort = "nombre",
+                                                         direction = Sort.Direction.ASC) Pageable pageable,
+                                                 Authentication authentication) {
+        return propiedadService.list(q, tipo, estado == null ? null : Short.valueOf(estado), limit(pageable),
+                authentication);
+    }
+
+    @GetMapping("/{codprop}")
+    public PropiedadResponse get(@PathVariable Integer codprop, Authentication authentication) {
+        return propiedadService.get(codprop, authentication);
+    }
+
+    @PutMapping("/{codprop}")
+    public PropiedadResponse update(@PathVariable Integer codprop, @Valid @RequestBody PropiedadRequest request,
+                                    Authentication authentication) {
+        return propiedadService.update(codprop, request, authentication);
+    }
+
+    @PatchMapping("/{codprop}/activar")
+    public PropiedadResponse activate(@PathVariable Integer codprop, Authentication authentication) {
+        return propiedadService.activate(codprop, authentication);
+    }
+
+    @PatchMapping("/{codprop}/desactivar")
+    public PropiedadResponse deactivate(@PathVariable Integer codprop, Authentication authentication) {
+        return propiedadService.deactivate(codprop, authentication);
+    }
+
+    private Pageable limit(Pageable pageable) {
+        return pageable.getPageSize() > 100
+                ? PageRequest.of(pageable.getPageNumber(), 100, pageable.getSort())
+                : pageable;
+    }
+}

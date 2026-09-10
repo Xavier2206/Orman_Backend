@@ -15,6 +15,7 @@ Las guías usan `{{baseUrl}}` y Bearer de un Usuario autorizado. No contienen to
 | [rolusu.md](rolusu.md) | Asignación Usuario–Rol |
 | [property.md](property.md) | Propiedades, Unidades y UnidadFotos |
 | [contract.md](contract.md) | Contratos, archivos y cuotas |
+| [payment.md](payment.md) | Pagos, comprobantes, recibos y cuentas de pago |
 
 Orden sugerido para Fase 12.2: [auth.md](auth.md) → [rol.md](rol.md) → [menu.md](menu.md) y [proceso.md](proceso.md) → [rolme.md](rolme.md) y [mepro.md](mepro.md).
 

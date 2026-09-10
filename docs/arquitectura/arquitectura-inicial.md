@@ -34,7 +34,8 @@ PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema 
 
 El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu`, `sesiones_usuario`,
 `otp_challenges`, `propiedades`, `unidades`, `unidad_fotos`, `contratos`,
-`contrato_archivos` y `cuotas`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
+`contrato_archivos`, `cuotas`, `cuentas_pago`, `pagos`, `pago_comprobantes` y
+`recibos`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
 pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita
 a una sesión activa por `(login, device_id)`. `otp_challenges` conserva `login`
 como identificador simple respaldado por FK de base de datos, sin relación JPA ni
@@ -62,6 +63,13 @@ Las Fases 12.1 y 12.2 incorporan el flujo persistente `Usuario -> RolUsu -> Rol 
 Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; romper el mínimo devuelve `409 LAST_OWNER_REQUIRED`; la autenticación inválida conserva `401`. CORS, CSRF y los contratos WEB/MOBILE no se modificaron. Los módulos `property` y `contract` restringen sus controladores a `ROLE_PROPIETARIO` y, en su capa transaccional, resuelven `Usuario autenticado -> Persona asociada -> Propiedad.codper_propietaria`; `contract` continúa la comprobación hacia Unidad y Contrato. No crean un administrador inmobiliario, no derivan autorización de `tipo_persona` y no modifican la seguridad transversal.
 
 ## Evolución
+
+La Etapa 4.3 agrega el módulo `payment`, dependiente de `contract`, `property`,
+`person` y `user`, sin dependencias inversas. Sus servicios verifican
+`Usuario -> Persona -> Propiedad -> Unidad -> Contrato -> Cuota -> Pago`; la
+confirmación bloquea la cuota, recalcula su estado a partir de pagos confirmados
+y genera el recibo en una misma transacción. Sus controladores usan el rol
+existente `ROLE_PROPIETARIO`; no se modificó la seguridad transversal.
 
 La modularidad facilitará crecer dentro del mismo despliegue. Una separación en microservicios solo podría considerarse ante necesidades técnicas y operativas demostrables; no es parte del plan actual.
 

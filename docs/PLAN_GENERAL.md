@@ -36,7 +36,7 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 - Etapas 1, 2 y 3: **COMPLETADAS**.
 - Etapa actual de planificación: **ETAPA 4 — Gestión inmobiliaria ORMAN**.
-- Última subetapa completada: **ETAPA 4.2 — Contratos y cuotas**.
+- Última subetapa completada: **ETAPA 4.3 — Pagos, comprobantes, recibos y cuentas de pago**.
 - Fase 12.3: **COMPLETADA**; consulta post-login actual de Usuario, Persona, Roles, Menús y Procesos mediante `/api/v1/auth/context`.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
@@ -47,7 +47,8 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Estado de la Fase 13 global: **COMPLETADA**; OTP WEB administrativo por correo, verify y resend cerrados.
 - Resultado de ETAPA 4.1: módulo backend `property`, Flyway V10 con Propiedades, Unidades y UnidadFotos, acceso exclusivo de la Persona propietaria autenticada con `ROLE_PROPIETARIO`, y 262 pruebas totales sin fallos.
 - Resultado de ETAPA 4.2: módulo backend `contract`, Flyway V11 con Contratos, ContratoArchivos y Cuotas `PENDIENTE`, generación transaccional al confirmar y 272 pruebas totales sin fallos.
-- Próxima fase autorizable: **ETAPA 4.3.1 — Análisis de Pagos y recibos**; requiere autorización explícita independiente.
+- Resultado de ETAPA 4.3: módulo backend `payment`, Flyway V12 con Pagos, PagoComprobantes, Recibos y CuentasPago; confirmación transaccional, pagos parciales calculados, recibos automáticos y 282 pruebas totales sin fallos.
+- Próxima fase autorizable: **ETAPA 4.4.1 — Análisis de Notificaciones**; requiere autorización explícita independiente.
 - Fecha de actualización: **2026-09-10**.
 
 ## Etapas y fases previstas
@@ -146,11 +147,11 @@ Teoría: pendiente de creación cuando corresponda.
 
 | Fase interna | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 4.3.1 — Análisis | `PENDIENTE` | Etapa 4.2 completada | Documento pendiente de creación |
-| 4.3.2 — Diseño | `PENDIENTE` | Fase 4.3.1 | Documento pendiente de creación |
-| 4.3.3 — Implementación backend | `PENDIENTE` | Fase 4.3.2 | Documento pendiente de creación |
-| 4.3.4 — Pruebas backend | `PENDIENTE` | Fase 4.3.3 | Documento pendiente de creación |
-| 4.3.5 — Documentación | `PENDIENTE` | Fase 4.3.4 | Documento pendiente de creación |
+| 4.3.1 — Análisis | `COMPLETADA` | Etapa 4.2 completada | [Documento de ETAPA 4.3](fases/16-pagos-recibos-cuentas-pago.md) |
+| 4.3.2 — Diseño | `COMPLETADA` | Fase 4.3.1 | [Documento de ETAPA 4.3](fases/16-pagos-recibos-cuentas-pago.md) |
+| 4.3.3 — Implementación backend | `COMPLETADA` | Fase 4.3.2 | [Documento de ETAPA 4.3](fases/16-pagos-recibos-cuentas-pago.md) |
+| 4.3.4 — Pruebas backend | `COMPLETADA` | Fase 4.3.3 | [Documento de ETAPA 4.3](fases/16-pagos-recibos-cuentas-pago.md) |
+| 4.3.5 — Documentación | `COMPLETADA` | Fase 4.3.4 | [Documento de ETAPA 4.3](fases/16-pagos-recibos-cuentas-pago.md) |
 
 **Objetivo:** implementar la gestión backend financiera del alquiler.
 
@@ -163,6 +164,10 @@ Teoría: pendiente de creación cuando corresponda.
 **Dependencia:** Etapa 4.2.
 
 **Resultado esperado:** registrar pagos, aplicar pagos parciales y generar recibos después de la confirmación de los pagos.
+
+**Resultado de implementación:** V12 crea cuentas de pago, pagos, comprobantes y recibos; `payment` confirma pagos bajo bloqueo de cuota, calcula parciales sin persistir saldos y genera un único recibo por pago confirmado.
+
+**Autorización implementada:** todas las rutas requieren `ROLE_PROPIETARIO` y verifican la cadena Persona propietaria, Propiedad, Unidad, Contrato, Cuota y Pago. Las cuentas se limitan a la Persona propietaria autenticada.
 
 #### ETAPA 4.4 — Notificaciones
 

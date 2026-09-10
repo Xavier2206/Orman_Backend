@@ -70,6 +70,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Contratos y Cuotas](fases/15-contratos-cuotas.md)
 - [Guía Postman de contratos](postman/contract.md)
 
+## Etapa 4.3
+
+- [Pagos, comprobantes, recibos y cuentas de pago](fases/16-pagos-recibos-cuentas-pago.md)
+- [Guía Postman de pagos](postman/payment.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

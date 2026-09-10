@@ -4,6 +4,33 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Etapa 4.3 — Pagos, comprobantes, recibos y cuentas de pago — 2026-09-10
+
+### Agregado
+
+- Migración Flyway V12 para `cuentas_pago`, `pagos`, `pago_comprobantes` y
+  `recibos`, con FKs restrictivas, checks de estado/método, importes `NUMERIC`,
+  idempotencia, órdenes únicas y un recibo único por pago.
+- Módulo `payment` con entidades JPA, DTO separados, mappers explícitos,
+  repositorios, servicios transaccionales y controladores REST.
+- Pagos pendientes de revisión, confirmación atómica con bloqueo de cuota,
+  pagos parciales calculados, rechazo, anulación, comprobantes por URL, recibos
+  automáticos y cuentas de pago administradas por propietaria.
+- Pruebas de mapper, MVC, persistencia PostgreSQL, integración, autorización y
+  guía Postman del módulo; las verificaciones globales de Flyway se actualizaron
+  para reconocer V12.
+
+### Preservado
+
+- JWT, `SecurityConfig`, Roles, Menús y Procesos no fueron modificados.
+- No se implementaron notificaciones, aplicación móvil, usuarios inquilinos,
+  pasarela/API bancaria ni conciliación automática.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 282 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. Flyway validó V1–V12 e Hibernate mantuvo `ddl-auto=validate`.
+
 ## Etapa 4.2 — Contratos y Cuotas — 2026-09-10
 
 ### Agregado

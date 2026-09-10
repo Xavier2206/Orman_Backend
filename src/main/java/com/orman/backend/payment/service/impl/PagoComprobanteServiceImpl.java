@@ -5,6 +5,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.payment.dto.request.PagoComprobanteRequest;
 import com.orman.backend.payment.dto.response.PagoComprobanteResponse;
+import com.orman.backend.payment.event.ComprobanteRecibidoEvent;
 import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.entity.PagoEstado;
@@ -14,6 +15,7 @@ import com.orman.backend.payment.service.PagoComprobanteService;
 import com.orman.backend.payment.service.PaymentOwnershipService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class PagoComprobanteServiceImpl implements PagoComprobanteService {
     private final PagoComprobanteRepository pagoComprobanteRepository;
     private final PagoComprobanteMapper pagoComprobanteMapper;
     private final PaymentOwnershipService paymentOwnershipService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional
@@ -38,8 +41,10 @@ public class PagoComprobanteServiceImpl implements PagoComprobanteService {
             throw duplicateOrden();
         }
         try {
-            return pagoComprobanteMapper.toResponse(pagoComprobanteRepository.saveAndFlush(
+            PagoComprobanteResponse response = pagoComprobanteMapper.toResponse(pagoComprobanteRepository.saveAndFlush(
                     pagoComprobanteMapper.toEntity(request, pago)));
+            applicationEventPublisher.publishEvent(new ComprobanteRecibidoEvent(pago.getCodpag()));
+            return response;
         } catch (DataIntegrityViolationException exception) {
             throw duplicateOrden();
         }

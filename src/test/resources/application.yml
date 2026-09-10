@@ -61,3 +61,8 @@ storage:
     root: ./target/test-storage
     max-file-size-bytes: 2097152
     max-dimension: 320
+
+notification:
+  scheduler:
+    cron: "0 0 8 * * *"
+    zone: America/La_Paz

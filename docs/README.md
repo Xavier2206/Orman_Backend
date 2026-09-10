@@ -75,6 +75,11 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Pagos, comprobantes, recibos y cuentas de pago](fases/16-pagos-recibos-cuentas-pago.md)
 - [Guía Postman de pagos](postman/payment.md)
 
+## Etapa 4.4
+
+- [Notificaciones internas](fases/17-notificaciones.md)
+- [Guía Postman de notificaciones](postman/notification.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

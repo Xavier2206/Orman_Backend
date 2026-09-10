@@ -9,6 +9,8 @@ import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
+import com.orman.backend.payment.event.PagoConfirmadoEvent;
+import com.orman.backend.payment.event.PagoRechazadoEvent;
 import com.orman.backend.payment.entity.CuentaPagoEntity;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.PagoEntity;
@@ -25,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +47,7 @@ public class PagoServiceImpl implements PagoService {
     private final ReciboMapper reciboMapper;
     private final PaymentOwnershipService paymentOwnershipService;
     private final PropertyOwnershipService propertyOwnershipService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional
@@ -113,6 +117,7 @@ public class PagoServiceImpl implements PagoService {
             throw new ConflictException("El Pago ya tiene un Recibo generado.");
         }
         reciboRepository.save(reciboMapper.toEntity(pago));
+        applicationEventPublisher.publishEvent(new PagoConfirmadoEvent(pago.getCodpag()));
         return pagoMapper.toResponse(pago);
     }
 
@@ -125,6 +130,7 @@ public class PagoServiceImpl implements PagoService {
         pago.setFechaRevision(LocalDateTime.now());
         pago.setMotivoRechazo(request.motivo().trim());
         pago.setMotivoAnulacion(null);
+        applicationEventPublisher.publishEvent(new PagoRechazadoEvent(pago.getCodpag()));
         return pagoMapper.toResponse(pago);
     }
 

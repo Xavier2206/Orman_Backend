@@ -34,8 +34,8 @@ PostgreSQL será la fuente persistente. Flyway creará y modificará el esquema 
 
 El núcleo contiene `personas`, `usuarios`, `roles`, `rolusu`, `sesiones_usuario`,
 `otp_challenges`, `propiedades`, `unidades`, `unidad_fotos`, `contratos`,
-`contrato_archivos`, `cuotas`, `cuentas_pago`, `pagos`, `pago_comprobantes` y
-`recibos`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
+`contrato_archivos`, `cuotas`, `cuentas_pago`, `pagos`, `pago_comprobantes`,
+`recibos` y `notificaciones`. `rolusu` materializa Usuario–Rol; `sesiones_usuario`
 pertenece al módulo `auth`, referencia Usuario de forma unidireccional y limita
 a una sesión activa por `(login, device_id)`. `otp_challenges` conserva `login`
 como identificador simple respaldado por FK de base de datos, sin relación JPA ni
@@ -70,6 +70,13 @@ La Etapa 4.3 agrega el módulo `payment`, dependiente de `contract`, `property`,
 confirmación bloquea la cuota, recalcula su estado a partir de pagos confirmados
 y genera el recibo en una misma transacción. Sus controladores usan el rol
 existente `ROLE_PROPIETARIO`; no se modificó la seguridad transversal.
+
+La Etapa 4.4 agrega `notification`, con una FK de destinatario a `Usuario` y
+referencias escalares a Cuota o Pago, sin relaciones JPA polimórficas. El
+módulo consulta solo notificaciones propias y marca su lectura de forma
+idempotente. Consume eventos internos publicados por `payment`; el scheduler
+diario de cuotas usa `America/La_Paz`. No incorpora mensajería externa ni
+modifica JWT, seguridad, roles, menús o procesos.
 
 La modularidad facilitará crecer dentro del mismo despliegue. Una separación en microservicios solo podría considerarse ante necesidades técnicas y operativas demostrables; no es parte del plan actual.
 

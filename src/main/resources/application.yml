@@ -64,3 +64,8 @@ storage:
     root: ${PERSONA_PHOTO_STORAGE_ROOT:./storage}
     max-file-size-bytes: ${PERSONA_PHOTO_MAX_FILE_SIZE_BYTES:2097152}
     max-dimension: ${PERSONA_PHOTO_MAX_DIMENSION:320}
+
+notification:
+  scheduler:
+    cron: ${NOTIFICATION_SCHEDULER_CRON:0 0 8 * * *}
+    zone: ${NOTIFICATION_SCHEDULER_ZONE:America/La_Paz}

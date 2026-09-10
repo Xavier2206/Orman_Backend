@@ -1,8 +1,10 @@
 package com.orman.backend.contract.repository;
 
 import com.orman.backend.contract.entity.CuotaEntity;
+import com.orman.backend.contract.entity.CuotaEstado;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -26,4 +28,15 @@ public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer> {
             "contrato.unidad.propiedad.propietaria"})
     @Query("select c from CuotaEntity c where c.codcuo = :codcuo")
     Optional<CuotaEntity> findByCodcuoForUpdate(@Param("codcuo") Integer codcuo);
+
+    @EntityGraph(attributePaths = {"contrato", "contrato.unidad", "contrato.unidad.propiedad",
+            "contrato.unidad.propiedad.propietaria"})
+    @Query("""
+            select c from CuotaEntity c
+            where c.fechaVencimiento <= :fechaLimite
+              and c.estado in :estados
+            order by c.fechaVencimiento asc, c.codcuo asc
+            """)
+    List<CuotaEntity> findAllPendingOrPartialDueOnOrBefore(@Param("fechaLimite") LocalDate fechaLimite,
+                                                            @Param("estados") Collection<CuotaEstado> estados);
 }

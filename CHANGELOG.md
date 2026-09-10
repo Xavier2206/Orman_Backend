@@ -4,6 +4,36 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Etapa 4.4 — Notificaciones internas — 2026-09-10
+
+### Agregado
+
+- Migración Flyway V13 para `notificaciones`, con FK restrictiva a
+  `usuarios.login`, tipos y referencias controlados, fecha de lectura,
+  clave única antiduplicados e índices de consulta.
+- Módulo `notification` con DTO de respuesta, mapper, repositorio, servicios,
+  controladores REST, listado paginado propio, detalle, resumen de no leídas y
+  marcado idempotente como leída.
+- Scheduler diario configurado en `America/La_Paz` para cuotas `PENDIENTE` y
+  `PARCIAL`, más recordatorio manual protegido por propiedad efectiva.
+- Eventos internos de comprobante recibido, pago confirmado y pago rechazado;
+  la confirmación genera la notificación después del recibo.
+- Pruebas de mapper, MVC, persistencia PostgreSQL e integración, y guía
+  Postman de Notificaciones. Las pruebas que enumeran Flyway reconocen V13.
+
+### Preservado
+
+- JWT, `SecurityConfig`, Roles, Menús y Procesos no fueron modificados.
+- No se incorporaron correo, WhatsApp, SMS, Firebase Push, aplicación móvil,
+  usuarios inquilinos, administradores ni integraciones externas.
+
+### Verificación
+
+- Pruebas específicas: 8 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 290 pruebas, 0 fallos,
+  0 errores y 0 omitidas. PostgreSQL real validó Flyway V1–V13 y Hibernate
+  con `ddl-auto=validate`.
+
 ## Etapa 4.3 — Pagos, comprobantes, recibos y cuentas de pago — 2026-09-10
 
 ### Agregado

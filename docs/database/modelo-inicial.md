@@ -47,6 +47,7 @@ fechas UTC, IP y user-agent. Un índice único parcial limita a un PENDING por
 - Un contrato puede tener archivos por URL y cuotas mensuales, sin relaciones JPA inversas.
 - Una cuota puede tener varios pagos; cada pago puede tener comprobantes y como máximo un recibo.
 - Una Persona propietaria puede tener varias cuentas de pago; una cuenta puede ser referenciada por pagos históricos.
+- Un Usuario puede recibir varias notificaciones internas, sin colección JPA inversa.
 - La tabla relacional que se elija en la Fase 08 materializará la relación entre `usuarios` y `roles`.
 
 La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obligatorio, único y referencia `personas.codper` con `ON DELETE RESTRICT`.
@@ -63,7 +64,15 @@ La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obliga
 
 ## Estado de implementación
 
-La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5; la subfase 10.1 completó `sesiones_usuario` con V6; la Fase 13 incorporó `otp_challenges` con V9; la Etapa 4.1 incorporó `propiedades`, `unidades` y `unidad_fotos` con V10; la Etapa 4.2 incorporó `contratos`, `contrato_archivos` y `cuotas` con V11; y la Etapa 4.3 incorporó `cuentas_pago`, `pagos`, `pago_comprobantes` y `recibos` con V12.
+La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5; la subfase 10.1 completó `sesiones_usuario` con V6; la Fase 13 incorporó `otp_challenges` con V9; la Etapa 4.1 incorporó `propiedades`, `unidades` y `unidad_fotos` con V10; la Etapa 4.2 incorporó `contratos`, `contrato_archivos` y `cuotas` con V11; la Etapa 4.3 incorporó `cuentas_pago`, `pagos`, `pago_comprobantes` y `recibos` con V12; y la Etapa 4.4 incorporó `notificaciones` con V13.
+
+## ETAPA 4.4 — Notificaciones
+
+V13 implementa `notificaciones` con identidad `BIGINT`, FK restrictiva hacia
+`usuarios.login`, tipo, título, mensaje y referencia polimórfica controlada por
+`referencia_tipo` y `referencia_id`. La fecha de lectura representa el estado
+de la notificación. Una clave única por destinatario, tipo y referencia evita
+duplicados; los índices cubren listado cronológico y no leídas.
 
 ## ETAPA 4.1 — Propiedades, Unidades y Fotografías
 

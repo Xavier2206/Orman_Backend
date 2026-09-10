@@ -29,6 +29,7 @@ Las Fases 00 a 13 y las Etapas 4.1, 4.2 y 4.3 están completadas, incluida la su
 | 14 — Propiedades, Unidades y Fotografías | `COMPLETADA` | [Abrir documento](14-propiedades-unidades-fotografias.md) |
 | 15 — Contratos y Cuotas | `COMPLETADA` | [Abrir documento](15-contratos-cuotas.md) |
 | 16 — Pagos, comprobantes, recibos y cuentas de pago | `COMPLETADA` | [Abrir documento](16-pagos-recibos-cuentas-pago.md) |
+| 17 — Notificaciones internas | `COMPLETADA` | [Abrir documento](17-notificaciones.md) |
 
 El estado global y las fases futuras se consultan en el [plan general](../PLAN_GENERAL.md).
 Las Fases 11, 12, 12.3 y 13, y las Etapas 4.1, 4.2 y 4.3, están completadas.

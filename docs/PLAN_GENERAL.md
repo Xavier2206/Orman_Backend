@@ -36,7 +36,7 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 
 - Etapas 1, 2 y 3: **COMPLETADAS**.
 - Etapa actual de planificación: **ETAPA 4 — Gestión inmobiliaria ORMAN**.
-- Última subetapa completada: **ETAPA 4.3 — Pagos, comprobantes, recibos y cuentas de pago**.
+- Última subetapa completada: **ETAPA 4.4 — Notificaciones internas**.
 - Fase 12.3: **COMPLETADA**; consulta post-login actual de Usuario, Persona, Roles, Menús y Procesos mediante `/api/v1/auth/context`.
 - Estado de la Fase 09: **COMPLETADA**.
 - Estado de la Fase 10 global: **COMPLETADA**; 10.1 y 10.2 están cerradas.
@@ -48,7 +48,8 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de ETAPA 4.1: módulo backend `property`, Flyway V10 con Propiedades, Unidades y UnidadFotos, acceso exclusivo de la Persona propietaria autenticada con `ROLE_PROPIETARIO`, y 262 pruebas totales sin fallos.
 - Resultado de ETAPA 4.2: módulo backend `contract`, Flyway V11 con Contratos, ContratoArchivos y Cuotas `PENDIENTE`, generación transaccional al confirmar y 272 pruebas totales sin fallos.
 - Resultado de ETAPA 4.3: módulo backend `payment`, Flyway V12 con Pagos, PagoComprobantes, Recibos y CuentasPago; confirmación transaccional, pagos parciales calculados, recibos automáticos y 282 pruebas totales sin fallos.
-- Próxima fase autorizable: **ETAPA 4.4.1 — Análisis de Notificaciones**; requiere autorización explícita independiente.
+- Resultado de ETAPA 4.4: módulo backend `notification`, Flyway V13 con notificaciones internas por Usuario, consulta propia, lectura idempotente, recordatorios de cuotas y eventos internos de pagos; 290 pruebas totales sin fallos.
+- Próxima fase autorizable: **Fase 18 — Documentación OpenAPI**; requiere autorización explícita independiente.
 - Fecha de actualización: **2026-09-10**.
 
 ## Etapas y fases previstas
@@ -173,23 +174,22 @@ Teoría: pendiente de creación cuando corresponda.
 
 | Fase interna | Estado | Dependencia | Documento |
 |---|---|---|---|
-| 4.4.1 — Análisis | `PENDIENTE` | Etapas 4.2 y 4.3 completadas | Documento pendiente de creación |
-| 4.4.2 — Diseño | `PENDIENTE` | Fase 4.4.1 | Documento pendiente de creación |
-| 4.4.3 — Implementación backend | `PENDIENTE` | Fase 4.4.2 | Documento pendiente de creación |
-| 4.4.4 — Pruebas backend | `PENDIENTE` | Fase 4.4.3 | Documento pendiente de creación |
-| 4.4.5 — Documentación | `PENDIENTE` | Fase 4.4.4 | Documento pendiente de creación |
+| 4.4.1 — Análisis | `COMPLETADA` | Etapas 4.2 y 4.3 completadas | [Documento de ETAPA 4.4](fases/17-notificaciones.md) |
+| 4.4.2 — Implementación backend | `COMPLETADA` | Fase 4.4.1 | [Documento de ETAPA 4.4](fases/17-notificaciones.md) |
+| 4.4.3 — Pruebas backend | `COMPLETADA` | Fase 4.4.2 | [Documento de ETAPA 4.4](fases/17-notificaciones.md) |
+| 4.4.4 — Documentación | `COMPLETADA` | Fase 4.4.3 | [Documento de ETAPA 4.4](fases/17-notificaciones.md) |
 
 **Objetivo:** implementar notificaciones internas backend.
 
 **Incluye:** recordatorios de cuotas; pagos pendientes de revisión; pagos confirmados; pagos rechazados.
 
-**Usuarios:** Propietarios, Inquilinos y Administradores.
+**Usuarios implementados:** Propietarios con `ROLE_PROPIETARIO`.
 
 **Considerar:** eventos; destinatarios; relación con Usuarios; persistencia de notificaciones.
 
 **Dependencias:** Etapas 4.2 y 4.3.
 
-**Resultado esperado:** los usuarios reciben avisos relacionados con el flujo de alquileres.
+**Resultado de implementación:** V13 persiste notificaciones internas por Usuario destinatario, con referencias a Cuota o Pago, lectura idempotente, recordatorio manual, scheduler diario `America/La_Paz` y eventos de comprobante, pago confirmado y pago rechazado. No se agregaron canales externos, usuarios inquilinos ni administradores.
 
 ### ETAPA 5 — Calidad y producción
 
@@ -354,15 +354,17 @@ Este bloque conserva el alcance previamente definido como Fase 16 y se desarroll
 
 #### Detalle funcional de ETAPA 4.4 — Notificaciones
 
-Este bloque conserva el alcance previamente definido como Fase 17 y se desarrollará mediante las fases internas 4.4.1 a 4.4.5.
+Este bloque conserva el alcance previamente definido como Fase 17 y se desarrolló mediante las fases internas 4.4.1 a 4.4.4.
 
 **Objetivo:** implementar notificaciones internas backend.
 
 **Incluye:** recordatorios de cuotas; pagos pendientes de revisión; pagos confirmados; pagos rechazados.
 
-**Usuarios:** Propietarios, Inquilinos y Administradores.
+**Usuarios implementados:** Propietarios con `ROLE_PROPIETARIO`.
 
 **Considerar:** eventos; destinatarios; relación con Usuarios; persistencia de notificaciones.
+
+**Resultado de implementación:** V13 incorpora `notificaciones` por Usuario destinatario, con referencia a Cuota o Pago, listado paginado propio, resumen de no leídas y marcado idempotente. El scheduler diario en `America/La_Paz` avisa cuotas próximas o vencidas; `payment` publica eventos internos para comprobantes, pagos confirmados y pagos rechazados. No se implementan destinatarios inquilinos ni canales externos.
 
 **Excluye:** canales externos o funcionalidades de mensajería no definidas en esta fase.
 

@@ -63,6 +63,10 @@ public class PropiedadEntity {
     private String portadaUrl;
 
     @Setter
+    @Column(name = "portada_ref", length = 500)
+    private String portadaRef;
+
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "codper_propietaria", nullable = false)
     private Persona propietaria;

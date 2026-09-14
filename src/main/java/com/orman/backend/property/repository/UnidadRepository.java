@@ -2,6 +2,8 @@ package com.orman.backend.property.repository;
 
 import com.orman.backend.property.entity.UnidadEntity;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +18,27 @@ public interface UnidadRepository extends JpaRepository<UnidadEntity, Integer> {
     boolean existsByPropiedadCodpropAndNombre(Integer codprop, String nombre);
 
     boolean existsByPropiedadCodpropAndNombreAndCoduniNot(Integer codprop, String nombre, Integer coduni);
+
+    long countByPropiedadCodpropAndPropiedadPropietariaCodper(Integer codprop, Integer codper);
+
+    @Query(value = """
+            select u.codprop as codprop,
+                   count(*) as "cantidadUnidades",
+                   count(*) filter (where u.estado_operativo = 1) as "unidadesHabilitadas",
+                   count(*) filter (where u.estado_operativo = 1 and exists (
+                       select 1
+                         from contratos c
+                        where c.coduni = u.coduni
+                          and c.estado = 'VIGENTE'
+                   )) as "unidadesOcupadas"
+              from unidades u
+              join propiedades p on p.codprop = u.codprop
+             where u.codprop in (:codprops)
+               and p.codper_propietaria = :codper
+             group by u.codprop
+            """, nativeQuery = true)
+    List<PropiedadUnidadCountProjection> countByPropiedadesOwned(@Param("codprops") Collection<Integer> codprops,
+                                                                  @Param("codper") Integer codper);
 
     @EntityGraph(attributePaths = {"propiedad", "propiedad.propietaria"})
     Optional<UnidadEntity> findByCoduniAndPropiedadPropietariaCodper(Integer coduni, Integer codper);

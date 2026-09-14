@@ -52,8 +52,8 @@ class RolIntegrationTest {
                 String.class);
         assertThat(tables).containsExactly("contrato_archivos", "contratos", "cuentas_pago", "cuotas", "flyway_schema_history", "menus", "mepro", "notificaciones", "otp_challenges", "pago_comprobantes", "pagos", "personas", "procesos", "propiedades", "recibos", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13') AND success = true",
-                Integer.class)).isEqualTo(13);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14') AND success = true",
+                Integer.class)).isEqualTo(14);
 
         List<Map<String, Object>> rolesColumns = jdbcTemplate.queryForList("""
                 SELECT column_name, data_type, character_maximum_length, is_nullable

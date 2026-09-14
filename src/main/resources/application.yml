@@ -8,6 +8,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${ORMAN_MULTIPART_MAX_FILE_SIZE:20MB}
+      max-request-size: ${ORMAN_MULTIPART_MAX_REQUEST_SIZE:21MB}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orman}
     username: ${DB_USERNAME}
@@ -64,6 +68,10 @@ storage:
     root: ${PERSONA_PHOTO_STORAGE_ROOT:./storage}
     max-file-size-bytes: ${PERSONA_PHOTO_MAX_FILE_SIZE_BYTES:2097152}
     max-dimension: ${PERSONA_PHOTO_MAX_DIMENSION:320}
+  propiedades:
+    root: ${PROPERTY_PHOTO_STORAGE_ROOT:./storage}
+    max-file-size-bytes: ${PROPERTY_PHOTO_MAX_FILE_SIZE_BYTES:5242880}
+    max-dimension: ${PROPERTY_PHOTO_MAX_DIMENSION:1600}
 
 notification:
   scheduler:

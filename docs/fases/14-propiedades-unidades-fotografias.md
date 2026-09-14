@@ -18,8 +18,18 @@ Pagos, Recibos ni Notificaciones.
 - Flyway V10 crea `propiedades`, `unidades` y `unidad_fotos`, con FKs
   `ON DELETE RESTRICT`, montos `NUMERIC(14,2)`, coordenadas `NUMERIC(9,6)`,
   checks de rango y estados, orden único y portada única parcial por Unidad.
-- `url` y `portada_url` son URLs HTTP/HTTPS administradas por API. No se agregó
-  carga, conversión ni almacenamiento de archivos.
+- `url` de UnidadFoto y `portada_url` son URLs HTTP/HTTPS administradas por
+  API. La portada interna de Propiedad se documenta como ampliación V14 abajo.
+
+### Ampliación posterior: portada interna de Propiedad
+
+V14 agrega `propiedades.portada_ref` y una portada interna gestionada por
+ORMAN. La imagen se recibe por multipart, se valida por MIME y contenido real,
+se normaliza a JPEG y se almacena en filesystem configurable sin exponer la
+ruta física. Se dispone de `PUT/GET/DELETE
+/api/v1/propiedades/{codprop}/portada`, protegido por `ROLE_PROPIETARIO` y
+ownership efectivo. `portada_url` conserva su semántica de URL HTTP/HTTPS para
+compatibilidad, y las fotografías de `UnidadFoto` no cambian.
 
 ## Seguridad
 
@@ -39,6 +49,10 @@ sistema global de autorización. No existe alcance de ADMINISTRADOR inmobiliario
 | Unidades | `POST/GET /api/v1/propiedades/{codprop}/unidades`; `GET/PUT /api/v1/unidades/{coduni}` |
 | UnidadFotos | `POST/GET /api/v1/unidades/{coduni}/fotos`; `PUT/DELETE /api/v1/unidades/{coduni}/fotos/{id}`; `PATCH .../{id}/portada` |
 
+La portada interna de Propiedad utiliza `PUT/GET/DELETE
+/api/v1/propiedades/{codprop}/portada` y mantiene separada la referencia
+externa `portada_url` de la referencia interna `portada_ref`.
+
 Las creaciones responden `201 Created` y `Location`; la eliminación de foto
 responde `204 No Content`. Los errores usan `ProblemDetail` con
 `application/problem+json` y códigos estables existentes.
@@ -48,6 +62,8 @@ responde `204 No Content`. Los errores usan `ProblemDetail` con
 ### Creados
 
 - `src/main/resources/db/migration/V10__create_propiedades_unidades_unidad_fotos_tables.sql`.
+- `src/main/resources/db/migration/V14__add_propiedades_portada_ref.sql` y la
+  configuración/servicio de portada interna de Propiedad.
 - Módulo `src/main/java/com/orman/backend/property` con entidades, DTOs,
   mappers, repositories, servicios y controladores.
 - Pruebas del módulo en `src/test/java/com/orman/backend/property`.
@@ -68,6 +84,9 @@ responde `204 No Content`. Los errores usan `ProblemDetail` con
   PostgreSQL real.
 - `./mvnw.cmd clean test`: **BUILD SUCCESS**; 262 pruebas, 0 fallos, 0 errores
   y 0 omitidas. Flyway validó V1–V10 e Hibernate validó `ddl-auto=validate`.
+- Validación posterior de la portada interna V14: `./mvnw.cmd clean test`:
+  **BUILD SUCCESS**; 311 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL
+  real validó Flyway V1–V14 y Hibernate mantuvo `ddl-auto=validate`.
 
 ## Riesgos y pendientes
 

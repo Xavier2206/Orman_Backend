@@ -49,8 +49,11 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de ETAPA 4.2: módulo backend `contract`, Flyway V11 con Contratos, ContratoArchivos y Cuotas `PENDIENTE`, generación transaccional al confirmar y 272 pruebas totales sin fallos.
 - Resultado de ETAPA 4.3: módulo backend `payment`, Flyway V12 con Pagos, PagoComprobantes, Recibos y CuentasPago; confirmación transaccional, pagos parciales calculados, recibos automáticos y 282 pruebas totales sin fallos.
 - Resultado de ETAPA 4.4: módulo backend `notification`, Flyway V13 con notificaciones internas por Usuario, consulta propia, lectura idempotente, recordatorios de cuotas y eventos internos de pagos; 290 pruebas totales sin fallos.
+- Ampliación posterior de Propiedades: Flyway V14 añade `portada_ref` y los
+  endpoints autenticados de portada interna, sin alterar `portada_url` ni las
+  fotografías de UnidadFoto.
 - Próxima fase autorizable: **Fase 18 — Documentación OpenAPI**; requiere autorización explícita independiente.
-- Fecha de actualización: **2026-09-10**.
+- Fecha de actualización: **2026-09-13**.
 
 ## Etapas y fases previstas
 
@@ -315,6 +318,10 @@ Este bloque conserva el alcance previamente definido como Fase 14 y se desarroll
 **Autorización implementada:** todas las rutas requieren `ROLE_PROPIETARIO`; el servicio verifica además que la Persona asociada al Usuario autenticado coincida con `codper_propietaria`. No existe alcance de ADMINISTRADOR, ni se modificaron JWT, `SecurityConfig`, Roles, Menús o Procesos.
 
 **Validaciones y pruebas:** campos, estados, importes, área, conteos, coordenadas, URLs, pertenencia de rutas anidadas, orden único y única portada por Unidad; pruebas unitarias, MVC, persistencia e integración contra PostgreSQL real. `./mvnw.cmd clean test`: 262 pruebas, 0 fallos, 0 errores y 0 omitidas.
+
+**Ampliación posterior:** Flyway V14 incorpora `propiedades.portada_ref` y el
+módulo de Propiedades expone carga, descarga y eliminación autenticadas de una
+portada interna, manteniendo `portada_url` como URL externa de compatibilidad.
 
 #### Detalle funcional de ETAPA 4.2 — Contratos y cuotas
 

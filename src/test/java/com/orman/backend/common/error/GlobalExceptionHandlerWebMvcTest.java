@@ -4,6 +4,7 @@ import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.exception.LastOwnerRequiredException;
+import com.orman.backend.property.exception.InvalidPropiedadPortadaException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -122,6 +123,14 @@ class GlobalExceptionHandlerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("detalle-interno-no-exponible"))));
     }
+
+    @Test
+    void returnsProblemDetailForInvalidPropertyCover() throws Exception {
+        mockMvc.perform(get("/test-errors/property-cover"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("foto"));
+    }
 }
 
 @RestController
@@ -164,6 +173,11 @@ class ErrorTestController {
     @GetMapping("/unexpected")
     void unexpected() {
         throw new IllegalStateException("detalle-interno-no-exponible");
+    }
+
+    @GetMapping("/property-cover")
+    void propertyCover() {
+        throw new InvalidPropiedadPortadaException("Solo se permiten imágenes JPEG o PNG.");
     }
 
     private record ValidationRequest(

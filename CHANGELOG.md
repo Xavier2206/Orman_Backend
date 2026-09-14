@@ -4,6 +4,25 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Portada interna de Propiedad — 2026-09-13
+
+### Agregado
+
+- Migración Flyway V14 con `propiedades.portada_ref`, sin alterar
+  `portada_url`.
+- Endpoints autenticados para cargar/reemplazar, descargar y eliminar la
+  portada de una Propiedad mediante filesystem configurable.
+- Validación por MIME y contenido real JPEG/PNG, normalización a JPEG hasta
+  1600 px, referencias UUID internas y limpieza segura después del commit.
+- Pruebas unitarias, MVC y de migración para almacenamiento, ownership,
+  reemplazo, eliminación y errores de archivos.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 311 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL real validó Flyway V1–V14 y Hibernate mantuvo
+  `ddl-auto=validate`.
+
 ## Etapa 4.4 — Notificaciones internas — 2026-09-10
 
 ### Agregado

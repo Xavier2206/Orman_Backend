@@ -154,11 +154,11 @@ class AuthIntegrationTest {
     @Test
     void validatesFlywayV7SchemaConstraintsAndIndexesWithSubsequentMigrations() {
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13') AND success",
-                Integer.class)).isEqualTo(13);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14') AND success",
+                Integer.class)).isEqualTo(14);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("13");
+                String.class)).isEqualTo("14");
         Map<String, Object> loginColumn = jdbcTemplate.queryForMap("""
                 SELECT data_type, character_maximum_length, is_nullable
                 FROM information_schema.columns

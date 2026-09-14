@@ -11,6 +11,25 @@ import org.springframework.data.repository.query.Param;
 
 public interface PropiedadRepository extends JpaRepository<PropiedadEntity, Integer> {
 
+    @Query(value = """
+            select
+                (select coalesce(sum(p2.inversion_inicial), 0)
+                   from propiedades p2
+                  where p2.codper_propietaria = :codper) as "inversionTotal",
+                count(distinct p.codprop) filter (where p.estado = 1) as "propiedadesActivas",
+                count(distinct p.codprop) filter (where p.estado = 1 and p.tipo = 'CASA') as "casasActivas",
+                count(distinct p.codprop) filter (where p.estado = 1 and p.tipo = 'EDIFICIO') as "edificiosActivos",
+                count(u.coduni) as "unidadesTotales",
+                count(u.coduni) filter (where u.estado_operativo = 1) as "unidadesHabilitadas",
+                count(u.coduni) filter (where u.estado_operativo = 0) as "unidadesNoHabilitadas",
+                count(u.coduni) filter (where u.estado_operativo = 1 and c.estado = 'VIGENTE') as "unidadesOcupadas"
+            from propiedades p
+            left join unidades u on u.codprop = p.codprop
+            left join contratos c on c.coduni = u.coduni and c.estado = 'VIGENTE'
+            where p.codper_propietaria = :codper
+            """, nativeQuery = true)
+    PropiedadResumenProjection findResumenByPropietaria(@Param("codper") Integer codper);
+
     @EntityGraph(attributePaths = "propietaria")
     Optional<PropiedadEntity> findByCodpropAndPropietariaCodper(Integer codprop, Integer codper);
 

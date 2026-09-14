@@ -1,6 +1,10 @@
 package com.orman.backend.property.integration;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
+import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.contract.entity.ContratoEntity;
+import com.orman.backend.contract.entity.ContratoEstado;
+import com.orman.backend.contract.repository.ContratoRepository;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.property.dto.request.PropiedadRequest;
@@ -9,12 +13,15 @@ import com.orman.backend.property.dto.request.UnidadRequest;
 import com.orman.backend.property.dto.response.PropiedadResponse;
 import com.orman.backend.property.dto.response.UnidadFotoResponse;
 import com.orman.backend.property.dto.response.UnidadResponse;
+import com.orman.backend.property.entity.UnidadEntity;
+import com.orman.backend.property.repository.UnidadRepository;
 import com.orman.backend.property.service.PropiedadService;
 import com.orman.backend.property.service.UnidadFotoService;
 import com.orman.backend.property.service.UnidadService;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +45,8 @@ class PropertyModuleIntegrationTest {
 
     @Autowired private PersonaRepository personaRepository;
     @Autowired private UsuarioRepository usuarioRepository;
+    @Autowired private ContratoRepository contratoRepository;
+    @Autowired private UnidadRepository unidadRepository;
     @Autowired private PropiedadService propiedadService;
     @Autowired private UnidadService unidadService;
     @Autowired private UnidadFotoService unidadFotoService;
@@ -83,6 +92,191 @@ class PropertyModuleIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    @Test
+    void listsTotalUnitCountsPerOwnedPropertyAndPreservesFiltersAndPagination() {
+        Persona owner = createPersona("PM-COUNT-OWNER-001");
+        Authentication ownerAuthentication = authentication(createUsuario("property.count.owner", owner));
+
+        PropiedadResponse withoutUnits = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "A Sin Unidades", "CASA", (short) 0), ownerAuthentication);
+        PropiedadResponse oneUnit = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "B Una Unidad", "EDIFICIO", (short) 1), ownerAuthentication);
+        PropiedadResponse severalUnits = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "C Varias Unidades", "EDIFICIO", (short) 1), ownerAuthentication);
+
+        unidadService.create(oneUnit.codprop(), unidadRequest("B-01", (short) 1), ownerAuthentication);
+        unidadService.create(severalUnits.codprop(), unidadRequest("C-01", (short) 1), ownerAuthentication);
+        unidadService.create(severalUnits.codprop(), unidadRequest("C-02", (short) 0), ownerAuthentication);
+        unidadService.create(severalUnits.codprop(), unidadRequest("C-03", (short) 1), ownerAuthentication);
+
+        Persona otherOwner = createPersona("PM-COUNT-OWNER-002");
+        Authentication otherAuthentication = authentication(createUsuario("property.count.other", otherOwner));
+        PropiedadResponse otherProperty = propiedadService.create(
+                propiedadRequest(otherOwner.getCodper(), "Z Propiedad Ajena", "CASA", (short) 1), otherAuthentication);
+        unidadService.create(otherProperty.codprop(), unidadRequest("Z-01", (short) 1), otherAuthentication);
+
+        PageResponse<PropiedadResponse> all = propiedadService.list(null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(all.content()).extracting(PropiedadResponse::codprop)
+                .containsExactly(withoutUnits.codprop(), oneUnit.codprop(), severalUnits.codprop());
+        assertThat(all.content()).extracting(PropiedadResponse::cantidadUnidades)
+                .containsExactly(0L, 1L, 3L);
+        assertThat(all.content()).extracting(PropiedadResponse::unidadesHabilitadas)
+                .containsExactly(0L, 1L, 2L);
+        assertThat(all.content()).extracting(PropiedadResponse::unidadesOcupadas)
+                .containsExactly(0L, 0L, 0L);
+        assertThat(all.content()).extracting(PropiedadResponse::ocupacion)
+                .containsExactly(new BigDecimal("0.00"), new BigDecimal("0.00"), new BigDecimal("0.00"));
+        assertThat(all.totalElements()).isEqualTo(3);
+
+        PageResponse<PropiedadResponse> filteredByQuery = propiedadService.list("varias", null, null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(filteredByQuery.content()).extracting(PropiedadResponse::codprop)
+                .containsExactly(severalUnits.codprop());
+        assertThat(filteredByQuery.content().get(0).cantidadUnidades()).isEqualTo(3);
+        assertThat(filteredByQuery.content().get(0).unidadesHabilitadas()).isEqualTo(2);
+
+        PageResponse<PropiedadResponse> filteredByType = propiedadService.list(null, "EDIFICIO", null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(filteredByType.content()).extracting(PropiedadResponse::codprop)
+                .containsExactly(oneUnit.codprop(), severalUnits.codprop());
+
+        PageResponse<PropiedadResponse> filteredByState = propiedadService.list(null, null, (short) 0,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(filteredByState.content()).extracting(PropiedadResponse::codprop)
+                .containsExactly(withoutUnits.codprop());
+        assertThat(filteredByState.content().get(0).cantidadUnidades()).isZero();
+        assertThat(filteredByState.content().get(0).unidadesHabilitadas()).isZero();
+        assertThat(filteredByState.content().get(0).unidadesOcupadas()).isZero();
+        assertThat(filteredByState.content().get(0).ocupacion()).isEqualByComparingTo("0.00");
+
+        PageResponse<PropiedadResponse> firstPage = propiedadService.list(null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 2), ownerAuthentication);
+        assertThat(firstPage.content()).hasSize(2);
+        assertThat(firstPage.totalElements()).isEqualTo(3);
+        assertThat(firstPage.totalPages()).isEqualTo(2);
+        assertThat(firstPage.first()).isTrue();
+        assertThat(firstPage.last()).isFalse();
+
+        PageResponse<PropiedadResponse> secondPage = propiedadService.list(null, null, null,
+                org.springframework.data.domain.PageRequest.of(1, 2), ownerAuthentication);
+        assertThat(secondPage.content()).hasSize(1);
+        assertThat(secondPage.first()).isFalse();
+        assertThat(secondPage.last()).isTrue();
+    }
+
+    @Test
+    void calculatesPropertyOccupancyFromEnabledUnitsAndCurrentContracts() {
+        Persona propietaria = createPersona("POCC-OWNER-01");
+        Authentication ownerAuthentication = authentication(createUsuario("property.occupancy.owner", propietaria));
+        PropiedadResponse property = propiedadService.create(
+                propiedadRequest(propietaria.getCodper(), "Propiedad Ocupacion", "EDIFICIO", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createPersona("POCC-TENANT-01");
+
+        List<UnidadResponse> enabledUnits = java.util.stream.IntStream.rangeClosed(1, 8)
+                .mapToObj(index -> unidadService.create(property.codprop(), unidadRequest("O-0" + index, (short) 1),
+                        ownerAuthentication))
+                .toList();
+        enabledUnits.subList(0, 7).forEach(unidad -> createContract(unidad.coduni(), property.codprop(), propietaria,
+                tenant, ContratoEstado.VIGENTE));
+
+        UnidadResponse disabledUnit = unidadService.create(property.codprop(), unidadRequest("O-09", (short) 0),
+                ownerAuthentication);
+        createContract(disabledUnit.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.VIGENTE);
+
+        PropiedadResponse result = propiedadService.list(null, null, null,
+                        org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication)
+                .content().getFirst();
+
+        assertThat(result.cantidadUnidades()).isEqualTo(9);
+        assertThat(result.unidadesHabilitadas()).isEqualTo(8);
+        assertThat(result.unidadesOcupadas()).isEqualTo(7);
+        assertThat(result.ocupacion()).isEqualByComparingTo("87.50");
+    }
+
+    @Test
+    void excludesNonCurrentContractsAndDisabledUnitsFromPropertyOccupancy() {
+        Persona propietaria = createPersona("POCC-OWNER-02");
+        Authentication ownerAuthentication = authentication(createUsuario("property.occupancy.owner.two", propietaria));
+        PropiedadResponse property = propiedadService.create(
+                propiedadRequest(propietaria.getCodper(), "Propiedad Estados", "CASA", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createPersona("POCC-TENANT-02");
+
+        UnidadResponse draft = unidadService.create(property.codprop(), unidadRequest("S-01", (short) 1),
+                ownerAuthentication);
+        UnidadResponse finished = unidadService.create(property.codprop(), unidadRequest("S-02", (short) 1),
+                ownerAuthentication);
+        UnidadResponse rescinded = unidadService.create(property.codprop(), unidadRequest("S-03", (short) 1),
+                ownerAuthentication);
+        UnidadResponse disabled = unidadService.create(property.codprop(), unidadRequest("S-04", (short) 0),
+                ownerAuthentication);
+        createContract(draft.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.BORRADOR);
+        createContract(finished.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.FINALIZADO);
+        createContract(rescinded.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.RESCINDIDO);
+        createContract(disabled.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.VIGENTE);
+
+        PropiedadResponse result = propiedadService.list(null, null, null,
+                        org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication)
+                .content().getFirst();
+
+        assertThat(result.cantidadUnidades()).isEqualTo(4);
+        assertThat(result.unidadesHabilitadas()).isEqualTo(3);
+        assertThat(result.unidadesOcupadas()).isZero();
+        assertThat(result.ocupacion()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void doesNotIncludeAnotherOwnersUnitsInPropertyMetrics() {
+        Persona owner = createPersona("POCC-OWNER-03");
+        Authentication ownerAuthentication = authentication(createUsuario("property.occupancy.owner.three", owner));
+        PropiedadResponse ownProperty = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "Propiedad Propia", "CASA", (short) 1), ownerAuthentication);
+
+        Persona otherOwner = createPersona("POCC-OWNER-04");
+        Authentication otherAuthentication = authentication(createUsuario("property.occupancy.other", otherOwner));
+        PropiedadResponse otherProperty = propiedadService.create(
+                propiedadRequest(otherOwner.getCodper(), "Propiedad Ajena", "EDIFICIO", (short) 1), otherAuthentication);
+        UnidadResponse ownUnit = unidadService.create(ownProperty.codprop(), unidadRequest("P-01", (short) 1),
+                ownerAuthentication);
+        UnidadResponse otherUnit = unidadService.create(otherProperty.codprop(), unidadRequest("A-01", (short) 1),
+                otherAuthentication);
+        Persona tenant = createPersona("POCC-TENANT-03");
+        createContract(ownUnit.coduni(), ownProperty.codprop(), owner, tenant, ContratoEstado.VIGENTE);
+        createContract(otherUnit.coduni(), otherProperty.codprop(), otherOwner, tenant, ContratoEstado.VIGENTE);
+
+        PageResponse<PropiedadResponse> result = propiedadService.list(null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+
+        assertThat(result.content()).extracting(PropiedadResponse::codprop).containsExactly(ownProperty.codprop());
+        assertThat(result.content().getFirst().unidadesOcupadas()).isEqualTo(1);
+        assertThat(result.content().getFirst().ocupacion()).isEqualByComparingTo("100.00");
+    }
+
+    private ContratoEntity createContract(Integer coduni, Integer codprop, Persona propietaria, Persona tenant,
+                                          ContratoEstado estado) {
+        UnidadEntity unidad = unidadRepository.findById(coduni).orElseThrow();
+        assertThat(unidad.getPropiedad().getCodprop()).isEqualTo(codprop);
+        assertThat(unidad.getPropiedad().getPropietaria().getCodper()).isEqualTo(propietaria.getCodper());
+        ContratoEntity contrato = new ContratoEntity();
+        contrato.setUnidad(unidad);
+        contrato.setInquilino(tenant);
+        contrato.setFechaInicio(LocalDate.of(2026, 1, 1));
+        contrato.setFechaFin(LocalDate.of(2027, 1, 1));
+        contrato.setMontoMensual(new BigDecimal("1000.00"));
+        contrato.setGarantia(new BigDecimal("1000.00"));
+        contrato.setEstado(estado);
+        if (estado != ContratoEstado.BORRADOR) {
+            contrato.setFechaConfirmacion(LocalDateTime.now());
+        }
+        if (estado == ContratoEstado.RESCINDIDO) {
+            contrato.setFechaRescision(LocalDate.of(2026, 6, 1));
+            contrato.setMotivoRescision("Rescisión de prueba");
+        }
+        return contratoRepository.saveAndFlush(contrato);
+    }
+
     private Persona createPersona(String ci) {
         Persona persona = new Persona();
         persona.setCi(ci);
@@ -110,13 +304,21 @@ class PropertyModuleIntegrationTest {
     }
 
     private PropiedadRequest propiedadRequest(Integer codperPropietaria) {
-        return new PropiedadRequest("Propiedad de prueba", "CASA", "Calle 1", "La Paz", null,
-                null, null, null, codperPropietaria, new BigDecimal("1000.00"), (short) 1);
+        return propiedadRequest(codperPropietaria, "Propiedad de prueba", "CASA", (short) 1);
+    }
+
+    private PropiedadRequest propiedadRequest(Integer codperPropietaria, String nombre, String tipo, short estado) {
+        return new PropiedadRequest(nombre, tipo, "Calle 1", "La Paz", null,
+                null, null, null, codperPropietaria, new BigDecimal("1000.00"), estado);
     }
 
     private UnidadRequest unidadRequest(String nombre) {
+        return unidadRequest(nombre, (short) 1);
+    }
+
+    private UnidadRequest unidadRequest(String nombre, short estadoOperativo) {
         return new UnidadRequest(nombre, "DEPARTAMENTO", null, new BigDecimal("40.00"), (short) 1, (short) 1,
-                1, "Bloque A", new BigDecimal("2500.00"), (short) 1);
+                1, "Bloque A", new BigDecimal("2500.00"), estadoOperativo);
     }
 
     private UnidadFotoRequest fotoRequest(String url, Integer orden) {

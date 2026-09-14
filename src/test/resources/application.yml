@@ -6,6 +6,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orman}
     username: ${DB_USERNAME}
@@ -61,6 +65,10 @@ storage:
     root: ./target/test-storage
     max-file-size-bytes: 2097152
     max-dimension: 320
+  propiedades:
+    root: ./target/test-property-storage
+    max-file-size-bytes: 5242880
+    max-dimension: 1600
 
 notification:
   scheduler:

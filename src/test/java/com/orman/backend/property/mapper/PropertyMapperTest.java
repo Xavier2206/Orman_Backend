@@ -29,6 +29,17 @@ class PropertyMapperTest {
         assertThat(propiedad.getTipo()).isEqualTo("EDIFICIO");
         assertThat(propiedad.getReferencia()).isNull();
         assertThat(propiedadMapper.toResponse(propiedad).codperPropietaria()).isEqualTo(4);
+        assertThat(propiedadMapper.toResponse(propiedad).tienePortada()).isFalse();
+        propiedad.setPortadaRef("propiedades/9/550e8400-e29b-41d4-a716-446655440000.jpg");
+        assertThat(propiedadMapper.toResponse(propiedad).tienePortada()).isTrue();
+        assertThat(propiedadMapper.toResponse(propiedad, 3).cantidadUnidades()).isEqualTo(3);
+        assertThat(propiedadMapper.toResponse(propiedad, 3, 2, 1, new BigDecimal("50.00")))
+                .satisfies(response -> {
+                    assertThat(response.cantidadUnidades()).isEqualTo(3);
+                    assertThat(response.unidadesHabilitadas()).isEqualTo(2);
+                    assertThat(response.unidadesOcupadas()).isEqualTo(1);
+                    assertThat(response.ocupacion()).isEqualByComparingTo("50.00");
+                });
 
         UnidadEntity unidad = unidadMapper.toEntity(unidadRequest(), propiedad);
         ReflectionTestUtils.setField(unidad, "coduni", 15);

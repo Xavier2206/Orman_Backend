@@ -35,6 +35,10 @@ en texto plano. Persiste cliente WEB/MOBILE, propósito LOGIN, estado, contadore
 fechas UTC, IP y user-agent. Un índice único parcial limita a un PENDING por
 `(login, client_type, purpose)` sin impedir el historial no PENDING.
 
+La ampliación V14 agrega `propiedades.portada_ref` como referencia interna
+nullable de la portada gestionada por filesystem; `portada_url` conserva la
+referencia externa HTTP/HTTPS.
+
 ## Relaciones confirmadas
 
 - Una persona puede tener como máximo un usuario.

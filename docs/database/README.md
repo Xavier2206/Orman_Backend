@@ -16,6 +16,8 @@ permanecen intactas.
 La Etapa 4.3 usa V12 para `cuentas_pago`, `pagos`, `pago_comprobantes` y
 `recibos`; V1–V11 permanecen intactas.
 La Etapa 4.4 usa V13 para `notificaciones`; V1–V12 permanecen intactas.
+La ampliación de portada interna de Propiedad usa V14 para agregar la columna
+nullable `propiedades.portada_ref`; `portada_url` permanece sin cambios.
 
 La Fase 02 preparó el datasource PostgreSQL, Flyway y el directorio `src/main/resources/db/migration/`, sin crear tablas, entidades ni migraciones. Git no versiona directorios vacíos: la primera migración SQL autorizada en una fase posterior dejará el directorio persistido en el repositorio.
 

@@ -33,6 +33,27 @@ Persona asociada al token.
 - `PATCH {{baseUrl}}/api/v1/propiedades/{{codprop}}/activar`
 - `PATCH {{baseUrl}}/api/v1/propiedades/{{codprop}}/desactivar`
 
+### Portada interna de Propiedad
+
+La portada gestionada por ORMAN se carga como una imagen JPEG o PNG real en la
+parte multipart `foto`:
+
+- `PUT {{baseUrl}}/api/v1/propiedades/{{codprop}}/portada` (`multipart/form-data`)
+- `GET {{baseUrl}}/api/v1/propiedades/{{codprop}}/portada`
+- `DELETE {{baseUrl}}/api/v1/propiedades/{{codprop}}/portada`
+
+La carga y eliminación responden `204 No Content`; la descarga responde `200`
+con el binario y su `Content-Type`. La referencia interna nunca se expone en
+la respuesta: `PropiedadResponse.tienePortada` indica si existe una portada
+gestionada por ORMAN. `portadaUrl` conserva temporalmente su semántica anterior
+de URL HTTP/HTTPS externa.
+
+La imagen se valida por MIME y contenido, se normaliza a JPEG, se redimensiona
+sin ampliar hasta 1600 px en su lado mayor y se almacena bajo
+`PROPERTY_PHOTO_STORAGE_ROOT` (por defecto `./storage`). Solo la Persona
+propietaria autenticada puede administrarla. Sin portada, GET y DELETE
+responden `404 RESOURCE_NOT_FOUND`.
+
 ## Unidades
 
 `POST {{baseUrl}}/api/v1/propiedades/{{codprop}}/unidades`

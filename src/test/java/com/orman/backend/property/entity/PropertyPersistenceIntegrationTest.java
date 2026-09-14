@@ -42,6 +42,16 @@ class PropertyPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '10' AND success", Integer.class))
                 .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '14' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForMap("""
+                SELECT data_type, character_maximum_length, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'propiedades' AND column_name = 'portada_ref'
+                """)).containsEntry("data_type", "character varying")
+                .containsEntry("character_maximum_length", 500)
+                .containsEntry("is_nullable", "YES");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT conname FROM pg_constraint WHERE conrelid = 'propiedades'::regclass", String.class))
                 .contains("pk_propiedades", "fk_propiedades_personas_propietaria", "ck_propiedades_tipo",
@@ -63,6 +73,24 @@ class PropertyPersistenceIntegrationTest {
         assertThat(persisted.getUnidad().getCoduni()).isEqualTo(unidad.getCoduni());
         assertThat(persisted.getUnidad().getPropiedad().getPropietaria().getCodper()).isEqualTo(propietaria.getCodper());
 
+    }
+
+    @Test
+    void persistsInternalCoverReferenceAlongsideExternalCoverUrl() {
+        Persona propietaria = personaRepository.saveAndFlush(persona("PROPERTY-COVER-001"));
+        PropiedadEntity propiedad = propiedad(propietaria);
+        propiedad.setPortadaUrl("https://example.test/legacy-cover.jpg");
+        PropiedadEntity saved = propiedadRepository.saveAndFlush(propiedad);
+        saved.setPortadaRef("propiedades/" + saved.getCodprop()
+                + "/550e8400-e29b-41d4-a716-446655440000.jpg");
+        propiedadRepository.saveAndFlush(saved);
+        entityManager.clear();
+
+        PropiedadEntity persisted = propiedadRepository.findById(saved.getCodprop()).orElseThrow();
+        assertThat(persisted.getPortadaUrl()).isEqualTo("https://example.test/legacy-cover.jpg");
+        assertThat(persisted.getPortadaRef())
+                .isEqualTo("propiedades/" + saved.getCodprop()
+                        + "/550e8400-e29b-41d4-a716-446655440000.jpg");
     }
 
     @Test

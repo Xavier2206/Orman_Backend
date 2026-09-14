@@ -14,6 +14,7 @@ import com.orman.backend.auth.exception.RevokedSessionException;
 import com.orman.backend.auth.exception.SecurityAccessDeniedException;
 import com.orman.backend.person.exception.InvalidPersonaFilterException;
 import com.orman.backend.person.exception.InvalidPersonaPhotoException;
+import com.orman.backend.property.exception.InvalidPropiedadPortadaException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -37,6 +38,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -144,6 +147,30 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
                 "Solicitud no válida", "La fotografía no es válida.", request,
                 List.of(new FieldError("foto", exception.getMessage())));
+    }
+
+    @ExceptionHandler(InvalidPropiedadPortadaException.class)
+    ResponseEntity<ProblemDetail> handleInvalidPropiedadPortada(
+            InvalidPropiedadPortadaException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "La portada no es válida.", request,
+                List.of(new FieldError("foto", exception.getMessage())));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    ResponseEntity<ProblemDetail> handleMissingMultipartPart(
+            MissingServletRequestPartException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "El archivo es obligatorio.", request,
+                List.of(new FieldError(exception.getRequestPartName(), "El archivo es obligatorio.")));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ProblemDetail> handleMaxUploadSizeExceeded(
+            MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "El archivo supera el tamaño máximo permitido.", request,
+                List.of(new FieldError("foto", "El archivo supera el tamaño máximo permitido.")));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

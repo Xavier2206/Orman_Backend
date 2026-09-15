@@ -51,9 +51,10 @@ public interface UnidadRepository extends JpaRepository<UnidadEntity, Integer> {
             select u from UnidadEntity u
             where u.propiedad.codprop = :codprop
               and u.propiedad.propietaria.codper = :codper
+              and (:estadoOperativo is null or u.estadoOperativo = :estadoOperativo)
             """)
     Page<UnidadEntity> findAllByPropiedadOwned(@Param("codprop") Integer codprop, @Param("codper") Integer codper,
-                                               Pageable pageable);
+                                               @Param("estadoOperativo") Short estadoOperativo, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"propiedad", "propiedad.propietaria"})

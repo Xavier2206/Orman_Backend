@@ -1,8 +1,11 @@
 package com.orman.backend.property.service.impl;
 
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.contract.entity.ContratoEstado;
+import com.orman.backend.contract.repository.ContratoRepository;
 import com.orman.backend.property.dto.request.UnidadRequest;
 import com.orman.backend.property.dto.response.UnidadResponse;
 import com.orman.backend.property.entity.PropiedadEntity;
@@ -22,12 +25,18 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class UnidadServiceImpl implements UnidadService {
 
+    private static final short ACTIVO = 1;
+    private static final short INACTIVO = 0;
+
     private final PropiedadRepository propiedadRepository;
     private final UnidadRepository unidadRepository;
+    private final ContratoRepository contratoRepository;
     private final UnidadMapper unidadMapper;
     private final PropertyOwnershipService propertyOwnershipService;
 
@@ -48,11 +57,12 @@ public class UnidadServiceImpl implements UnidadService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<UnidadResponse> listByPropiedad(Integer codprop, Pageable pageable,
+    public PageResponse<UnidadResponse> listByPropiedad(Integer codprop, Short estadoOperativo, Pageable pageable,
                                                          Authentication authentication) {
         PropiedadEntity propiedad = findOwnedPropiedad(codprop, authentication);
         Page<UnidadResponse> page = unidadRepository.findAllByPropiedadOwned(codprop,
-                propiedad.getPropietaria().getCodper(), defaultSort(pageable)).map(unidadMapper::toResponse);
+                propiedad.getPropietaria().getCodper(), estadoOperativo, defaultSort(pageable))
+                .map(unidadMapper::toResponse);
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
     }
@@ -67,6 +77,10 @@ public class UnidadServiceImpl implements UnidadService {
     @Transactional
     public UnidadResponse update(Integer coduni, UnidadRequest request, Authentication authentication) {
         UnidadEntity unidad = findOwnedUnidad(coduni, authentication);
+        if (!Objects.equals(request.estadoOperativo(), unidad.getEstadoOperativo())) {
+            throw new BusinessRuleException(
+                    "El estado operativo de la unidad debe modificarse mediante las acciones de activar o desactivar.");
+        }
         Integer codprop = unidad.getPropiedad().getCodprop();
         if (unidadRepository.existsByPropiedadCodpropAndNombreAndCoduniNot(codprop, request.nombre().trim(), coduni)) {
             throw duplicateNombre();
@@ -79,6 +93,31 @@ public class UnidadServiceImpl implements UnidadService {
         }
     }
 
+    @Override
+    @Transactional
+    public UnidadResponse activate(Integer coduni, Authentication authentication) {
+        UnidadEntity unidad = findOwnedUnidadForUpdate(coduni, authentication);
+        if (Objects.equals(unidad.getEstadoOperativo(), ACTIVO)) {
+            return unidadMapper.toResponse(unidad);
+        }
+        unidad.setEstadoOperativo(ACTIVO);
+        return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));
+    }
+
+    @Override
+    @Transactional
+    public UnidadResponse deactivate(Integer coduni, Authentication authentication) {
+        UnidadEntity unidad = findOwnedUnidadForUpdate(coduni, authentication);
+        if (Objects.equals(unidad.getEstadoOperativo(), INACTIVO)) {
+            return unidadMapper.toResponse(unidad);
+        }
+        if (contratoRepository.existsByUnidadCoduniAndEstado(coduni, ContratoEstado.VIGENTE)) {
+            throw new BusinessRuleException("No se puede desactivar la unidad porque tiene un contrato vigente.");
+        }
+        unidad.setEstadoOperativo(INACTIVO);
+        return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));
+    }
+
     private PropiedadEntity findOwnedPropiedad(Integer codprop, Authentication authentication) {
         PropiedadEntity propiedad = propiedadRepository.findById(codprop)
                 .orElseThrow(() -> new ResourceNotFoundException("Propiedad no encontrada."));
@@ -88,6 +127,13 @@ public class UnidadServiceImpl implements UnidadService {
 
     private UnidadEntity findOwnedUnidad(Integer coduni, Authentication authentication) {
         UnidadEntity unidad = unidadRepository.findByCoduni(coduni)
+                .orElseThrow(() -> new ResourceNotFoundException("Unidad no encontrada."));
+        propertyOwnershipService.assertCurrentPropietaria(authentication, unidad.getPropiedad().getPropietaria());
+        return unidad;
+    }
+
+    private UnidadEntity findOwnedUnidadForUpdate(Integer coduni, Authentication authentication) {
+        UnidadEntity unidad = unidadRepository.findByCoduniForUpdate(coduni)
                 .orElseThrow(() -> new ResourceNotFoundException("Unidad no encontrada."));
         propertyOwnershipService.assertCurrentPropietaria(authentication, unidad.getPropiedad().getPropietaria());
         return unidad;

@@ -34,8 +34,12 @@ public class UnidadFotoEntity {
     private UnidadEntity unidad;
 
     @Setter
-    @Column(name = "url", nullable = false, length = 500)
+    @Column(name = "url", length = 500)
     private String url;
+
+    @Setter
+    @Column(name = "foto_ref", length = 500)
+    private String fotoRef;
 
     @Setter
     @Column(name = "titulo", length = 150)

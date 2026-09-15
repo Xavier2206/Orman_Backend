@@ -72,6 +72,10 @@ storage:
     root: ${PROPERTY_PHOTO_STORAGE_ROOT:./storage}
     max-file-size-bytes: ${PROPERTY_PHOTO_MAX_FILE_SIZE_BYTES:5242880}
     max-dimension: ${PROPERTY_PHOTO_MAX_DIMENSION:1600}
+  unidades:
+    root: ${UNIT_PHOTO_STORAGE_ROOT:./storage}
+    max-file-size-bytes: ${UNIT_PHOTO_MAX_FILE_SIZE_BYTES:5242880}
+    max-dimension: ${UNIT_PHOTO_MAX_DIMENSION:1600}
 
 notification:
   scheduler:

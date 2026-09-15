@@ -1,10 +1,16 @@
 package com.orman.backend.property.integration;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
+import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.contract.dto.request.ContratoRequest;
+import com.orman.backend.contract.dto.request.RescisionContratoRequest;
+import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.repository.ContratoRepository;
+import com.orman.backend.contract.repository.CuotaRepository;
+import com.orman.backend.contract.service.ContratoService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.property.dto.request.PropiedadRequest;
@@ -46,8 +52,10 @@ class PropertyModuleIntegrationTest {
     @Autowired private PersonaRepository personaRepository;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private ContratoRepository contratoRepository;
+    @Autowired private CuotaRepository cuotaRepository;
     @Autowired private UnidadRepository unidadRepository;
     @Autowired private PropiedadService propiedadService;
+    @Autowired private ContratoService contratoService;
     @Autowired private UnidadService unidadService;
     @Autowired private UnidadFotoService unidadFotoService;
 
@@ -63,7 +71,8 @@ class PropertyModuleIntegrationTest {
         UnidadResponse unidad = unidadService.create(propiedad.codprop(), unidadRequest("Unidad 101"), authentication);
         UnidadResponse updated = unidadService.update(unidad.coduni(), unidadRequest("Unidad 102"), authentication);
         assertThat(updated.nombre()).isEqualTo("Unidad 102");
-        assertThat(unidadService.listByPropiedad(propiedad.codprop(), org.springframework.data.domain.PageRequest.of(0, 20), authentication)
+        assertThat(unidadService.listByPropiedad(propiedad.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 20), authentication)
                 .content()).extracting(UnidadResponse::coduni).containsExactly(unidad.coduni());
 
         UnidadFotoResponse first = unidadFotoService.create(unidad.coduni(), fotoRequest("https://example.test/uno.jpg", 0), authentication);
@@ -90,6 +99,171 @@ class PropertyModuleIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> propiedadService.create(propiedadRequest(otraPersona.getCodper()), ownerAuthentication))
                 .isInstanceOf(AccessDeniedException.class);
+
+        unidadService.create(propiedad.codprop(), unidadRequest("Unidad propia"), ownerAuthentication);
+        assertThatThrownBy(() -> unidadService.listByPropiedad(propiedad.codprop(), (short) 1,
+                org.springframework.data.domain.PageRequest.of(0, 20), otherAuthentication))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void filtersUnitsByOperationalStateBeforeApplyingPagination() {
+        Persona owner = createPersona("PM-STATE-OWNER-001");
+        Authentication ownerAuthentication = authentication(createUsuario("property.state.owner", owner));
+        PropiedadResponse property = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "Propiedad estados", "EDIFICIO", (short) 1),
+                ownerAuthentication);
+
+        unidadService.create(property.codprop(), unidadRequest("A-01", (short) 1), ownerAuthentication);
+        unidadService.create(property.codprop(), unidadRequest("A-02", (short) 0), ownerAuthentication);
+        unidadService.create(property.codprop(), unidadRequest("A-03", (short) 1), ownerAuthentication);
+        unidadService.create(property.codprop(), unidadRequest("A-04", (short) 0), ownerAuthentication);
+        unidadService.create(property.codprop(), unidadRequest("A-05", (short) 1), ownerAuthentication);
+
+        PageResponse<UnidadResponse> all = unidadService.listByPropiedad(property.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(all.content()).hasSize(5);
+        assertThat(all.totalElements()).isEqualTo(5);
+
+        PageResponse<UnidadResponse> operationalPage = unidadService.listByPropiedad(property.codprop(), (short) 1,
+                org.springframework.data.domain.PageRequest.of(0, 2), ownerAuthentication);
+        assertThat(operationalPage.content()).extracting(UnidadResponse::estadoOperativo)
+                .containsOnly((short) 1);
+        assertThat(operationalPage.content()).hasSize(2);
+        assertThat(operationalPage.totalElements()).isEqualTo(3);
+        assertThat(operationalPage.totalPages()).isEqualTo(2);
+        assertThat(operationalPage.first()).isTrue();
+        assertThat(operationalPage.last()).isFalse();
+
+        PageResponse<UnidadResponse> secondOperationalPage = unidadService.listByPropiedad(property.codprop(),
+                (short) 1, org.springframework.data.domain.PageRequest.of(1, 2), ownerAuthentication);
+        assertThat(secondOperationalPage.content()).hasSize(1);
+        assertThat(secondOperationalPage.totalElements()).isEqualTo(3);
+        assertThat(secondOperationalPage.totalPages()).isEqualTo(2);
+        assertThat(secondOperationalPage.first()).isFalse();
+        assertThat(secondOperationalPage.last()).isTrue();
+
+        PageResponse<UnidadResponse> nonOperationalPage = unidadService.listByPropiedad(property.codprop(),
+                (short) 0, org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(nonOperationalPage.content()).hasSize(2);
+        assertThat(nonOperationalPage.content()).extracting(UnidadResponse::estadoOperativo)
+                .containsOnly((short) 0);
+        assertThat(nonOperationalPage.totalElements()).isEqualTo(2);
+
+        PropiedadResponse onlyOperationalProperty = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "Propiedad solo operativa", "CASA", (short) 1),
+                ownerAuthentication);
+        unidadService.create(onlyOperationalProperty.codprop(), unidadRequest("B-01", (short) 1), ownerAuthentication);
+        PageResponse<UnidadResponse> emptyPage = unidadService.listByPropiedad(onlyOperationalProperty.codprop(),
+                (short) 0, org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(emptyPage.content()).isEmpty();
+        assertThat(emptyPage.totalElements()).isZero();
+        assertThat(emptyPage.totalPages()).isZero();
+        assertThat(emptyPage.first()).isTrue();
+        assertThat(emptyPage.last()).isTrue();
+    }
+
+    @Test
+    void changesOnlyOperationalStateThroughExplicitActions() {
+        Persona owner = createPersona("PM-ACTION-OWNER-001");
+        Authentication ownerAuthentication = authentication(createUsuario("property.action.owner", owner));
+        PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
+
+        UnidadResponse created = unidadService.create(property.codprop(), unidadRequest("ACTION-01", (short) 0),
+                ownerAuthentication);
+        UnidadResponse activated = unidadService.activate(created.coduni(), ownerAuthentication);
+
+        assertThat(activated.estadoOperativo()).isEqualTo((short) 1);
+        assertThat(activated.nombre()).isEqualTo(created.nombre());
+        assertThat(activated.tipoUnidad()).isEqualTo(created.tipoUnidad());
+        assertThat(activated.precioBase()).isEqualByComparingTo(created.precioBase());
+
+        UnidadResponse deactivated = unidadService.deactivate(created.coduni(), ownerAuthentication);
+
+        assertThat(deactivated.estadoOperativo()).isEqualTo((short) 0);
+        assertThat(deactivated.nombre()).isEqualTo(created.nombre());
+        assertThat(deactivated.tipoUnidad()).isEqualTo(created.tipoUnidad());
+        assertThat(unidadRepository.findById(created.coduni()).orElseThrow().getEstadoOperativo())
+                .isEqualTo((short) 0);
+    }
+
+    @Test
+    void blocksDeactivationWithAConfirmedContractAndPreservesContractAndQuotaData() {
+        Persona owner = createPersona("PM-ACTION-OWNER-002");
+        Authentication ownerAuthentication = authentication(createUsuario("property.action.owner.two", owner));
+        PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
+        UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-02", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createPersona("PM-ACTION-TENANT-001");
+        ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
+        var quotasBefore = cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(contract.codcon()).stream()
+                .map(quota -> quota.getPeriodo() + "|" + quota.getMonto() + "|" + quota.getEstado())
+                .toList();
+
+        assertThatThrownBy(() -> unidadService.deactivate(unit.coduni(), ownerAuthentication))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("No se puede desactivar la unidad porque tiene un contrato vigente.");
+
+        assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
+                .isEqualTo((short) 1);
+        assertThat(contratoRepository.findById(contract.codcon()).orElseThrow().getEstado())
+                .isEqualTo(ContratoEstado.VIGENTE);
+        assertThat(cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(contract.codcon()).stream()
+                .map(quota -> quota.getPeriodo() + "|" + quota.getMonto() + "|" + quota.getEstado())
+                .toList()).containsExactlyElementsOf(quotasBefore);
+    }
+
+    @Test
+    void allowsDeactivationAfterFinishingTheCurrentContractWithoutChangingUnitAutomatically() {
+        Persona owner = createPersona("PM-ACTION-OWNER-003");
+        Authentication ownerAuthentication = authentication(createUsuario("property.action.owner.three", owner));
+        PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
+        UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-03", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createPersona("PM-ACTION-TENANT-002");
+        ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
+
+        contratoService.finish(contract.codcon(), ownerAuthentication);
+
+        assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
+                .isEqualTo((short) 1);
+        assertThat(unidadService.deactivate(unit.coduni(), ownerAuthentication).estadoOperativo())
+                .isEqualTo((short) 0);
+    }
+
+    @Test
+    void allowsDeactivationAfterRescindingTheCurrentContractWithoutChangingUnitAutomatically() {
+        Persona owner = createPersona("PM-ACTION-OWNER-004");
+        Authentication ownerAuthentication = authentication(createUsuario("property.action.owner.four", owner));
+        PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
+        UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-04", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createPersona("PM-ACTION-TENANT-003");
+        ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
+
+        contratoService.rescind(contract.codcon(), new RescisionContratoRequest(
+                LocalDate.of(2026, 6, 1), "Rescisión de prueba."), ownerAuthentication);
+
+        assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
+                .isEqualTo((short) 1);
+        assertThat(unidadService.deactivate(unit.coduni(), ownerAuthentication).estadoOperativo())
+                .isEqualTo((short) 0);
+    }
+
+    @Test
+    void rejectsOperationalStateChangesThroughPutButAllowsEditingWithTheCurrentState() {
+        Persona owner = createPersona("PM-ACTION-OWNER-005");
+        Authentication ownerAuthentication = authentication(createUsuario("property.action.owner.five", owner));
+        PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
+        UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-05", (short) 1),
+                ownerAuthentication);
+
+        assertThatThrownBy(() -> unidadService.update(unit.coduni(), unidadRequest("ACTION-05-REJECTED", (short) 0),
+                ownerAuthentication)).isInstanceOf(BusinessRuleException.class);
+        assertThat(unidadService.update(unit.coduni(), unidadRequest("ACTION-05-EDITED", (short) 1),
+                ownerAuthentication).estadoOperativo()).isEqualTo((short) 1);
+        assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
+                .isEqualTo((short) 1);
     }
 
     @Test
@@ -277,11 +451,19 @@ class PropertyModuleIntegrationTest {
         return contratoRepository.saveAndFlush(contrato);
     }
 
+    private ContratoResponse createConfirmedContract(Integer coduni, Persona tenant, Authentication authentication) {
+        ContratoResponse draft = contratoService.createDraft(coduni,
+                new ContratoRequest(tenant.getCodper(), LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1),
+                        new BigDecimal("1000.00"), new BigDecimal("1000.00")), authentication);
+        return contratoService.confirm(draft.codcon(), authentication);
+    }
+
     private Persona createPersona(String ci) {
         Persona persona = new Persona();
         persona.setCi(ci);
         persona.setNombre("Persona de prueba");
         persona.setGenero('F');
+        persona.setEstado((short) 1);
         persona.setCorreo(ci.toLowerCase() + "@example.test");
         persona.setTelefono("70000000");
         persona.setTipoPersona('A');

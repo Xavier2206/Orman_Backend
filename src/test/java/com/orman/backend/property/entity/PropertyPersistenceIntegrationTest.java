@@ -45,6 +45,9 @@ class PropertyPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '14' AND success", Integer.class))
                 .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '15' AND success", Integer.class))
+                .isEqualTo(1);
         assertThat(jdbcTemplate.queryForMap("""
                 SELECT data_type, character_maximum_length, is_nullable
                 FROM information_schema.columns
@@ -59,6 +62,16 @@ class PropertyPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForList(
                 "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'unidad_fotos'",
                 String.class)).contains("uk_unidad_fotos_coduni_portada", "uk_unidad_fotos_coduni_orden");
+        assertThat(jdbcTemplate.queryForMap("""
+                SELECT data_type, character_maximum_length, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'unidad_fotos' AND column_name = 'foto_ref'
+                """)).containsEntry("data_type", "character varying")
+                .containsEntry("character_maximum_length", 500)
+                .containsEntry("is_nullable", "YES");
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT conname FROM pg_constraint WHERE conrelid = 'unidad_fotos'::regclass", String.class))
+                .contains("ck_unidad_fotos_fuente", "ck_unidad_fotos_orden", "uk_unidad_fotos_coduni_orden");
     }
 
     @Test
@@ -114,12 +127,41 @@ class PropertyPersistenceIntegrationTest {
     }
 
     @Test
+    void preservesExternalPhotosAndEnforcesExactlyOnePhotoSource() {
+        UnidadEntity unidad = unidadRepository.saveAndFlush(unidad(
+                propiedadRepository.saveAndFlush(propiedad(personaRepository.saveAndFlush(persona("PROPERTY-OWNER-005"))))));
+        UnidadFotoEntity external = foto(unidad, 0, false);
+        unidadFotoRepository.saveAndFlush(external);
+
+        UnidadFotoEntity internal = new UnidadFotoEntity();
+        internal.setUnidad(unidad);
+        internal.setFotoRef("unidades/" + unidad.getCoduni() + "/550e8400-e29b-41d4-a716-446655440000.jpg");
+        internal.setOrden(1);
+        internal.setPortada(false);
+        UnidadFotoEntity savedInternal = unidadFotoRepository.saveAndFlush(internal);
+        assertThat(savedInternal.getUrl()).isNull();
+        assertThat(savedInternal.getFotoRef()).startsWith("unidades/" + unidad.getCoduni() + "/");
+
+        assertInvalidPhotoSource(unidad.getCoduni(), null, null, 2);
+        assertInvalidPhotoSource(unidad.getCoduni(), "https://example.test/both.jpg", "unidades/1/file.jpg", 3);
+    }
+
+    @Test
     void rejectsInvalidPropertyChecks() {
         Persona propietaria = personaRepository.saveAndFlush(persona("PROPERTY-OWNER-004"));
         assertThatThrownBy(() -> jdbcTemplate.update("""
                 INSERT INTO propiedades (nombre, tipo, direccion, ciudad, codper_propietaria, inversion_inicial, estado)
                 VALUES ('Inválida', 'LOCAL', 'Dirección', 'La Paz', ?, -1, 1)
                 """, propietaria.getCodper())).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private void assertInvalidPhotoSource(Integer coduni, String url, String fotoRef, int orden) {
+        jdbcTemplate.execute("SAVEPOINT invalid_unidad_foto_source");
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+                INSERT INTO unidad_fotos (coduni, url, foto_ref, orden, portada)
+                VALUES (?, ?, ?, ?, FALSE)
+                """, coduni, url, fotoRef, orden)).isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.execute("ROLLBACK TO SAVEPOINT invalid_unidad_foto_source");
     }
 
     private Persona persona(String ci) {

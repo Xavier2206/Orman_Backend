@@ -15,6 +15,7 @@ import com.orman.backend.auth.exception.SecurityAccessDeniedException;
 import com.orman.backend.person.exception.InvalidPersonaFilterException;
 import com.orman.backend.person.exception.InvalidPersonaPhotoException;
 import com.orman.backend.property.exception.InvalidPropiedadPortadaException;
+import com.orman.backend.property.exception.InvalidUnidadFotoException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -154,6 +155,14 @@ public class GlobalExceptionHandler {
             InvalidPropiedadPortadaException exception, HttpServletRequest request) {
         return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
                 "Solicitud no válida", "La portada no es válida.", request,
+                List.of(new FieldError("foto", exception.getMessage())));
+    }
+
+    @ExceptionHandler(InvalidUnidadFotoException.class)
+    ResponseEntity<ProblemDetail> handleInvalidUnidadFoto(
+            InvalidUnidadFotoException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "La fotografía de la Unidad no es válida.", request,
                 List.of(new FieldError("foto", exception.getMessage())));
     }
 

@@ -69,6 +69,10 @@ storage:
     root: ./target/test-property-storage
     max-file-size-bytes: 5242880
     max-dimension: 1600
+  unidades:
+    root: ./target/test-unit-storage
+    max-file-size-bytes: 5242880
+    max-dimension: 1600
 
 notification:
   scheduler:

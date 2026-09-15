@@ -40,8 +40,8 @@ class OtpChallengePersistenceIntegrationTest {
     @Test
     void v9CreatesApprovedSchemaConstraintsAndPartialUniqueIndex() {
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14') AND success = true",
-                Integer.class)).isEqualTo(14);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15') AND success = true",
+                Integer.class)).isEqualTo(15);
         List<Map<String, Object>> columns = jdbcTemplate.queryForList("""
                 SELECT column_name, data_type, character_maximum_length, is_nullable, column_default
                 FROM information_schema.columns

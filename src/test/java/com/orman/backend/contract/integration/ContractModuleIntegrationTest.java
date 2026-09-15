@@ -1,6 +1,7 @@
 package com.orman.backend.contract.integration;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
+import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.contract.dto.request.ContratoArchivoRequest;
 import com.orman.backend.contract.dto.request.ContratoRenovacionRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
@@ -105,6 +106,37 @@ class ContractModuleIntegrationTest {
                 .hasMessageContaining("vigente");
     }
 
+    @Test
+    void rejectsCreatingAContractForANonOperationalUnit() {
+        Persona propietaria = createPersona("CM-OWNER-003");
+        Authentication ownerAuthentication = authentication(createUsuario("contract.owner.three", propietaria));
+        UnidadEntity unidad = createUnidad(propietaria, "Unidad no operativa", (short) 0);
+        Persona inquilino = createPersona("CM-TENANT-003");
+
+        assertThatThrownBy(() -> contratoService.createDraft(unidad.getCoduni(), request(inquilino.getCodper(),
+                LocalDate.of(2026, 9, 1), LocalDate.of(2027, 9, 1)), ownerAuthentication))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("La Unidad debe estar operativa para gestionar el Contrato.");
+    }
+
+    @Test
+    void rejectsConfirmingAContractAfterItsUnitBecomesNonOperational() {
+        Persona propietaria = createPersona("CM-OWNER-004");
+        Authentication ownerAuthentication = authentication(createUsuario("contract.owner.four", propietaria));
+        UnidadEntity unidad = createUnidad(propietaria, "Unidad para confirmar", (short) 1);
+        Persona inquilino = createPersona("CM-TENANT-004");
+        ContratoResponse borrador = contratoService.createDraft(unidad.getCoduni(), request(inquilino.getCodper(),
+                LocalDate.of(2026, 9, 1), LocalDate.of(2027, 9, 1)), ownerAuthentication);
+
+        unidad.setEstadoOperativo((short) 0);
+        unidadRepository.saveAndFlush(unidad);
+
+        assertThatThrownBy(() -> contratoService.confirm(borrador.codcon(), ownerAuthentication))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("La Unidad debe estar operativa para gestionar el Contrato.");
+        assertThat(contratoService.get(borrador.codcon(), ownerAuthentication).estado()).isEqualTo("BORRADOR");
+    }
+
     private Persona createPersona(String ci) {
         Persona persona = new Persona();
         persona.setCi(ci);
@@ -128,6 +160,10 @@ class ContractModuleIntegrationTest {
     }
 
     private UnidadEntity createUnidad(Persona propietaria, String nombre) {
+        return createUnidad(propietaria, nombre, (short) 1);
+    }
+
+    private UnidadEntity createUnidad(Persona propietaria, String nombre, short estadoOperativo) {
         PropiedadEntity propiedad = new PropiedadEntity();
         propiedad.setNombre("Propiedad contractual " + nombre);
         propiedad.setTipo("CASA");
@@ -146,7 +182,7 @@ class ContractModuleIntegrationTest {
         unidad.setBanos((short) 1);
         unidad.setPiso(1);
         unidad.setPrecioBase(new BigDecimal("2500.00"));
-        unidad.setEstadoOperativo((short) 1);
+        unidad.setEstadoOperativo(estadoOperativo);
         return unidadRepository.saveAndFlush(unidad);
     }
 

@@ -10,9 +10,14 @@ public interface UnidadService {
 
     UnidadResponse create(Integer codprop, UnidadRequest request, Authentication authentication);
 
-    PageResponse<UnidadResponse> listByPropiedad(Integer codprop, Pageable pageable, Authentication authentication);
+    PageResponse<UnidadResponse> listByPropiedad(Integer codprop, Short estadoOperativo, Pageable pageable,
+                                                   Authentication authentication);
 
     UnidadResponse get(Integer coduni, Authentication authentication);
 
     UnidadResponse update(Integer coduni, UnidadRequest request, Authentication authentication);
+
+    UnidadResponse activate(Integer coduni, Authentication authentication);
+
+    UnidadResponse deactivate(Integer coduni, Authentication authentication);
 }

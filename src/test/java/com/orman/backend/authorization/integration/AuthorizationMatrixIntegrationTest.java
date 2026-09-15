@@ -152,6 +152,26 @@ class AuthorizationMatrixIntegrationTest {
     }
 
     @Test
+    void protectsUnitStateActionsWithTheOwnerRoleOnly() throws Exception {
+        expectForbidden(patch("/api/v1/unidades/{coduni}/activar", Integer.MAX_VALUE), administrator);
+        expectForbidden(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE), administrator);
+        expectForbidden(patch("/api/v1/unidades/{coduni}/activar", Integer.MAX_VALUE), tenant);
+        expectForbidden(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE), tenant);
+
+        mockMvc.perform(patch("/api/v1/unidades/{coduni}/activar", Integer.MAX_VALUE)
+                        .headers(bearer(owner)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+        mockMvc.perform(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE)
+                        .headers(bearer(owner)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+        mockMvc.perform(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+    }
+
+    @Test
     void appliesHttpAuthorizationMatrixToPersonaPhotos() throws Exception {
         var invalidPhoto = new org.springframework.mock.web.MockMultipartFile("foto", "foto.jpg", "image/jpeg",
                 "not-an-image".getBytes(java.nio.charset.StandardCharsets.UTF_8));

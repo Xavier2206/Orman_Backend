@@ -51,6 +51,7 @@ class PropertyMapperTest {
         assertThat(foto.getPortada()).isFalse();
         assertThat(foto.getTitulo()).isNull();
         assertThat(unidadFotoMapper.toResponse(foto).coduni()).isEqualTo(15);
+        assertThat(unidadFotoMapper.toResponse(foto).tieneArchivo()).isFalse();
     }
 
     private PropiedadRequest propiedadRequest() {

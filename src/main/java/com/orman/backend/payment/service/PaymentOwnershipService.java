@@ -9,6 +9,8 @@ public interface PaymentOwnershipService {
 
     CuotaEntity findOwnedCuota(Integer codcuo, Authentication authentication);
 
+    CuotaEntity findCuota(Integer codcuo);
+
     CuotaEntity findOwnedCuotaForUpdate(Integer codcuo, Authentication authentication);
 
     PagoEntity findOwnedPago(Integer codpag, Authentication authentication);
@@ -16,4 +18,6 @@ public interface PaymentOwnershipService {
     PagoEntity findOwnedPagoForUpdate(Integer codpag, Authentication authentication);
 
     CuentaPagoEntity findOwnedCuentaPago(Integer codcta, Authentication authentication);
+
+    CuentaPagoEntity findCuentaPago(Integer codcta);
 }

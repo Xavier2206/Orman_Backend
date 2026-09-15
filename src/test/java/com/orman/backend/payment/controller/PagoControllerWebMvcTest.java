@@ -38,7 +38,8 @@ class PagoControllerWebMvcTest {
         mockMvc.perform(post("/api/v1/cuotas/8/pagos").contentType(MediaType.APPLICATION_JSON).content(validJson()))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/api/v1/pagos/12"))
-                .andExpect(jsonPath("$.estado").value("PENDIENTE_REVISION"));
+                .andExpect(jsonPath("$.estado").value("CONFIRMADO"))
+                .andExpect(jsonPath("$.origenRegistro").value("PROPIETARIA"));
     }
 
     @Test
@@ -77,6 +78,7 @@ class PagoControllerWebMvcTest {
     private PagoResponse response(Integer codpag) {
         return new PagoResponse(codpag, 8, null, new BigDecimal("350.00"), "EFECTIVO", null,
                 LocalDateTime.of(2026, 9, 10, 10, 0), LocalDateTime.of(2026, 9, 10, 10, 1),
-                "PENDIENTE_REVISION", "MANUAL", null, null, null);
+                "CONFIRMADO", "PROPIETARIA", "carmen", "carmen",
+                LocalDateTime.of(2026, 9, 10, 10, 1), null, null);
     }
 }

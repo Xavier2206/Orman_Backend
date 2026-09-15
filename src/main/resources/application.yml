@@ -81,3 +81,8 @@ notification:
   scheduler:
     cron: ${NOTIFICATION_SCHEDULER_CRON:0 0 8 * * *}
     zone: ${NOTIFICATION_SCHEDULER_ZONE:America/La_Paz}
+
+contract:
+  scheduler:
+    cron: ${CONTRACT_SCHEDULER_CRON:0 5 0 * * *}
+    zone: ${CONTRACT_SCHEDULER_ZONE:America/La_Paz}

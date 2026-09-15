@@ -22,10 +22,12 @@ public interface PropiedadRepository extends JpaRepository<PropiedadEntity, Inte
                 count(u.coduni) as "unidadesTotales",
                 count(u.coduni) filter (where u.estado_operativo = 1) as "unidadesHabilitadas",
                 count(u.coduni) filter (where u.estado_operativo = 0) as "unidadesNoHabilitadas",
-                count(u.coduni) filter (where u.estado_operativo = 1 and c.estado = 'VIGENTE') as "unidadesOcupadas"
+                count(u.coduni) filter (where u.estado_operativo = 1 and c.estado = 'VIGENTE'
+                    and CURRENT_DATE >= c.fecha_inicio and CURRENT_DATE < c.fecha_fin) as "unidadesOcupadas"
             from propiedades p
             left join unidades u on u.codprop = p.codprop
             left join contratos c on c.coduni = u.coduni and c.estado = 'VIGENTE'
+                and CURRENT_DATE >= c.fecha_inicio and CURRENT_DATE < c.fecha_fin
             where p.codper_propietaria = :codper
             """, nativeQuery = true)
     PropiedadResumenProjection findResumenByPropietaria(@Param("codper") Integer codper);

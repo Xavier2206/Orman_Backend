@@ -22,17 +22,17 @@ public interface PagoRepository extends JpaRepository<PagoEntity, Integer> {
             + "cuota.contrato.unidad.propiedad.propietaria, cuentaPago";
 
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago"})
+            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
     Optional<PagoEntity> findByCodpag(Integer codpag);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago"})
+            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
     @Query("select p from PagoEntity p where p.codpag = :codpag")
     Optional<PagoEntity> findByCodpagForUpdate(@Param("codpag") Integer codpag);
 
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago"})
+            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
     @Query("""
             select p from PagoEntity p
             where p.cuota.codcuo = :codcuo
@@ -42,7 +42,7 @@ public interface PagoRepository extends JpaRepository<PagoEntity, Integer> {
     List<PagoEntity> findAllByCuotaOwned(@Param("codcuo") Integer codcuo, @Param("codper") Integer codper);
 
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago"})
+            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
     @Query(value = """
             select p from PagoEntity p
             where p.cuota.contrato.unidad.propiedad.propietaria.codper = :codper

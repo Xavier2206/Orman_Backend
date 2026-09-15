@@ -20,8 +20,11 @@ public class CuotaMapper {
         return cuota;
     }
 
-    public CuotaResponse toResponse(CuotaEntity cuota) {
+    public CuotaResponse toResponse(CuotaEntity cuota, java.math.BigDecimal montoConfirmado,
+                                    java.math.BigDecimal montoPendienteRevision) {
+        java.math.BigDecimal saldo = cuota.getMonto().subtract(montoConfirmado);
         return new CuotaResponse(cuota.getCodcuo(), cuota.getContrato().getCodcon(), cuota.getPeriodo(),
-                cuota.getFechaVencimiento(), cuota.getMonto(), cuota.getEstado().name());
+                cuota.getFechaVencimiento(), cuota.getMonto(), montoConfirmado, saldo,
+                montoPendienteRevision, cuota.getEstado().name());
     }
 }

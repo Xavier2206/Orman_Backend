@@ -40,7 +40,7 @@ class ContratoPersistenceIntegrationTest {
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayCreatesTheContractTablesWithVersionEleven() {
+    void flywayAppliesCorrectedContractLifecycleWithVersionSixteen() {
         List<String> tables = jdbcTemplate.queryForList("""
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = 'public' ORDER BY table_name
@@ -48,12 +48,12 @@ class ContratoPersistenceIntegrationTest {
 
         assertThat(tables).contains("contratos", "contrato_archivos", "cuotas");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '11' AND success", Integer.class))
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '16' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForList(
                 "SELECT conname FROM pg_constraint WHERE conrelid = 'contratos'::regclass", String.class))
                 .contains("pk_contratos", "fk_contratos_unidades", "fk_contratos_personas_inquilino",
-                        "ck_contratos_fechas", "ck_contratos_estado");
+                        "ck_contratos_fechas", "ck_contratos_estado", "ck_contratos_moneda");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cuotas'", String.class))
                 .contains("uk_cuotas_codcon_periodo");
@@ -86,14 +86,13 @@ class ContratoPersistenceIntegrationTest {
     }
 
     @Test
-    void rejectsAnotherCurrentContractForTheSameUnit() {
+    void permitsPersistenceOfActiveContractsWhileServiceSerializesAndValidatesOverlap() {
         UnidadEntity unidad = unidad();
         Persona one = personaRepository.saveAndFlush(persona("CT-TENANT-002"));
         Persona two = personaRepository.saveAndFlush(persona("CT-TENANT-003"));
         contratoRepository.saveAndFlush(contrato(unidad, one, ContratoEstado.VIGENTE));
-
-        assertThatThrownBy(() -> contratoRepository.saveAndFlush(contrato(unidad, two, ContratoEstado.VIGENTE)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(contratoRepository.saveAndFlush(contrato(unidad, two, ContratoEstado.PROGRAMADO)).getCodcon())
+                .isNotNull();
     }
 
     @Test
@@ -101,8 +100,9 @@ class ContratoPersistenceIntegrationTest {
         UnidadEntity unidad = unidad();
         Persona inquilino = personaRepository.saveAndFlush(persona("CT-TENANT-004"));
         assertThatThrownBy(() -> jdbcTemplate.update("""
-                INSERT INTO contratos (coduni, codper_inquilino, fecha_inicio, fecha_fin, monto_mensual, garantia, estado)
-                VALUES (?, ?, DATE '2026-09-02', DATE '2027-09-01', 2500, 0, 'BORRADOR')
+                INSERT INTO contratos (coduni, codper_inquilino, fecha_inicio, fecha_fin, monto_mensual, garantia,
+                    moneda, estado, fecha_registro)
+                VALUES (?, ?, DATE '2026-09-02', DATE '2027-09-01', 2500, 0, 'BOB', 'PROGRAMADO', CURRENT_TIMESTAMP)
                 """, unidad.getCoduni(), inquilino.getCodper())).isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -149,11 +149,10 @@ class ContratoPersistenceIntegrationTest {
         contrato.setFechaInicio(LocalDate.of(2026, 9, 1));
         contrato.setFechaFin(LocalDate.of(2027, 9, 1));
         contrato.setMontoMensual(new BigDecimal("2500.00"));
+        contrato.setMoneda("BOB");
         contrato.setGarantia(BigDecimal.ZERO);
         contrato.setEstado(estado);
-        if (estado != ContratoEstado.BORRADOR) {
-            contrato.setFechaConfirmacion(LocalDateTime.now());
-        }
+        contrato.setFechaRegistro(LocalDateTime.now());
         return contrato;
     }
 }

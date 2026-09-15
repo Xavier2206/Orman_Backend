@@ -30,6 +30,8 @@ public interface UnidadRepository extends JpaRepository<UnidadEntity, Integer> {
                          from contratos c
                         where c.coduni = u.coduni
                           and c.estado = 'VIGENTE'
+                          and CURRENT_DATE >= c.fecha_inicio
+                          and CURRENT_DATE < c.fecha_fin
                    )) as "unidadesOcupadas"
               from unidades u
               join propiedades p on p.codprop = u.codprop

@@ -1,10 +1,10 @@
 # Contratos, archivos y cuotas
 
 Todas las rutas requieren Bearer JWT de un Usuario con `ROLE_PROPIETARIO`. El
-backend confirma además que la Persona asociada al Usuario sea propietaria de
-la Propiedad que contiene la Unidad del Contrato.
+backend valida la titularidad de la Propiedad y que la Unidad sea operativa, la
+Propiedad esté habilitada y la Persona inquilina esté activa.
 
-## Crear borrador
+## Registrar contrato
 
 `POST {{baseUrl}}/api/v1/unidades/{{coduni}}/contratos`
 
@@ -18,48 +18,52 @@ la Propiedad que contiene la Unidad del Contrato.
 }
 ```
 
-Las fechas deben ser el primer día de mes. Devuelve `201 Created`, estado
-`BORRADOR` y `Location` hacia `/api/v1/contratos/{codcon}`.
+Las fechas deben ser el primer día del mes y forman el intervalo
+`[fechaInicio, fechaFin)`. El monto mensual debe ser mayor a cero y admitir
+como máximo dos decimales. ORMAN usa exclusivamente `BOB`.
 
-## Contratos
+La respuesta es `201 Created`, incluye `Location` y crea las cuotas mensuales
+en la misma transacción. Si `fechaInicio` es posterior a la fecha actual el
+estado es `PROGRAMADO`; si ya llegó, es `VIGENTE`.
+
+## Consultar y cambiar ciclo de vida
 
 - `GET {{baseUrl}}/api/v1/unidades/{{coduni}}/contratos?page=0&size=20`
-- `GET {{baseUrl}}/api/v1/contratos?coduni={{coduni}}&estado=BORRADOR&page=0&size=20`
+- `GET {{baseUrl}}/api/v1/contratos?coduni={{coduni}}&estado=PROGRAMADO&page=0&size=20`
 - `GET {{baseUrl}}/api/v1/contratos/{{codcon}}`
-- `PUT {{baseUrl}}/api/v1/contratos/{{codcon}}` con el mismo contrato JSON, solo mientras sea `BORRADOR`.
-- `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/confirmar`
 - `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/finalizar`
+- `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/rescindir`
 
-Confirmar cambia `BORRADOR` a `VIGENTE` y genera una cuota `PENDIENTE` por cada
-mes del intervalo. Un Contrato del 01/09/2026 al 01/09/2027 genera 12 cuotas,
-desde septiembre de 2026 hasta agosto de 2027.
+Estados permitidos: `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`.
+Un scheduler activa de forma idempotente los contratos programados al llegar
+su fecha de inicio.
 
-## Renovación y rescisión
+No hay edición previa, confirmación ni endpoint especial de renovación. Una
+continuación se registra como un contrato nuevo. Los contratos contiguos son
+válidos; se rechaza cualquier solapamiento entre contratos `PROGRAMADO` o
+`VIGENTE` de una misma Unidad.
 
-`POST {{baseUrl}}/api/v1/contratos/{{codcon}}/renovaciones`
+## Finalizar
 
-```json
-{
-  "fechaInicio": "2027-09-01",
-  "fechaFin": "2028-09-01",
-  "montoMensual": 2700.00,
-  "garantia": 2500.00
-}
-```
+`PATCH .../finalizar` solo acepta un contrato `VIGENTE` cuando la fecha actual
+es igual o posterior a `fechaFin`, no quedan cuotas `PENDIENTE` o `PARCIAL` y
+no existe un pago `PENDIENTE_REVISION` asociado al contrato.
 
-La renovación crea un nuevo `BORRADOR` asociado al Contrato origen.
-
-`PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/rescindir`
+## Rescindir
 
 ```json
 {
-  "fechaRescision": "2027-01-01",
-  "motivoRescision": "Finalización anticipada acordada."
+  "fechaRescision": "2026-09-01",
+  "motivoRescision": "Terminación anticipada acordada."
 }
 ```
 
-La rescisión solo cambia el estado del Contrato y conserva las cuotas; no
-procesa pagos ni comprobantes.
+La fecha representa un periodo mensual, debe ser el primer día del mes, estar
+dentro del contrato y no ser futura. Todas las cuotas hasta ese periodo,
+inclusive, deben estar `PAGADA`; tampoco puede quedar ningún pago
+`PENDIENTE_REVISION`. Al aprobarse, todas las cuotas posteriores pasan a
+`ANULADA`, permanecen en la base de datos y dejan de admitir pagos o
+recordatorios.
 
 ## Archivos y cuotas
 
@@ -77,12 +81,16 @@ procesa pagos ni comprobantes.
 - `GET {{baseUrl}}/api/v1/contratos/{{codcon}}/archivos`
 - `GET {{baseUrl}}/api/v1/contratos/{{codcon}}/cuotas`
 
-No se cargan archivos binarios: se persiste únicamente URL y metadatos.
+Cada cuota expone `monto`, `montoConfirmado`, `saldo`,
+`montoPendienteRevision` y `estado`. No se cargan binarios: se persiste URL y
+metadatos.
 
 ## Errores esperados
 
 - `400 VALIDATION_ERROR`: importes, URL, orden, estado o datos requeridos inválidos.
-- `403 ACCESS_DENIED`: el recurso no pertenece al propietario autenticado.
+- `403 ACCESS_DENIED`: el recurso no pertenece a la propietaria autenticada.
 - `404 RESOURCE_NOT_FOUND`: Unidad o Contrato inexistente.
-- `409 CONFLICT`: Unidad con otro Contrato `VIGENTE`, orden de archivo duplicado o cuota duplicada.
-- `422 BUSINESS_RULE_VIOLATION`: fechas no mensuales, estado no transicionable, Unidad inactiva o inquilino inactivo.
+- `409 CONFLICT`: intervalo contractual solapado, orden o periodo duplicado.
+- `422 BUSINESS_RULE_VIOLATION`: fechas no mensuales, transición inválida,
+  Unidad no operativa, Propiedad no habilitada, inquilino inactivo o cuotas/pagos
+  sin resolver.

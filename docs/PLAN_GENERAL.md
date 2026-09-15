@@ -46,14 +46,17 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de Fase 11.2: matriz aplicada a módulos actuales, objetivos propietarios protegidos, Rol PROPIETARIO reservado y mínimo concurrente de un propietario activo.
 - Estado de la Fase 13 global: **COMPLETADA**; OTP WEB administrativo por correo, verify y resend cerrados.
 - Resultado de ETAPA 4.1: módulo backend `property`, Flyway V10 con Propiedades, Unidades y UnidadFotos, acceso exclusivo de la Persona propietaria autenticada con `ROLE_PROPIETARIO`, y 262 pruebas totales sin fallos.
-- Resultado de ETAPA 4.2: módulo backend `contract`, Flyway V11 con Contratos, ContratoArchivos y Cuotas `PENDIENTE`, generación transaccional al confirmar y 272 pruebas totales sin fallos.
-- Resultado de ETAPA 4.3: módulo backend `payment`, Flyway V12 con Pagos, PagoComprobantes, Recibos y CuentasPago; confirmación transaccional, pagos parciales calculados, recibos automáticos y 282 pruebas totales sin fallos.
+- Resultado vigente de ETAPA 4.2: V11 más corrección V16; Contratos `PROGRAMADO`/`VIGENTE` sin borradores ni renovación especial, intervalos no solapados, cuotas mensuales y terminación condicionada por cuotas y pagos.
+- Resultado vigente de ETAPA 4.3: V12 más corrección V17; Pagos diferenciados por actor `PROPIETARIA`/`INQUILINO`, confirmación financiera única, trazabilidad de revisión, pagos parciales y un recibo interno por pago confirmado.
 - Resultado de ETAPA 4.4: módulo backend `notification`, Flyway V13 con notificaciones internas por Usuario, consulta propia, lectura idempotente, recordatorios de cuotas y eventos internos de pagos; 290 pruebas totales sin fallos.
+- Corrección controlada de Contratos/Pagos/Notificaciones: **COMPLETADA** el
+  2026-09-15 mediante V16 y V17; eventos financieros consumidos `AFTER_COMMIT`
+  y 367 pruebas totales sin fallos.
 - Ampliación posterior de Propiedades: Flyway V14 añade `portada_ref` y los
   endpoints autenticados de portada interna, sin alterar `portada_url` ni las
   fotografías de UnidadFoto.
 - Próxima fase autorizable: **Fase 18 — Documentación OpenAPI**; requiere autorización explícita independiente.
-- Fecha de actualización: **2026-09-13**.
+- Fecha de actualización: **2026-09-15**.
 
 ## Etapas y fases previstas
 
@@ -137,13 +140,17 @@ Teoría: pendiente de creación cuando corresponda.
 
 **Objetivo:** implementar la gestión backend del alquiler.
 
-**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; renovaciones; rescisión básica.
+**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; contratos futuros; finalización y rescisión.
 
 **Dependencia:** Etapa 4.1.
 
 **Resultado esperado:** administrar alquileres desde la firma del contrato hasta el seguimiento mensual.
 
-**Resultado de implementación:** V11 crea contratos, archivos por URL y cuotas; `contract` confirma borradores, genera cuotas mensuales `PENDIENTE`, conserva renovaciones mediante `codcon_origen` y permite rescisión básica sin lógica de pagos.
+**Resultado de implementación vigente:** V11 crea la base y V16 corrige el
+ciclo a `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`. El registro
+genera cuotas, el scheduler activa contratos futuros, la Unidad serializa la
+validación de intervalos `[inicio, fin)`, y finalización/rescisión comprueban
+cuotas y pagos pendientes. Una continuación contractual es un contrato nuevo.
 
 **Autorización implementada:** todas las rutas requieren `ROLE_PROPIETARIO` y verifican Persona propietaria, Propiedad, Unidad y Contrato en la capa transaccional. No se agregaron roles ni permisos.
 
@@ -169,9 +176,16 @@ Teoría: pendiente de creación cuando corresponda.
 
 **Resultado esperado:** registrar pagos, aplicar pagos parciales y generar recibos después de la confirmación de los pagos.
 
-**Resultado de implementación:** V12 crea cuentas de pago, pagos, comprobantes y recibos; `payment` confirma pagos bajo bloqueo de cuota, calcula parciales sin persistir saldos y genera un único recibo por pago confirmado.
+**Resultado de implementación vigente:** V12 crea la base y V17 incorpora
+origen de registro y actores. La propietaria registra pagos verificados como
+`CONFIRMADO`; el inquilino presenta QR/transferencia con comprobante como
+`PENDIENTE_REVISION`. Una lógica financiera común bloquea la cuota, evita
+sobrepago y genera un recibo por pago confirmado.
 
-**Autorización implementada:** todas las rutas requieren `ROLE_PROPIETARIO` y verifican la cadena Persona propietaria, Propiedad, Unidad, Contrato, Cuota y Pago. Las cuentas se limitan a la Persona propietaria autenticada.
+**Autorización implementada:** las consultas y revisiones requieren
+`ROLE_PROPIETARIO`. El registro de pago también admite `ROLE_INQUILINO`, pero
+solo sobre cuotas de su propia Persona inquilina. Las cuentas se limitan a la
+propietaria de la cuota.
 
 #### ETAPA 4.4 — Notificaciones
 
@@ -329,7 +343,7 @@ Este bloque conserva el alcance previamente definido como Fase 15 y se desarroll
 
 **Objetivo:** implementar la gestión backend del alquiler.
 
-**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; renovaciones; rescisión básica.
+**Incluye:** Contratos; historial contractual; `ContratoArchivo`; inquilino responsable; relación Unidad–Contrato; generación automática de cuotas mensuales; estados de cuotas; programación, finalización y rescisión.
 
 **Reglas:** un contrato pertenece a una Unidad; un contrato tiene un inquilino responsable; una Unidad puede tener múltiples contratos históricos; un contrato confirmado genera cuotas automáticamente.
 
@@ -339,7 +353,9 @@ Este bloque conserva el alcance previamente definido como Fase 15 y se desarroll
 
 **Resultado esperado:** administrar alquileres desde la firma del contrato hasta el seguimiento mensual.
 
-**Validaciones:** cardinalidad Unidad–Contrato e inquilino–Contrato; consistencia del historial; generación idempotente de cuotas; estados, renovaciones y rescisión; autorización; pruebas unitarias, de servicio, persistencia, MVC e integración.
+**Validaciones:** cardinalidad Unidad–Contrato e inquilino–Contrato; intervalos
+no solapados; generación idempotente de cuotas; estados, finalización y
+rescisión; autorización; pruebas unitarias, persistencia, MVC e integración.
 
 #### Detalle funcional de ETAPA 4.3 — Pagos y recibos
 

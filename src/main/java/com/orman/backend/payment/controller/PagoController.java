@@ -33,7 +33,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Validated
-@PreAuthorize("hasRole('PROPIETARIO')")
+@PreAuthorize("hasAnyRole('PROPIETARIO','INQUILINO')")
 public class PagoController {
 
     private final PagoService pagoService;
@@ -48,11 +48,13 @@ public class PagoController {
     }
 
     @GetMapping("/cuotas/{codcuo}/pagos")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public java.util.List<PagoResponse> listByCuota(@PathVariable Integer codcuo, Authentication authentication) {
         return pagoService.listByCuota(codcuo, authentication);
     }
 
     @GetMapping("/pagos")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PageResponse<PagoResponse> list(@RequestParam(required = false)
                                            @Pattern(regexp = "PENDIENTE_REVISION|CONFIRMADO|RECHAZADO|ANULADO",
                                                    message = "El estado del Pago no es válido.") String estado,
@@ -67,22 +69,26 @@ public class PagoController {
     }
 
     @GetMapping("/pagos/{codpag}")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PagoResponse get(@PathVariable Integer codpag, Authentication authentication) {
         return pagoService.get(codpag, authentication);
     }
 
     @PatchMapping("/pagos/{codpag}/confirmar")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PagoResponse confirm(@PathVariable Integer codpag, Authentication authentication) {
         return pagoService.confirm(codpag, authentication);
     }
 
     @PatchMapping("/pagos/{codpag}/rechazar")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PagoResponse reject(@PathVariable Integer codpag, @Valid @RequestBody PagoMotivoRequest request,
                                Authentication authentication) {
         return pagoService.reject(codpag, request, authentication);
     }
 
     @PatchMapping("/pagos/{codpag}/anular")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PagoResponse annul(@PathVariable Integer codpag, @Valid @RequestBody PagoMotivoRequest request,
                               Authentication authentication) {
         return pagoService.annul(codpag, request, authentication);

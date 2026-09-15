@@ -2,71 +2,54 @@
 
 ## Estado
 
-`COMPLETADA` el 2026-09-10. La etapa implementa exclusivamente Contratos,
-ContratoArchivos y Cuotas. No incorpora Pagos, PagoComprobantes, Recibos,
-CuentasPago ni Notificaciones.
+`COMPLETADA`, corregida el 2026-09-15 conforme al modelo doméstico de ORMAN.
 
-## Diseño e implementación
+## Diseño vigente
 
-- El módulo reside en `com.orman.backend.contract`, con `controller`,
-  `dto.request`, `dto.response`, `entity`, `mapper`, `repository`, `service` y
-  `service.impl`.
-- `ContratoEntity` referencia una `UnidadEntity`, una Persona inquilina y,
-  opcionalmente, su contrato origen. `ContratoArchivoEntity` referencia al
-  contrato y `CuotaEntity` referencia al contrato. Todas las relaciones son
-  `@ManyToOne(fetch = FetchType.LAZY)`, sin colecciones inversas ni cascadas.
-- Flyway V11 crea `contratos`, `contrato_archivos` y `cuotas` con FKs
-  restrictivas, importes `NUMERIC(14,2)`, checks de fechas y estados, una sola
-  cuota por `(codcon, periodo)` y un único contrato `VIGENTE` por Unidad.
-- Los contratos trabajan en intervalos mensuales `[fecha_inicio, fecha_fin)`;
-  ambas fechas deben ser el primer día del mes. Al confirmar un borrador se
-  generan las cuotas `PENDIENTE` dentro de la misma transacción.
+- La Unidad conserva únicamente estado operativo binario; disponibilidad,
+  ocupación actual y programación futura se derivan de contratos.
+- Los estados contractuales son `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y
+  `RESCINDIDO`.
+- Registrar un contrato es una decisión efectiva: se crea `PROGRAMADO` si su
+  inicio aún no llegó y `VIGENTE` en caso contrario, junto con todas sus cuotas.
+- Un scheduler transaccional e idempotente ejecuta `PROGRAMADO -> VIGENTE`.
+- Los intervalos se comparan como `[fechaInicio, fechaFin)`. La creación se
+  serializa bloqueando la Unidad y rechaza solapamientos entre `PROGRAMADO` y
+  `VIGENTE`; los intervalos contiguos están permitidos.
+- No existe proceso especial de renovación. Cada continuación es un contrato
+  nuevo. `codcon_origen` se conserva solo como dato histórico legado y ya no
+  participa en entidad, DTO, servicios ni endpoints.
+- La moneda es exclusivamente `BOB`; el monto mensual es mayor a cero y tiene
+  máximo dos decimales.
 
-## Ciclo de vida
+## Cuotas y terminación
 
-`BORRADOR -> VIGENTE -> FINALIZADO` y `VIGENTE -> RESCINDIDO`.
+Se genera una cuota mensual por cada periodo del intervalo, sin prorrateo. Los
+estados son `PENDIENTE`, `PARCIAL`, `PAGADA` y `ANULADA`.
 
-Una renovación crea un nuevo borrador con `codcon_origen`; no altera el
-contrato histórico. La rescisión guarda fecha y motivo, pero no modifica cuotas
-ni intenta validar pagos: esa lógica pertenece exclusivamente a ETAPA 4.3.
+La finalización normal exige contrato `VIGENTE`, fecha actual igual o posterior
+a `fechaFin`, ausencia de pagos en revisión y ausencia de cuotas pendientes o
+parciales.
 
-Las cuotas se crean solo como `PENDIENTE`. Los estados `PARCIAL` y `PAGADA` no
-tienen endpoints ni transiciones en este módulo.
+La rescisión exige un periodo mensual dentro del contrato, no futuro, todas
+las cuotas pagadas hasta ese periodo inclusive y ningún pago pendiente de
+revisión. Todas las cuotas posteriores pasan a `ANULADA` sin eliminarse.
 
-## Seguridad
-
-Todos los controladores requieren `ROLE_PROPIETARIO`. La capa de servicio
-reutiliza la comprobación de propiedad existente y valida la cadena:
-
-`Usuario autenticado -> Persona asociada -> Propiedad propia -> Unidad -> Contrato`.
-
-No se agregaron `ROLE_INQUILINO`, administrador inmobiliario, permisos nuevos,
-ni cambios a JWT, `SecurityConfig`, Roles, Menús o Procesos.
-
-## API implementada
+## API vigente
 
 | Recurso | Rutas |
 |---|---|
-| Contratos | `POST/GET /api/v1/unidades/{coduni}/contratos`; `GET /api/v1/contratos`; `GET/PUT /api/v1/contratos/{codcon}`; `PATCH .../confirmar`; `PATCH .../finalizar`; `POST .../renovaciones`; `PATCH .../rescindir` |
+| Contratos | `POST/GET /api/v1/unidades/{coduni}/contratos`; `GET /api/v1/contratos`; `GET /api/v1/contratos/{codcon}`; `PATCH .../finalizar`; `PATCH .../rescindir` |
 | Archivos | `POST/GET /api/v1/contratos/{codcon}/archivos` |
 | Cuotas | `GET /api/v1/contratos/{codcon}/cuotas` |
 
-Las creaciones devuelven `201 Created` y `Location`. Las respuestas de error
-usan `ProblemDetail` con los códigos existentes.
+Las creaciones devuelven `201 Created` y `Location`; los errores usan
+`ProblemDetail`. La autorización de propietaria y la arquitectura modular se
+mantienen.
 
-## Validación
+## Persistencia y validación
 
-- Compilaciones parciales tras V11/entidades, DTOs/repositorios y
-  servicios/controladores: `BUILD SUCCESS`.
-- Pruebas de mapper, MVC, persistencia, integración PostgreSQL y autorización
-  de propiedad.
-- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 272 pruebas, 0 fallos, 0 errores
-  y 0 omitidas. Flyway validó V1–V11 e Hibernate validó `ddl-auto=validate`.
-
-## Riesgos y pendientes
-
-- Pagos, aplicación de pagos parciales, cambios a `PARCIAL`/`PAGADA`, recibos,
-  comprobantes y conciliación no fueron implementados.
-- La rescisión no comprueba cuotas regularizadas ni anula cuotas futuras; ambas
-  reglas dependen de la ETAPA 4.3 y requieren autorización independiente.
-- La ETAPA 4.3.1 requiere autorización explícita antes de comenzar.
+V16 transforma datos de desarrollo, incorpora `moneda`, sustituye
+`fecha_confirmacion` por `fecha_registro`, actualiza checks e índices y rellena
+cuotas faltantes sin alterar V1–V15. La suite global del cierre ejecutó 367
+pruebas, sin fallos, errores ni omisiones, contra PostgreSQL real.

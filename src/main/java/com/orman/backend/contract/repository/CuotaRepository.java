@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,12 +20,57 @@ public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer> {
 
     List<CuotaEntity> findAllByContratoCodconOrderByPeriodoAsc(Integer codcon);
 
-    @EntityGraph(attributePaths = {"contrato", "contrato.unidad", "contrato.unidad.propiedad",
+    @Query("""
+            select (count(c) > 0) from CuotaEntity c
+            where c.contrato.codcon = :codcon
+              and c.periodo <= :periodo
+              and c.estado <> com.orman.backend.contract.entity.CuotaEstado.PAGADA
+            """)
+    boolean existsUnpaidThroughPeriod(@Param("codcon") Integer codcon, @Param("periodo") LocalDate periodo);
+
+    @Query("""
+            select (count(c) > 0) from CuotaEntity c
+            where c.contrato.codcon = :codcon
+              and c.estado in :estados
+            """)
+    boolean existsByContratoAndEstados(@Param("codcon") Integer codcon,
+                                       @Param("estados") Collection<CuotaEstado> estados);
+
+    @Query(value = """
+            select exists (
+                select 1
+                  from pagos p
+                  join cuotas q on q.codcuo = p.codcuo
+                 where q.codcon = :codcon
+                   and p.estado = 'PENDIENTE_REVISION'
+            )
+            """, nativeQuery = true)
+    boolean existsPendingReviewPaymentByContrato(@Param("codcon") Integer codcon);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update CuotaEntity c
+               set c.estado = com.orman.backend.contract.entity.CuotaEstado.ANULADA
+             where c.contrato.codcon = :codcon
+               and c.periodo > :periodo
+            """)
+    int annulAfterPeriod(@Param("codcon") Integer codcon, @Param("periodo") LocalDate periodo);
+
+    @Query(value = """
+            select coalesce(sum(p.monto), 0)
+              from pagos p
+             where p.codcuo = :codcuo
+               and p.estado = :estado
+            """, nativeQuery = true)
+    java.math.BigDecimal sumPaymentAmountByState(@Param("codcuo") Integer codcuo,
+                                                  @Param("estado") String estado);
+
+    @EntityGraph(attributePaths = {"contrato", "contrato.inquilino", "contrato.unidad", "contrato.unidad.propiedad",
             "contrato.unidad.propiedad.propietaria"})
     Optional<CuotaEntity> findByCodcuo(Integer codcuo);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @EntityGraph(attributePaths = {"contrato", "contrato.unidad", "contrato.unidad.propiedad",
+    @EntityGraph(attributePaths = {"contrato", "contrato.inquilino", "contrato.unidad", "contrato.unidad.propiedad",
             "contrato.unidad.propiedad.propietaria"})
     @Query("select c from CuotaEntity c where c.codcuo = :codcuo")
     Optional<CuotaEntity> findByCodcuoForUpdate(@Param("codcuo") Integer codcuo);

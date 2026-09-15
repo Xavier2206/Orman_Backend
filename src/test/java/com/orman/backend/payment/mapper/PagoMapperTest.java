@@ -8,6 +8,8 @@ import com.orman.backend.payment.entity.CuentaPagoEntity;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEstado;
+import com.orman.backend.payment.entity.OrigenRegistroPago;
+import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.person.entity.Persona;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,12 +31,17 @@ class PagoMapperTest {
         ReflectionTestUtils.setField(cuota, "codcuo", 18);
         CuentaPagoEntity cuenta = new CuentaPagoEntity();
         ReflectionTestUtils.setField(cuenta, "codcta", 7);
-        var pago = pagoMapper.toPendingEntity(new PagoRequest(new BigDecimal("350.00"), MetodoPago.TRANSFERENCIA,
-                7, " REF-01 ", LocalDateTime.of(2026, 9, 10, 10, 0), UUID.randomUUID()), cuota, cuenta);
+        Usuario actor = new Usuario();
+        actor.setLogin("tenant.mapper");
+        var pago = pagoMapper.toEntity(new PagoRequest(new BigDecimal("350.00"), MetodoPago.TRANSFERENCIA,
+                7, " REF-01 ", LocalDateTime.of(2026, 9, 10, 10, 0), UUID.randomUUID()), cuota, cuenta,
+                OrigenRegistroPago.INQUILINO, actor, LocalDateTime.of(2026, 9, 10, 10, 1));
         ReflectionTestUtils.setField(pago, "codpag", 11);
 
         assertThat(pago.getEstado()).isEqualTo(PagoEstado.PENDIENTE_REVISION);
         assertThat(pago.getReferenciaExterna()).isEqualTo("REF-01");
+        assertThat(pago.getOrigenRegistro()).isEqualTo(OrigenRegistroPago.INQUILINO);
+        assertThat(pagoMapper.toResponse(pago).registradoPor()).isEqualTo("tenant.mapper");
         assertThat(pagoMapper.toResponse(pago).codcta()).isEqualTo(7);
 
         PagoComprobanteEntity comprobante = comprobanteMapper.toEntity(new PagoComprobanteRequest(

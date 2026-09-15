@@ -78,3 +78,8 @@ notification:
   scheduler:
     cron: "0 0 8 * * *"
     zone: America/La_Paz
+
+contract:
+  scheduler:
+    cron: "0 5 0 * * *"
+    zone: America/La_Paz

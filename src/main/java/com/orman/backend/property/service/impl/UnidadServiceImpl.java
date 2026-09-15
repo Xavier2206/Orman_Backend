@@ -111,8 +111,10 @@ public class UnidadServiceImpl implements UnidadService {
         if (Objects.equals(unidad.getEstadoOperativo(), INACTIVO)) {
             return unidadMapper.toResponse(unidad);
         }
-        if (contratoRepository.existsByUnidadCoduniAndEstado(coduni, ContratoEstado.VIGENTE)) {
-            throw new BusinessRuleException("No se puede desactivar la unidad porque tiene un contrato vigente.");
+        if (contratoRepository.existsByUnidadCoduniAndEstadoIn(coduni,
+                java.util.List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE))) {
+            throw new BusinessRuleException(
+                    "No se puede desactivar la unidad porque tiene un Contrato PROGRAMADO o VIGENTE.");
         }
         unidad.setEstadoOperativo(INACTIVO);
         return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));

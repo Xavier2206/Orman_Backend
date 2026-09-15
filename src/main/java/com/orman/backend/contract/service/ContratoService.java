@@ -1,7 +1,6 @@
 package com.orman.backend.contract.service;
 
 import com.orman.backend.common.dto.PageResponse;
-import com.orman.backend.contract.dto.request.ContratoRenovacionRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
@@ -11,7 +10,7 @@ import org.springframework.security.core.Authentication;
 
 public interface ContratoService {
 
-    ContratoResponse createDraft(Integer coduni, ContratoRequest request, Authentication authentication);
+    ContratoResponse create(Integer coduni, ContratoRequest request, Authentication authentication);
 
     PageResponse<ContratoResponse> listByUnidad(Integer coduni, Pageable pageable, Authentication authentication);
 
@@ -20,13 +19,7 @@ public interface ContratoService {
 
     ContratoResponse get(Integer codcon, Authentication authentication);
 
-    ContratoResponse updateDraft(Integer codcon, ContratoRequest request, Authentication authentication);
-
-    ContratoResponse confirm(Integer codcon, Authentication authentication);
-
     ContratoResponse finish(Integer codcon, Authentication authentication);
-
-    ContratoResponse renew(Integer codcon, ContratoRenovacionRequest request, Authentication authentication);
 
     ContratoResponse rescind(Integer codcon, RescisionContratoRequest request, Authentication authentication);
 }

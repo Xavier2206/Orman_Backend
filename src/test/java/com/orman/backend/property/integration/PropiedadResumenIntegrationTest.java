@@ -52,7 +52,7 @@ class PropiedadResumenIntegrationTest {
 
         contrato(casaOcupada, tenant, ContratoEstado.VIGENTE);
         contrato(casaNoHabilitada, tenant, ContratoEstado.VIGENTE);
-        contrato(edificioDisponible, tenant, ContratoEstado.BORRADOR);
+        contrato(edificioDisponible, tenant, ContratoEstado.PROGRAMADO);
         contrato(inactivaOcupada, tenant, ContratoEstado.VIGENTE);
         contrato(finalizada, tenant, ContratoEstado.FINALIZADO);
         contrato(rescindida, tenant, ContratoEstado.RESCINDIDO);
@@ -130,11 +130,10 @@ class PropiedadResumenIntegrationTest {
         contrato.setFechaInicio(LocalDate.of(2026, 9, 1));
         contrato.setFechaFin(LocalDate.of(2027, 9, 1));
         contrato.setMontoMensual(new BigDecimal("2500.00"));
+        contrato.setMoneda("BOB");
         contrato.setGarantia(BigDecimal.ZERO);
         contrato.setEstado(estado);
-        if (estado != ContratoEstado.BORRADOR) {
-            contrato.setFechaConfirmacion(LocalDateTime.of(2026, 8, 1, 12, 0));
-        }
+        contrato.setFechaRegistro(LocalDateTime.of(2026, 8, 1, 12, 0));
         if (estado == ContratoEstado.RESCINDIDO) {
             contrato.setFechaRescision(LocalDate.of(2026, 9, 15));
             contrato.setMotivoRescision("Prueba de rescisión");

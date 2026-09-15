@@ -19,6 +19,10 @@ import com.orman.backend.payment.dto.request.PagoComprobanteRequest;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.entity.MetodoPago;
+import com.orman.backend.payment.entity.OrigenRegistroPago;
+import com.orman.backend.payment.entity.PagoEntity;
+import com.orman.backend.payment.entity.PagoEstado;
+import com.orman.backend.payment.repository.PagoRepository;
 import com.orman.backend.payment.service.PagoComprobanteService;
 import com.orman.backend.payment.service.PagoService;
 import com.orman.backend.person.entity.Persona;
@@ -66,6 +70,7 @@ class NotificationModuleIntegrationTest {
     @Autowired private CuotaNotificacionScheduler cuotaNotificacionScheduler;
     @Autowired private PagoService pagoService;
     @Autowired private PagoComprobanteService pagoComprobanteService;
+    @Autowired private PagoRepository pagoRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
@@ -166,21 +171,23 @@ class NotificationModuleIntegrationTest {
         Authentication ownerAuthentication = authentication(context.usuario());
         CuotaEntity confirmedQuota = cuota(context, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE);
         var confirmed = pagoService.create(confirmedQuota.getCodcuo(), paymentRequest(), ownerAuthentication);
-        pagoService.confirm(confirmed.codpag(), ownerAuthentication);
+        notificacionGeneracionService.generatePaymentConfirmed(confirmed.codpag());
         assertNotification(context.usuario(), NotificacionTipo.PAGO_CONFIRMADO, ReferenciaTipo.PAGO, confirmed.codpag());
 
         CuotaEntity rejectedQuota = cuota(context, LocalDate.of(2026, 10, 1), CuotaEstado.PENDIENTE);
-        var rejected = pagoService.create(rejectedQuota.getCodcuo(), paymentRequest(), ownerAuthentication);
-        pagoService.reject(rejected.codpag(), new PagoMotivoRequest("Comprobante inválido"), ownerAuthentication);
-        assertNotification(context.usuario(), NotificacionTipo.PAGO_RECHAZADO, ReferenciaTipo.PAGO, rejected.codpag());
+        PagoEntity rejected = pendingPayment(context, rejectedQuota);
+        pagoService.reject(rejected.getCodpag(), new PagoMotivoRequest("Comprobante inválido"), ownerAuthentication);
+        notificacionGeneracionService.generatePaymentRejected(rejected.getCodpag());
+        assertNotification(context.usuario(), NotificacionTipo.PAGO_RECHAZADO, ReferenciaTipo.PAGO, rejected.getCodpag());
 
         CuotaEntity proofQuota = cuota(context, LocalDate.of(2026, 11, 1), CuotaEstado.PENDIENTE);
-        var proofPayment = pagoService.create(proofQuota.getCodcuo(), paymentRequest(), ownerAuthentication);
-        pagoComprobanteService.create(proofPayment.codpag(), new PagoComprobanteRequest("https://example.test/pago.pdf",
+        PagoEntity proofPayment = pendingPayment(context, proofQuota);
+        pagoComprobanteService.create(proofPayment.getCodpag(), new PagoComprobanteRequest("https://example.test/pago.pdf",
                 "pago.pdf", "application/pdf", 0), ownerAuthentication);
+        notificacionGeneracionService.generateComprobanteReceived(proofPayment.getCodpag());
         assertThat(notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
                 context.usuario().getLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO, ReferenciaTipo.PAGO,
-                proofPayment.codpag()).orElseThrow().getMensaje())
+                proofPayment.getCodpag()).orElseThrow().getMensaje())
                 .isEqualTo("Se registró un comprobante de pago para revisión.");
     }
 
@@ -235,11 +242,26 @@ class NotificationModuleIntegrationTest {
         contrato.setFechaInicio(LocalDate.of(2026, 1, 1));
         contrato.setFechaFin(LocalDate.of(2027, 1, 1));
         contrato.setMontoMensual(new BigDecimal("100.00"));
+        contrato.setMoneda("BOB");
         contrato.setGarantia(BigDecimal.ZERO);
         contrato.setEstado(ContratoEstado.VIGENTE);
-        contrato.setFechaConfirmacion(LocalDateTime.now());
+        contrato.setFechaRegistro(LocalDateTime.now());
         contrato = contratoRepository.saveAndFlush(contrato);
         return new Context(usuario, contrato);
+    }
+
+    private PagoEntity pendingPayment(Context context, CuotaEntity cuota) {
+        PagoEntity pago = new PagoEntity();
+        pago.setCuota(cuota);
+        pago.setMonto(new BigDecimal("100.00"));
+        pago.setMetodo(MetodoPago.EFECTIVO);
+        pago.setFechaPago(LocalDateTime.now());
+        pago.setFechaRegistro(LocalDateTime.now());
+        pago.setEstado(PagoEstado.PENDIENTE_REVISION);
+        pago.setOrigenRegistro(OrigenRegistroPago.PROPIETARIA);
+        pago.setRegistradoPor(context.usuario());
+        pago.setIdempotencyKey(UUID.randomUUID());
+        return pagoRepository.saveAndFlush(pago);
     }
 
     private CuotaEntity cuota(Context context, LocalDate periodo, CuotaEstado estado) {

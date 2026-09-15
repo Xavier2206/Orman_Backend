@@ -9,14 +9,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class ReciboMapper {
 
-    public ReciboEntity toEntity(PagoEntity pago) {
+    public ReciboEntity toEntity(PagoEntity pago, LocalDateTime fechaEmision) {
         ReciboEntity recibo = new ReciboEntity();
         recibo.setPago(pago);
-        recibo.setFechaEmision(LocalDateTime.now());
+        recibo.setFechaEmision(fechaEmision);
         return recibo;
     }
 
     public ReciboResponse toResponse(ReciboEntity recibo) {
-        return new ReciboResponse(recibo.getCodrec(), recibo.getPago().getCodpag(), recibo.getFechaEmision());
+        PagoEntity pago = recibo.getPago();
+        return new ReciboResponse(recibo.getCodrec(), pago.getCodpag(), pago.getCuota().getCodcuo(),
+                pago.getCuota().getPeriodo(), pago.getMonto(), pago.getCuota().getContrato().getMoneda(),
+                pago.getMetodo().name(), pago.getFechaPago(), recibo.getFechaEmision());
     }
 }

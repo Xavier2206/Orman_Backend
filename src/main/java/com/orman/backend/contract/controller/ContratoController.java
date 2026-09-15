@@ -1,7 +1,6 @@
 package com.orman.backend.contract.controller;
 
 import com.orman.backend.common.dto.PageResponse;
-import com.orman.backend.contract.dto.request.ContratoRenovacionRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,10 +38,10 @@ public class ContratoController {
     private final ContratoService contratoService;
 
     @PostMapping("/unidades/{coduni}/contratos")
-    public ResponseEntity<ContratoResponse> createDraft(@PathVariable Integer coduni,
-                                                         @Valid @RequestBody ContratoRequest request,
-                                                         Authentication authentication) {
-        ContratoResponse response = contratoService.createDraft(coduni, request, authentication);
+    public ResponseEntity<ContratoResponse> create(@PathVariable Integer coduni,
+                                                    @Valid @RequestBody ContratoRequest request,
+                                                    Authentication authentication) {
+        ContratoResponse response = contratoService.create(coduni, request, authentication);
         URI location = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/v1/contratos/{codcon}")
                 .buildAndExpand(response.codcon()).toUri();
         return ResponseEntity.created(location).body(response);
@@ -60,7 +58,7 @@ public class ContratoController {
     @GetMapping("/contratos")
     public PageResponse<ContratoResponse> list(@RequestParam(required = false) Integer coduni,
                                                @RequestParam(required = false)
-                                               @Pattern(regexp = "BORRADOR|VIGENTE|FINALIZADO|RESCINDIDO",
+                                               @Pattern(regexp = "PROGRAMADO|VIGENTE|FINALIZADO|RESCINDIDO",
                                                        message = "El estado del Contrato no es válido.") String estado,
                                                @PageableDefault(page = 0, size = 20, sort = "fechaInicio",
                                                        direction = Sort.Direction.DESC) Pageable pageable,
@@ -74,30 +72,9 @@ public class ContratoController {
         return contratoService.get(codcon, authentication);
     }
 
-    @PutMapping("/contratos/{codcon}")
-    public ContratoResponse updateDraft(@PathVariable Integer codcon, @Valid @RequestBody ContratoRequest request,
-                                        Authentication authentication) {
-        return contratoService.updateDraft(codcon, request, authentication);
-    }
-
-    @PatchMapping("/contratos/{codcon}/confirmar")
-    public ContratoResponse confirm(@PathVariable Integer codcon, Authentication authentication) {
-        return contratoService.confirm(codcon, authentication);
-    }
-
     @PatchMapping("/contratos/{codcon}/finalizar")
     public ContratoResponse finish(@PathVariable Integer codcon, Authentication authentication) {
         return contratoService.finish(codcon, authentication);
-    }
-
-    @PostMapping("/contratos/{codcon}/renovaciones")
-    public ResponseEntity<ContratoResponse> renew(@PathVariable Integer codcon,
-                                                   @Valid @RequestBody ContratoRenovacionRequest request,
-                                                   Authentication authentication) {
-        ContratoResponse response = contratoService.renew(codcon, request, authentication);
-        URI location = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/v1/contratos/{nuevoCodcon}")
-                .buildAndExpand(response.codcon()).toUri();
-        return ResponseEntity.created(location).body(response);
     }
 
     @PatchMapping("/contratos/{codcon}/rescindir")

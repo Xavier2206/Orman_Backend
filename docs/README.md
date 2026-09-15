@@ -80,6 +80,10 @@ Este directorio concentra la planificación, la teoría por etapa, el historial 
 - [Notificaciones internas](fases/17-notificaciones.md)
 - [Guía Postman de notificaciones](postman/notification.md)
 
+## Corrección de Contratos y Pagos
+
+- [Informe de corrección de lógica de negocio](CORRECCION_LOGICA_NEGOCIO_CONTRATOS_PAGOS.md)
+
 ## Decisiones arquitectónicas
 
 - [ADR-001 — Monolito modular](decisiones/ADR-001-monolito-modular.md)

@@ -58,6 +58,10 @@ public class ContratoEntity {
     private BigDecimal montoMensual;
 
     @Setter
+    @Column(name = "moneda", nullable = false, length = 3)
+    private String moneda;
+
+    @Setter
     @Column(name = "garantia", nullable = false, precision = 14, scale = 2)
     private BigDecimal garantia;
 
@@ -67,8 +71,8 @@ public class ContratoEntity {
     private ContratoEstado estado;
 
     @Setter
-    @Column(name = "fecha_confirmacion")
-    private LocalDateTime fechaConfirmacion;
+    @Column(name = "fecha_registro", nullable = false)
+    private LocalDateTime fechaRegistro;
 
     @Setter
     @Column(name = "fecha_rescision")
@@ -77,11 +81,6 @@ public class ContratoEntity {
     @Setter
     @Column(name = "motivo_rescision", length = 500)
     private String motivoRescision;
-
-    @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "codcon_origen")
-    private ContratoEntity contratoOrigen;
 
     @Override
     public boolean equals(Object other) {

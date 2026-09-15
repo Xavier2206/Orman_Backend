@@ -15,6 +15,7 @@ import com.orman.backend.property.repository.UnidadRepository;
 import com.orman.backend.property.service.PropertyOwnershipService;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,7 +88,8 @@ class UnidadServiceImplTest {
     void deactivatesAnActiveUnitWhenThereIsNoCurrentContract() {
         UnidadEntity unidad = unidad((short) 1);
         givenLockedUnit(unidad);
-        when(contratoRepository.existsByUnidadCoduniAndEstado(CODUNI, ContratoEstado.VIGENTE))
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI,
+                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE)))
                 .thenReturn(false);
         when(unidadRepository.saveAndFlush(unidad)).thenReturn(unidad);
         when(unidadMapper.toResponse(unidad)).thenReturn(response((short) 0));
@@ -100,7 +102,8 @@ class UnidadServiceImplTest {
         order.verify(unidadRepository).findByCoduniForUpdate(CODUNI);
         order.verify(propertyOwnershipService).assertCurrentPropietaria(authentication,
                 unidad.getPropiedad().getPropietaria());
-        order.verify(contratoRepository).existsByUnidadCoduniAndEstado(CODUNI, ContratoEstado.VIGENTE);
+        order.verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI,
+                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE));
         verify(unidadRepository).saveAndFlush(unidad);
     }
 
@@ -108,15 +111,17 @@ class UnidadServiceImplTest {
     void blocksDeactivationWithACurrentContractWithoutChangingTheUnit() {
         UnidadEntity unidad = unidad((short) 1);
         givenLockedUnit(unidad);
-        when(contratoRepository.existsByUnidadCoduniAndEstado(CODUNI, ContratoEstado.VIGENTE))
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI,
+                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE)))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.deactivate(CODUNI, authentication))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessage("No se puede desactivar la unidad porque tiene un contrato vigente.");
+                .hasMessage("No se puede desactivar la unidad porque tiene un Contrato PROGRAMADO o VIGENTE.");
 
         assertThat(unidad.getEstadoOperativo()).isEqualTo((short) 1);
-        verify(contratoRepository).existsByUnidadCoduniAndEstado(CODUNI, ContratoEstado.VIGENTE);
+        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI,
+                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE));
         verify(unidadRepository, never()).saveAndFlush(any());
     }
 

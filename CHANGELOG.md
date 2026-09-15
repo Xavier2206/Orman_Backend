@@ -4,6 +4,47 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+## Corrección de lógica de Contratos y Pagos — 2026-09-15
+
+### Corregido
+
+- Ciclo contractual simplificado a `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y
+  `RESCINDIDO`; el registro crea el estado efectivo y genera cuotas sin paso de
+  confirmación.
+- Activación programada idempotente, intervalos `[inicio, fin)` sin
+  solapamiento, moneda única `BOB` y monto mensual positivo con dos decimales.
+- Finalización condicionada por fecha, cuotas y pagos en revisión; rescisión
+  condicionada por cuotas pagadas y anulación trazable de periodos posteriores.
+- Pagos diferenciados por `PROPIETARIA` e `INQUILINO`, con registrador y revisor.
+  La propietaria confirma directamente; el inquilino solo presenta QR o
+  transferencia con comprobante para revisión.
+- Confirmación financiera común con bloqueo de cuota, prevención de sobrepago,
+  pagos parciales y un recibo interno por cada pago confirmado.
+- Eventos de pago procesados `AFTER_COMMIT`, de modo que un fallo de
+  notificación no revierte pago, cuota ni recibo. Las cuotas anuladas no
+  generan recordatorios.
+
+### Migraciones
+
+- V16 transforma el ciclo contractual, incorpora `moneda = BOB`, renombra la
+  fecha de registro y rellena cuotas faltantes de datos de desarrollo.
+- V17 incorpora origen de registro y trazabilidad de actores en pagos, con FKs,
+  checks e índices explícitos.
+
+### Compatibilidad
+
+- Se retiran los endpoints de edición/confirmación y renovación especial de
+  contratos. `codcon_origen` queda únicamente como columna histórica legado.
+- Personas, Propiedades, Unidades, Fotografías, Roles, Menús y asignaciones
+  mantienen sus contratos HTTP; la desactivación de Unidad también protege
+  contratos `PROGRAMADO`.
+
+### Verificación
+
+- `./mvnw.cmd clean test`: **BUILD SUCCESS**; 367 pruebas, 0 fallos, 0 errores
+  y 0 omitidas. PostgreSQL 17.6 validó Flyway V1–V17 e Hibernate mantuvo
+  `ddl-auto=validate`.
+
 ## Portada interna de Propiedad — 2026-09-13
 
 ### Agregado

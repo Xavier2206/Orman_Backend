@@ -1,7 +1,7 @@
 package com.orman.backend.contract.entity;
 
 public enum ContratoEstado {
-    BORRADOR,
+    PROGRAMADO,
     VIGENTE,
     FINALIZADO,
     RESCINDIDO

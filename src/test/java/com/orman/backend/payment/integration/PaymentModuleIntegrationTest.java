@@ -1,21 +1,22 @@
 package com.orman.backend.payment.integration;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
+import com.orman.backend.common.exception.BusinessRuleException;
+import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.repository.ContratoRepository;
 import com.orman.backend.contract.repository.CuotaRepository;
+import com.orman.backend.contract.service.CuotaService;
 import com.orman.backend.payment.dto.request.CuentaPagoRequest;
 import com.orman.backend.payment.dto.request.PagoComprobanteRequest;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
-import com.orman.backend.payment.dto.response.CuentaPagoResponse;
 import com.orman.backend.payment.dto.response.PagoResponse;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.service.CuentaPagoService;
-import com.orman.backend.payment.service.PagoComprobanteService;
 import com.orman.backend.payment.service.PagoService;
 import com.orman.backend.payment.service.ReciboService;
 import com.orman.backend.person.entity.Persona;
@@ -34,7 +35,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -56,127 +56,243 @@ class PaymentModuleIntegrationTest {
     @Autowired private ContratoRepository contratoRepository;
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private PagoService pagoService;
-    @Autowired private PagoComprobanteService comprobanteService;
     @Autowired private ReciboService reciboService;
     @Autowired private CuentaPagoService cuentaPagoService;
+    @Autowired private CuotaService cuotaService;
 
     @Test
-    void confirmsPartialAndTotalPaymentsGeneratingReceiptsAndUpdatingQuota() {
-        Persona propietaria = createPersona("PM-OWNER-001");
-        Authentication authentication = authentication(createUsuario("payment.owner", propietaria));
-        CuotaEntity cuota = createCuota(propietaria, "PM-TENANT-001", new BigDecimal("1500.00"));
-        CuentaPagoResponse cuenta = cuentaPagoService.create(new CuentaPagoRequest("Banco de prueba", "1001",
-                "Titular", "https://example.test/qr.png", "Pagar con QR", 0, "1"), authentication);
+    void ownerRegistersCashAsConfirmedWithReceiptQuotaAndActors() {
+        Context context = context("CASH", new BigDecimal("1500.00"));
+        PagoResponse payment = pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("500.00"), MetodoPago.EFECTIVO, null, null), context.ownerAuth());
 
-        PagoResponse efectivo = pagoService.create(cuota.getCodcuo(), pago(new BigDecimal("1000.00"),
-                MetodoPago.EFECTIVO, null), authentication);
-        PagoResponse confirmadoParcial = pagoService.confirm(efectivo.codpag(), authentication);
-        assertThat(confirmadoParcial.estado()).isEqualTo("CONFIRMADO");
-        assertThat(cuotaRepository.findByCodcuo(cuota.getCodcuo()).orElseThrow().getEstado()).isEqualTo(CuotaEstado.PARCIAL);
-        assertThat(reciboService.getByPago(efectivo.codpag(), authentication).codpag()).isEqualTo(efectivo.codpag());
+        assertThat(payment.estado()).isEqualTo("CONFIRMADO");
+        assertThat(payment.origenRegistro()).isEqualTo("PROPIETARIA");
+        assertThat(payment.registradoPor()).isEqualTo(context.owner().getLogin());
+        assertThat(payment.revisadoPor()).isEqualTo(context.owner().getLogin());
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PARCIAL);
+        assertThat(reciboService.getByPago(payment.codpag(), context.ownerAuth()).monto())
+                .isEqualByComparingTo("500.00");
 
-        PagoResponse transferencia = pagoService.create(cuota.getCodcuo(), pago(new BigDecimal("500.00"),
-                MetodoPago.TRANSFERENCIA, cuenta.codcta()), authentication);
-        comprobanteService.create(transferencia.codpag(), new PagoComprobanteRequest("https://example.test/transfer.pdf",
-                "transfer.pdf", "application/pdf", 0), authentication);
-        pagoService.confirm(transferencia.codpag(), authentication);
-        assertThat(cuotaRepository.findByCodcuo(cuota.getCodcuo()).orElseThrow().getEstado()).isEqualTo(CuotaEstado.PAGADA);
-        assertThat(reciboService.getByPago(transferencia.codpag(), authentication).codpag())
-                .isEqualTo(transferencia.codpag());
-        assertThat(pagoService.listByCuota(cuota.getCodcuo(), authentication)).hasSize(2);
+        var quota = cuotaService.listByContrato(context.contract().getCodcon(), context.ownerAuth()).getFirst();
+        assertThat(quota.montoConfirmado()).isEqualByComparingTo("500.00");
+        assertThat(quota.saldo()).isEqualByComparingTo("1000.00");
+        assertThat(quota.montoPendienteRevision()).isZero();
     }
 
     @Test
-    void rejectsAndAnnulsOnlyPendingPaymentsAndProtectsOwnerResources() {
-        Persona propietaria = createPersona("PM-OWNER-002");
-        Authentication authentication = authentication(createUsuario("payment.owner.two", propietaria));
-        CuotaEntity cuota = createCuota(propietaria, "PM-TENANT-002", new BigDecimal("1000.00"));
-        PagoResponse rechazado = pagoService.create(cuota.getCodcuo(), pago(new BigDecimal("100.00"),
-                MetodoPago.EFECTIVO, null), authentication);
-        assertThat(pagoService.reject(rechazado.codpag(), new PagoMotivoRequest("Comprobante inválido"), authentication)
-                .estado()).isEqualTo("RECHAZADO");
-        PagoResponse anulable = pagoService.create(cuota.getCodcuo(), pago(new BigDecimal("100.00"),
-                MetodoPago.EFECTIVO, null), authentication);
-        assertThat(pagoService.annul(anulable.codpag(), new PagoMotivoRequest("Registro duplicado"), authentication)
-                .estado()).isEqualTo("ANULADO");
+    void ownerRegistersVerifiedQrDirectlyWithoutMandatoryProof() {
+        Context context = context("OWNERQR", new BigDecimal("1000.00"));
+        PagoResponse payment = pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("1000.00"), MetodoPago.QR, context.accountId(), null), context.ownerAuth());
 
-        Persona otra = createPersona("PM-OTHER-001");
-        Authentication otherAuthentication = authentication(createUsuario("payment.other", otra));
-        assertThatThrownBy(() -> pagoService.get(rechazado.codpag(), otherAuthentication))
-                .isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> cuentaPagoService.get(
-                cuentaPagoService.create(new CuentaPagoRequest("Banco", "2002", "Titular", null, null, 0, "1"),
-                        authentication).codcta(), otherAuthentication)).isInstanceOf(AccessDeniedException.class);
+        assertThat(payment.estado()).isEqualTo("CONFIRMADO");
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+        assertThat(reciboService.getByPago(payment.codpag(), context.ownerAuth()).metodo()).isEqualTo("QR");
     }
 
-    private PagoRequest pago(BigDecimal monto, MetodoPago metodo, Integer codcta) {
-        return new PagoRequest(monto, metodo, codcta, "REF-" + UUID.randomUUID(), LocalDateTime.now(), UUID.randomUUID());
+    @Test
+    void rejectsDirectOwnerOverpayment() {
+        Context context = context("OVERPAY", new BigDecimal("1000.00"));
+        assertThatThrownBy(() -> pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("1000.01"), MetodoPago.EFECTIVO, null, null), context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("saldo");
     }
 
-    private CuotaEntity createCuota(Persona propietaria, String tenantCi, BigDecimal monto) {
-        PropiedadEntity propiedad = new PropiedadEntity();
-        propiedad.setNombre("Propiedad de pagos " + tenantCi);
-        propiedad.setTipo("CASA");
-        propiedad.setDireccion("Calle de prueba");
-        propiedad.setCiudad("La Paz");
-        propiedad.setPropietaria(propietaria);
-        propiedad.setInversionInicial(BigDecimal.ZERO);
-        propiedad.setEstado((short) 1);
-        propiedad = propiedadRepository.saveAndFlush(propiedad);
-        UnidadEntity unidad = new UnidadEntity();
-        unidad.setPropiedad(propiedad);
-        unidad.setNombre("Unidad de pagos " + tenantCi);
-        unidad.setTipoUnidad("DEPARTAMENTO");
-        unidad.setArea(new BigDecimal("40.00"));
-        unidad.setDormitorios((short) 1);
-        unidad.setBanos((short) 1);
-        unidad.setPiso(1);
-        unidad.setPrecioBase(monto);
-        unidad.setEstadoOperativo((short) 1);
-        unidad = unidadRepository.saveAndFlush(unidad);
-        ContratoEntity contrato = new ContratoEntity();
-        contrato.setUnidad(unidad);
-        contrato.setInquilino(createPersona(tenantCi));
-        contrato.setFechaInicio(LocalDate.of(2026, 9, 1));
-        contrato.setFechaFin(LocalDate.of(2027, 9, 1));
-        contrato.setMontoMensual(monto);
-        contrato.setGarantia(BigDecimal.ZERO);
-        contrato.setEstado(ContratoEstado.VIGENTE);
-        contrato.setFechaConfirmacion(LocalDateTime.now());
-        contrato = contratoRepository.saveAndFlush(contrato);
-        CuotaEntity cuota = new CuotaEntity();
-        cuota.setContrato(contrato);
-        cuota.setPeriodo(LocalDate.of(2026, 9, 1));
-        cuota.setFechaVencimiento(LocalDate.of(2026, 9, 1));
-        cuota.setMonto(monto);
-        cuota.setEstado(CuotaEstado.PENDIENTE);
-        return cuotaRepository.saveAndFlush(cuota);
+    @Test
+    void tenantQrRequiresProofAndTenantCashIsRejected() {
+        Context context = context("TENANTRULES", new BigDecimal("1000.00"));
+        assertThatThrownBy(() -> pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("100.00"), MetodoPago.QR, context.accountId(), null), context.tenantAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("comprobante");
+
+        PagoResponse qrPending = pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("100.00"), MetodoPago.QR, context.accountId(), proof()), context.tenantAuth());
+        assertThat(qrPending.estado()).isEqualTo("PENDIENTE_REVISION");
+        assertThat(qrPending.origenRegistro()).isEqualTo("INQUILINO");
+
+        assertThatThrownBy(() -> pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null, proof()), context.tenantAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("efectivo");
     }
 
-    private Persona createPersona(String ci) {
-        Persona persona = new Persona();
-        persona.setCi(ci);
-        persona.setNombre("Persona de pagos");
-        persona.setGenero('F');
-        persona.setEstado((short) 1);
-        persona.setCorreo(ci.toLowerCase() + "@example.test");
-        persona.setTelefono("70000000");
-        persona.setTipoPersona('A');
-        return personaRepository.saveAndFlush(persona);
+    @Test
+    void tenantPresentsTransferPendingAndOwnerConfirmsWithReceiptAndTrace() {
+        Context context = context("TRANSFER", new BigDecimal("1000.00"));
+        PagoResponse pending = pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("1000.00"), MetodoPago.TRANSFERENCIA, context.accountId(), proof()),
+                context.tenantAuth());
+
+        assertThat(pending.estado()).isEqualTo("PENDIENTE_REVISION");
+        assertThat(pending.origenRegistro()).isEqualTo("INQUILINO");
+        assertThat(pending.registradoPor()).isEqualTo(context.tenant().getLogin());
+        assertThat(pending.revisadoPor()).isNull();
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+        assertThatThrownBy(() -> reciboService.getByPago(pending.codpag(), context.ownerAuth()))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        PagoResponse confirmed = pagoService.confirm(pending.codpag(), context.ownerAuth());
+        assertThat(confirmed.estado()).isEqualTo("CONFIRMADO");
+        assertThat(confirmed.revisadoPor()).isEqualTo(context.owner().getLogin());
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+        assertThat(reciboService.getByPago(pending.codpag(), context.ownerAuth()).codpag()).isEqualTo(pending.codpag());
     }
 
-    private Usuario createUsuario(String login, Persona persona) {
-        Usuario usuario = new Usuario();
-        usuario.setLogin(login);
-        usuario.setPasswd("hash-no-expuesto");
-        usuario.setEstado((short) 1);
-        usuario.setPersona(persona);
-        usuario.setFechaCreacion(LocalDateTime.now());
-        return usuarioRepository.saveAndFlush(usuario);
+    @Test
+    void ownerRejectsTenantPaymentWithoutChangingQuotaOrCreatingReceipt() {
+        Context context = context("REJECT", new BigDecimal("1000.00"));
+        PagoResponse pending = presentQr(context, new BigDecimal("400.00"));
+        PagoResponse rejected = pagoService.reject(pending.codpag(), new PagoMotivoRequest("No corresponde"),
+                context.ownerAuth());
+
+        assertThat(rejected.estado()).isEqualTo("RECHAZADO");
+        assertThat(rejected.revisadoPor()).isEqualTo(context.owner().getLogin());
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+        assertThatThrownBy(() -> reciboService.getByPago(pending.codpag(), context.ownerAuth()))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
-    private Authentication authentication(Usuario usuario) {
-        return new TestingAuthenticationToken(new AuthenticatedUser(usuario.getLogin(), UUID.randomUUID()), null,
-                List.of(new SimpleGrantedAuthority("ROLE_PROPIETARIO")));
+    @Test
+    void ownerAnnulsOnlyPendingTenantRecordAndTracksReviewer() {
+        Context context = context("ANNUL", new BigDecimal("1000.00"));
+        PagoResponse pending = presentQr(context, new BigDecimal("200.00"));
+        PagoResponse annulled = pagoService.annul(pending.codpag(), new PagoMotivoRequest("Duplicado"),
+                context.ownerAuth());
+        assertThat(annulled.estado()).isEqualTo("ANULADO");
+        assertThat(annulled.revisadoPor()).isEqualTo(context.owner().getLogin());
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void twoConfirmedPartialPaymentsCompleteQuotaAndCreateTwoReceipts() {
+        Context context = context("PARTIAL", new BigDecimal("1500.00"));
+        PagoResponse first = pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("500.00"), MetodoPago.EFECTIVO, null, null), context.ownerAuth());
+        PagoResponse second = presentQr(context, new BigDecimal("1000.00"));
+        pagoService.confirm(second.codpag(), context.ownerAuth());
+
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+        assertThat(reciboService.getByPago(first.codpag(), context.ownerAuth()).codrec()).isNotNull();
+        assertThat(reciboService.getByPago(second.codpag(), context.ownerAuth()).codrec()).isNotNull();
+        assertThat(reciboService.getByPago(first.codpag(), context.ownerAuth()).codrec())
+                .isNotEqualTo(reciboService.getByPago(second.codpag(), context.ownerAuth()).codrec());
+    }
+
+    @Test
+    void annulledQuotaNeverAcceptsPayment() {
+        Context context = context("ANNULLEDQUOTA", new BigDecimal("1000.00"));
+        context.cuota().setEstado(CuotaEstado.ANULADA);
+        cuotaRepository.saveAndFlush(context.cuota());
+        assertThatThrownBy(() -> pagoService.create(context.cuota().getCodcuo(),
+                request(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null, null), context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("no admite");
+    }
+
+    private PagoResponse presentQr(Context context, BigDecimal amount) {
+        return pagoService.create(context.cuota().getCodcuo(),
+                request(amount, MetodoPago.QR, context.accountId(), proof()), context.tenantAuth());
+    }
+
+    private PagoRequest request(BigDecimal amount, MetodoPago method, Integer accountId,
+                                PagoComprobanteRequest proof) {
+        return new PagoRequest(amount, method, accountId, "REF-" + UUID.randomUUID(), LocalDateTime.now(),
+                UUID.randomUUID(), proof);
+    }
+
+    private PagoComprobanteRequest proof() {
+        return new PagoComprobanteRequest("https://example.test/comprobante.pdf", "comprobante.pdf",
+                "application/pdf", 0);
+    }
+
+    private CuotaEntity cuota(Context context) {
+        return cuotaRepository.findByCodcuo(context.cuota().getCodcuo()).orElseThrow();
+    }
+
+    private Context context(String prefix, BigDecimal amount) {
+        String token = Long.toUnsignedString(System.nanoTime(), 36);
+        Persona ownerPerson = person(prefix + "O" + token);
+        Usuario owner = user("pay.owner." + token, ownerPerson);
+        Persona tenantPerson = person(prefix + "T" + token);
+        Usuario tenant = user("pay.tenant." + token, tenantPerson);
+
+        PropiedadEntity property = new PropiedadEntity();
+        property.setNombre("Propiedad " + prefix + token);
+        property.setTipo("CASA");
+        property.setDireccion("Calle de prueba");
+        property.setCiudad("La Paz");
+        property.setPropietaria(ownerPerson);
+        property.setInversionInicial(BigDecimal.ZERO);
+        property.setEstado((short) 1);
+        property = propiedadRepository.saveAndFlush(property);
+
+        UnidadEntity unit = new UnidadEntity();
+        unit.setPropiedad(property);
+        unit.setNombre("Unidad " + prefix + token);
+        unit.setTipoUnidad("DEPARTAMENTO");
+        unit.setArea(new BigDecimal("40.00"));
+        unit.setDormitorios((short) 1);
+        unit.setBanos((short) 1);
+        unit.setPiso(1);
+        unit.setPrecioBase(amount);
+        unit.setEstadoOperativo((short) 1);
+        unit = unidadRepository.saveAndFlush(unit);
+
+        ContratoEntity contract = new ContratoEntity();
+        contract.setUnidad(unit);
+        contract.setInquilino(tenantPerson);
+        contract.setFechaInicio(LocalDate.of(2026, 1, 1));
+        contract.setFechaFin(LocalDate.of(2027, 1, 1));
+        contract.setMontoMensual(amount);
+        contract.setMoneda("BOB");
+        contract.setGarantia(BigDecimal.ZERO);
+        contract.setEstado(ContratoEstado.VIGENTE);
+        contract.setFechaRegistro(LocalDateTime.now());
+        contract = contratoRepository.saveAndFlush(contract);
+
+        CuotaEntity quota = new CuotaEntity();
+        quota.setContrato(contract);
+        quota.setPeriodo(LocalDate.of(2026, 9, 1));
+        quota.setFechaVencimiento(LocalDate.of(2026, 9, 1));
+        quota.setMonto(amount);
+        quota.setEstado(CuotaEstado.PENDIENTE);
+        quota = cuotaRepository.saveAndFlush(quota);
+
+        Authentication ownerAuth = authentication(owner, "ROLE_PROPIETARIO");
+        Integer accountId = cuentaPagoService.create(new CuentaPagoRequest("Banco", token, "Carmen", null,
+                null, 0, "1"), ownerAuth).codcta();
+        return new Context(owner, tenant, ownerAuth, authentication(tenant, "ROLE_INQUILINO"), contract, quota,
+                accountId);
+    }
+
+    private Persona person(String ci) {
+        String normalized = ci.substring(0, Math.min(20, ci.length()));
+        Persona person = new Persona();
+        person.setCi(normalized);
+        person.setNombre("Persona de pagos");
+        person.setGenero('F');
+        person.setEstado((short) 1);
+        person.setCorreo(normalized.toLowerCase() + "@example.test");
+        person.setTelefono("70000000");
+        person.setTipoPersona('A');
+        return personaRepository.saveAndFlush(person);
+    }
+
+    private Usuario user(String login, Persona person) {
+        Usuario user = new Usuario();
+        user.setLogin(login.substring(0, Math.min(30, login.length())));
+        user.setPasswd("hash-no-expuesto");
+        user.setEstado((short) 1);
+        user.setPersona(person);
+        user.setFechaCreacion(LocalDateTime.now());
+        return usuarioRepository.saveAndFlush(user);
+    }
+
+    private Authentication authentication(Usuario user, String role) {
+        return new TestingAuthenticationToken(new AuthenticatedUser(user.getLogin(), UUID.randomUUID()), null,
+                List.of(new SimpleGrantedAuthority(role)));
+    }
+
+    private record Context(Usuario owner, Usuario tenant, Authentication ownerAuth, Authentication tenantAuth,
+                           ContratoEntity contract, CuotaEntity cuota, Integer accountId) {
     }
 }

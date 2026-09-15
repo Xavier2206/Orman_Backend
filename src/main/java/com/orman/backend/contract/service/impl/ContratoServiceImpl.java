@@ -3,7 +3,6 @@ package com.orman.backend.contract.service.impl;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
-import com.orman.backend.contract.dto.request.ContratoRenovacionRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
@@ -11,6 +10,7 @@ import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.mapper.ContratoMapper;
 import com.orman.backend.contract.repository.ContratoRepository;
+import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.contract.service.ContractOwnershipService;
 import com.orman.backend.contract.service.ContratoService;
 import com.orman.backend.contract.service.CuotaService;
@@ -20,7 +20,10 @@ import com.orman.backend.property.entity.UnidadEntity;
 import com.orman.backend.property.service.PropertyOwnershipService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ContratoServiceImpl implements ContratoService {
 
     private static final short ACTIVO = 1;
+    private static final String MONEDA_BOB = "BOB";
+    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
 
     private final ContratoRepository contratoRepository;
     private final PersonaRepository personaRepository;
@@ -42,15 +47,28 @@ public class ContratoServiceImpl implements ContratoService {
     private final ContractOwnershipService contractOwnershipService;
     private final PropertyOwnershipService propertyOwnershipService;
     private final CuotaService cuotaService;
+    private final CuotaRepository cuotaRepository;
+    private final Clock clock;
 
     @Override
     @Transactional
-    public ContratoResponse createDraft(Integer coduni, ContratoRequest request, Authentication authentication) {
-        UnidadEntity unidad = contractOwnershipService.findOwnedUnidad(coduni, authentication);
+    public ContratoResponse create(Integer coduni, ContratoRequest request, Authentication authentication) {
+        UnidadEntity unidad = contractOwnershipService.findOwnedUnidadForUpdate(coduni, authentication);
         assertUnidadOperativa(unidad);
+        assertPropiedadHabilitada(unidad);
         validateDates(request.fechaInicio(), request.fechaFin());
+        validateMoney(request.montoMensual(), request.garantia());
         Persona inquilino = findActiveInquilino(request.codperInquilino());
-        ContratoEntity saved = contratoRepository.saveAndFlush(contratoMapper.toEntity(request, unidad, inquilino));
+        if (contratoRepository.existsActiveOverlap(coduni, request.fechaInicio(), request.fechaFin())) {
+            throw new ConflictException("El período del Contrato se solapa con otro Contrato PROGRAMADO o VIGENTE.");
+        }
+        LocalDate fechaActual = currentDate();
+        ContratoEstado estado = request.fechaInicio().isAfter(fechaActual)
+                ? ContratoEstado.PROGRAMADO : ContratoEstado.VIGENTE;
+        ContratoEntity saved = contratoRepository.saveAndFlush(contratoMapper.toEntity(request, unidad, inquilino,
+                estado, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)));
+        assertCurrency(saved.getMoneda());
+        cuotaService.generatePending(saved);
         return contratoMapper.toResponse(saved);
     }
 
@@ -82,51 +100,22 @@ public class ContratoServiceImpl implements ContratoService {
 
     @Override
     @Transactional
-    public ContratoResponse updateDraft(Integer codcon, ContratoRequest request, Authentication authentication) {
-        ContratoEntity contrato = contractOwnershipService.findOwnedContratoForUpdate(codcon, authentication);
-        assertState(contrato, ContratoEstado.BORRADOR, "Solo se puede editar un Contrato en borrador.");
-        validateDates(request.fechaInicio(), request.fechaFin());
-        Persona inquilino = findActiveInquilino(request.codperInquilino());
-        contratoMapper.update(contrato, request, inquilino);
-        return contratoMapper.toResponse(contratoRepository.saveAndFlush(contrato));
-    }
-
-    @Override
-    @Transactional
-    public ContratoResponse confirm(Integer codcon, Authentication authentication) {
-        ContratoEntity contrato = contractOwnershipService.findOwnedContratoForUpdate(codcon, authentication);
-        assertState(contrato, ContratoEstado.BORRADOR, "Solo se puede confirmar un Contrato en borrador.");
-        UnidadEntity unidad = contractOwnershipService.findOwnedUnidadForUpdate(contrato.getUnidad().getCoduni(), authentication);
-        assertUnidadOperativa(unidad);
-        if (contratoRepository.existsByUnidadCoduniAndEstado(unidad.getCoduni(), ContratoEstado.VIGENTE)) {
-            throw new ConflictException("La Unidad ya tiene un Contrato vigente.");
-        }
-        contrato.setEstado(ContratoEstado.VIGENTE);
-        contrato.setFechaConfirmacion(LocalDateTime.now(ZoneOffset.UTC));
-        ContratoEntity saved = contratoRepository.saveAndFlush(contrato);
-        cuotaService.generatePending(saved);
-        return contratoMapper.toResponse(saved);
-    }
-
-    @Override
-    @Transactional
     public ContratoResponse finish(Integer codcon, Authentication authentication) {
         ContratoEntity contrato = contractOwnershipService.findOwnedContratoForUpdate(codcon, authentication);
         assertState(contrato, ContratoEstado.VIGENTE, "Solo se puede finalizar un Contrato vigente.");
+        if (currentDate().isBefore(contrato.getFechaFin())) {
+            throw new BusinessRuleException("El Contrato no puede finalizar antes de su fecha de fin.");
+        }
+        if (cuotaRepository.existsPendingReviewPaymentByContrato(codcon)) {
+            throw new BusinessRuleException("El Contrato tiene Pagos pendientes de revisión.");
+        }
+        if (cuotaRepository.existsByContratoAndEstados(codcon,
+                java.util.List.of(com.orman.backend.contract.entity.CuotaEstado.PENDIENTE,
+                        com.orman.backend.contract.entity.CuotaEstado.PARCIAL))) {
+            throw new BusinessRuleException("Todas las Cuotas exigibles deben estar pagadas para finalizar.");
+        }
         contrato.setEstado(ContratoEstado.FINALIZADO);
         return contratoMapper.toResponse(contratoRepository.saveAndFlush(contrato));
-    }
-
-    @Override
-    @Transactional
-    public ContratoResponse renew(Integer codcon, ContratoRenovacionRequest request, Authentication authentication) {
-        ContratoEntity origen = contractOwnershipService.findOwnedContrato(codcon, authentication);
-        if (origen.getEstado() == ContratoEstado.BORRADOR) {
-            throw new BusinessRuleException("Un Contrato en borrador no puede renovarse.");
-        }
-        validateDates(request.fechaInicio(), request.fechaFin());
-        ContratoEntity saved = contratoRepository.saveAndFlush(contratoMapper.toRenewalEntity(request, origen));
-        return contratoMapper.toResponse(saved);
     }
 
     @Override
@@ -138,6 +127,19 @@ public class ContratoServiceImpl implements ContratoService {
                 || !request.fechaRescision().isBefore(contrato.getFechaFin())) {
             throw new BusinessRuleException("La fecha de rescisión debe pertenecer al período contractual.");
         }
+        if (request.fechaRescision().getDayOfMonth() != 1) {
+            throw new BusinessRuleException("La fecha de rescisión debe ser el primer día del mes.");
+        }
+        if (request.fechaRescision().isAfter(currentDate().withDayOfMonth(1))) {
+            throw new BusinessRuleException("La fecha de rescisión no puede corresponder a un período futuro.");
+        }
+        if (cuotaRepository.existsPendingReviewPaymentByContrato(codcon)) {
+            throw new BusinessRuleException("El Contrato tiene Pagos pendientes de revisión que deben resolverse.");
+        }
+        if (cuotaRepository.existsUnpaidThroughPeriod(codcon, request.fechaRescision())) {
+            throw new BusinessRuleException("Todas las Cuotas hasta el período de rescisión inclusive deben estar pagadas.");
+        }
+        cuotaRepository.annulAfterPeriod(codcon, request.fechaRescision());
         contrato.setEstado(ContratoEstado.RESCINDIDO);
         contrato.setFechaRescision(request.fechaRescision());
         contrato.setMotivoRescision(request.motivoRescision().trim());
@@ -159,6 +161,12 @@ public class ContratoServiceImpl implements ContratoService {
         }
     }
 
+    private void assertPropiedadHabilitada(UnidadEntity unidad) {
+        if (!Short.valueOf(ACTIVO).equals(unidad.getPropiedad().getEstado())) {
+            throw new BusinessRuleException("La Propiedad debe estar habilitada para registrar nuevos Contratos.");
+        }
+    }
+
     private void validateDates(LocalDate fechaInicio, LocalDate fechaFin) {
         if (!fechaInicio.isBefore(fechaFin)) {
             throw new BusinessRuleException("La fecha de inicio debe ser anterior a la fecha de fin.");
@@ -166,6 +174,26 @@ public class ContratoServiceImpl implements ContratoService {
         if (fechaInicio.getDayOfMonth() != 1 || fechaFin.getDayOfMonth() != 1) {
             throw new BusinessRuleException("Las fechas del Contrato deben ser el primer día del mes.");
         }
+    }
+
+    private void validateMoney(BigDecimal montoMensual, BigDecimal garantia) {
+        if (montoMensual == null || montoMensual.compareTo(BigDecimal.ZERO) <= 0
+                || montoMensual.scale() > 2) {
+            throw new BusinessRuleException("El monto mensual debe ser mayor a cero y tener máximo dos decimales.");
+        }
+        if (garantia == null || garantia.compareTo(BigDecimal.ZERO) < 0 || garantia.scale() > 2) {
+            throw new BusinessRuleException("La garantía no puede ser negativa y debe tener máximo dos decimales.");
+        }
+    }
+
+    private void assertCurrency(String moneda) {
+        if (!MONEDA_BOB.equals(moneda)) {
+            throw new BusinessRuleException("ORMAN admite únicamente moneda BOB.");
+        }
+    }
+
+    private LocalDate currentDate() {
+        return LocalDate.now(clock.withZone(ZONA_NEGOCIO));
     }
 
     private void assertState(ContratoEntity contrato, ContratoEstado expected, String message) {

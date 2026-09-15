@@ -32,19 +32,20 @@ class ContratoControllerWebMvcTest {
     @MockitoBean private ContratoService contratoService;
 
     @Test
-    void createsDraftWithCanonicalLocation() throws Exception {
-        when(contratoService.createDraft(any(), any(), any())).thenReturn(response(12));
+    void createsContractWithCanonicalLocation() throws Exception {
+        when(contratoService.create(any(), any(), any())).thenReturn(response(12));
 
         mockMvc.perform(post("/api/v1/unidades/8/contratos").contentType(MediaType.APPLICATION_JSON)
                         .content(validJson()))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/api/v1/contratos/12"))
-                .andExpect(jsonPath("$.estado").value("BORRADOR"));
+                .andExpect(jsonPath("$.estado").value("VIGENTE"))
+                .andExpect(jsonPath("$.moneda").value("BOB"));
     }
 
     @Test
     void returnsProblemDetailForConflictValidationAndInvalidState() throws Exception {
-        when(contratoService.createDraft(any(), any(), any())).thenThrow(new ConflictException("Conflicto de prueba."));
+        when(contratoService.create(any(), any(), any())).thenThrow(new ConflictException("Conflicto de prueba."));
         mockMvc.perform(post("/api/v1/unidades/8/contratos").contentType(MediaType.APPLICATION_JSON)
                         .content(validJson()))
                 .andExpect(status().isConflict())
@@ -53,6 +54,11 @@ class ContratoControllerWebMvcTest {
 
         mockMvc.perform(post("/api/v1/unidades/8/contratos").contentType(MediaType.APPLICATION_JSON)
                         .content(validJson().replace("\"montoMensual\":2500.00", "\"montoMensual\":-1")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(post("/api/v1/unidades/8/contratos").contentType(MediaType.APPLICATION_JSON)
+                        .content(validJson().replace("\"montoMensual\":2500.00", "\"montoMensual\":2500.001")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
 
@@ -66,7 +72,7 @@ class ContratoControllerWebMvcTest {
         when(contratoService.list(any(), any(), any(), any())).thenReturn(
                 new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
 
-        mockMvc.perform(get("/api/v1/contratos").param("estado", "BORRADOR"))
+        mockMvc.perform(get("/api/v1/contratos").param("estado", "PROGRAMADO"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].codcon").value(12));
     }
@@ -78,6 +84,7 @@ class ContratoControllerWebMvcTest {
 
     private ContratoResponse response(Integer codcon) {
         return new ContratoResponse(codcon, 8, 4, LocalDate.of(2026, 9, 1), LocalDate.of(2027, 9, 1),
-                new BigDecimal("2500.00"), new BigDecimal("2500.00"), "BORRADOR", null, null, null, null);
+                new BigDecimal("2500.00"), "BOB", new BigDecimal("2500.00"), "VIGENTE",
+                java.time.LocalDateTime.of(2026, 9, 1, 12, 0), null, null);
     }
 }

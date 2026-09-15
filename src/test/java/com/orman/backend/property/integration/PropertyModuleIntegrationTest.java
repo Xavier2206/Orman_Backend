@@ -202,7 +202,7 @@ class PropertyModuleIntegrationTest {
 
         assertThatThrownBy(() -> unidadService.deactivate(unit.coduni(), ownerAuthentication))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessage("No se puede desactivar la unidad porque tiene un contrato vigente.");
+                .hasMessage("No se puede desactivar la unidad porque tiene un Contrato PROGRAMADO o VIGENTE.");
 
         assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
                 .isEqualTo((short) 1);
@@ -223,7 +223,9 @@ class PropertyModuleIntegrationTest {
         Persona tenant = createPersona("PM-ACTION-TENANT-002");
         ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
 
-        contratoService.finish(contract.codcon(), ownerAuthentication);
+        ContratoEntity storedContract = contratoRepository.findById(contract.codcon()).orElseThrow();
+        storedContract.setEstado(ContratoEstado.FINALIZADO);
+        contratoRepository.saveAndFlush(storedContract);
 
         assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
                 .isEqualTo((short) 1);
@@ -241,8 +243,11 @@ class PropertyModuleIntegrationTest {
         Persona tenant = createPersona("PM-ACTION-TENANT-003");
         ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
 
-        contratoService.rescind(contract.codcon(), new RescisionContratoRequest(
-                LocalDate.of(2026, 6, 1), "Rescisión de prueba."), ownerAuthentication);
+        ContratoEntity storedContract = contratoRepository.findById(contract.codcon()).orElseThrow();
+        storedContract.setEstado(ContratoEstado.RESCINDIDO);
+        storedContract.setFechaRescision(LocalDate.of(2026, 6, 1));
+        storedContract.setMotivoRescision("Rescisión de prueba.");
+        contratoRepository.saveAndFlush(storedContract);
 
         assertThat(unidadRepository.findById(unit.coduni()).orElseThrow().getEstadoOperativo())
                 .isEqualTo((short) 1);
@@ -386,7 +391,7 @@ class PropertyModuleIntegrationTest {
                 ownerAuthentication);
         UnidadResponse disabled = unidadService.create(property.codprop(), unidadRequest("S-04", (short) 0),
                 ownerAuthentication);
-        createContract(draft.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.BORRADOR);
+        createContract(draft.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.PROGRAMADO);
         createContract(finished.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.FINALIZADO);
         createContract(rescinded.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.RESCINDIDO);
         createContract(disabled.coduni(), property.codprop(), propietaria, tenant, ContratoEstado.VIGENTE);
@@ -439,11 +444,10 @@ class PropertyModuleIntegrationTest {
         contrato.setFechaInicio(LocalDate.of(2026, 1, 1));
         contrato.setFechaFin(LocalDate.of(2027, 1, 1));
         contrato.setMontoMensual(new BigDecimal("1000.00"));
+        contrato.setMoneda("BOB");
         contrato.setGarantia(new BigDecimal("1000.00"));
         contrato.setEstado(estado);
-        if (estado != ContratoEstado.BORRADOR) {
-            contrato.setFechaConfirmacion(LocalDateTime.now());
-        }
+        contrato.setFechaRegistro(LocalDateTime.now());
         if (estado == ContratoEstado.RESCINDIDO) {
             contrato.setFechaRescision(LocalDate.of(2026, 6, 1));
             contrato.setMotivoRescision("Rescisión de prueba");
@@ -452,10 +456,9 @@ class PropertyModuleIntegrationTest {
     }
 
     private ContratoResponse createConfirmedContract(Integer coduni, Persona tenant, Authentication authentication) {
-        ContratoResponse draft = contratoService.createDraft(coduni,
+        return contratoService.create(coduni,
                 new ContratoRequest(tenant.getCodper(), LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1),
                         new BigDecimal("1000.00"), new BigDecimal("1000.00")), authentication);
-        return contratoService.confirm(draft.codcon(), authentication);
     }
 
     private Persona createPersona(String ci) {

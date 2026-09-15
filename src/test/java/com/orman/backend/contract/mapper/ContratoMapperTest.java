@@ -1,7 +1,6 @@
 package com.orman.backend.contract.mapper;
 
 import com.orman.backend.contract.dto.request.ContratoArchivoRequest;
-import com.orman.backend.contract.dto.request.ContratoRenovacionRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
@@ -23,25 +22,22 @@ class ContratoMapperTest {
     private final CuotaMapper cuotaMapper = new CuotaMapper();
 
     @Test
-    void mapsDraftRenewalFileAndPendingQuotaWithoutExposingEntities() {
+    void mapsRegisteredContractFileAndPendingQuotaWithoutExposingEntities() {
         UnidadEntity unidad = unidad(9);
         Persona inquilino = persona(4);
-        ContratoEntity contrato = contratoMapper.toEntity(request(), unidad, inquilino);
+        ContratoEntity contrato = contratoMapper.toEntity(request(), unidad, inquilino, ContratoEstado.VIGENTE,
+                java.time.LocalDateTime.of(2026, 9, 1, 12, 0));
         ReflectionTestUtils.setField(contrato, "codcon", 12);
 
-        assertThat(contrato.getEstado()).isEqualTo(ContratoEstado.BORRADOR);
+        assertThat(contrato.getEstado()).isEqualTo(ContratoEstado.VIGENTE);
+        assertThat(contrato.getMoneda()).isEqualTo("BOB");
         assertThat(contratoMapper.toResponse(contrato).coduni()).isEqualTo(9);
-
-        ContratoEntity renovacion = contratoMapper.toRenewalEntity(
-                new ContratoRenovacionRequest(LocalDate.of(2027, 9, 1), LocalDate.of(2028, 9, 1),
-                        new BigDecimal("2700.00"), new BigDecimal("2700.00")), contrato);
-        assertThat(renovacion.getContratoOrigen()).isSameAs(contrato);
-        assertThat(renovacion.getInquilino()).isSameAs(inquilino);
 
         CuotaEntity cuota = cuotaMapper.toPendingEntity(contrato, LocalDate.of(2026, 9, 1));
         ReflectionTestUtils.setField(cuota, "codcuo", 30);
         assertThat(cuota.getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
-        assertThat(cuotaMapper.toResponse(cuota).fechaVencimiento()).isEqualTo(LocalDate.of(2026, 9, 1));
+        assertThat(cuotaMapper.toResponse(cuota, BigDecimal.ZERO, BigDecimal.ZERO).fechaVencimiento())
+                .isEqualTo(LocalDate.of(2026, 9, 1));
 
         var archivo = archivoMapper.toEntity(new ContratoArchivoRequest("https://example.test/contrato.pdf",
                 " Contrato firmado.pdf ", " ", 0), contrato);

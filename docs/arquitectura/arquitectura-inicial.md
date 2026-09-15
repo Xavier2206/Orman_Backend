@@ -65,17 +65,20 @@ Una autenticación insuficientemente autorizada devuelve `403 ACCESS_DENIED`; ro
 ## Evolución
 
 La Etapa 4.3 agrega el módulo `payment`, dependiente de `contract`, `property`,
-`person` y `user`, sin dependencias inversas. Sus servicios verifican
-`Usuario -> Persona -> Propiedad -> Unidad -> Contrato -> Cuota -> Pago`; la
-confirmación bloquea la cuota, recalcula su estado a partir de pagos confirmados
-y genera el recibo en una misma transacción. Sus controladores usan el rol
-existente `ROLE_PROPIETARIO`; no se modificó la seguridad transversal.
+`person` y `user`, sin dependencias inversas. La corrección V16/V17 distingue
+contratos programados y vigentes, serializa por Unidad la validación de
+intervalos y diferencia pagos registrados por propietaria de los presentados
+por inquilino. Una única operación financiera bloquea la cuota, recalcula su
+estado y genera el recibo dentro de la transacción. Solo el alta de pago admite
+`ROLE_INQUILINO`, verificando la Persona inquilina de la cuota; la revisión
+permanece exclusiva de `ROLE_PROPIETARIO`.
 
 La Etapa 4.4 agrega `notification`, con una FK de destinatario a `Usuario` y
 referencias escalares a Cuota o Pago, sin relaciones JPA polimórficas. El
 módulo consulta solo notificaciones propias y marca su lectura de forma
-idempotente. Consume eventos internos publicados por `payment`; el scheduler
-diario de cuotas usa `America/La_Paz`. No incorpora mensajería externa ni
+idempotente. Consume eventos internos publicados por `payment` después del
+commit financiero y contiene sus fallos; el scheduler diario de cuotas usa
+`America/La_Paz` y excluye cuotas pagadas o anuladas. No incorpora mensajería externa ni
 modifica JWT, seguridad, roles, menús o procesos.
 
 La modularidad facilitará crecer dentro del mismo despliegue. Una separación en microservicios solo podría considerarse ante necesidades técnicas y operativas demostrables; no es parte del plan actual.

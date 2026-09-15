@@ -46,7 +46,10 @@ public class CuotaServiceImpl implements CuotaService {
     public List<CuotaResponse> listByContrato(Integer codcon, Authentication authentication) {
         contractOwnershipService.findOwnedContrato(codcon, authentication);
         return cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(codcon).stream()
-                .map(cuotaMapper::toResponse).toList();
+                .map(cuota -> cuotaMapper.toResponse(cuota,
+                        cuotaRepository.sumPaymentAmountByState(cuota.getCodcuo(), "CONFIRMADO"),
+                        cuotaRepository.sumPaymentAmountByState(cuota.getCodcuo(), "PENDIENTE_REVISION")))
+                .toList();
     }
 
     private List<LocalDate> periods(ContratoEntity contrato) {

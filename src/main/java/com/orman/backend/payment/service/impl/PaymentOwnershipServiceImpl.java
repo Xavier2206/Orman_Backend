@@ -32,6 +32,11 @@ public class PaymentOwnershipServiceImpl implements PaymentOwnershipService {
     }
 
     @Override
+    public CuotaEntity findCuota(Integer codcuo) {
+        return cuotaRepository.findByCodcuo(codcuo).orElseThrow(() -> cuotaNotFound(codcuo));
+    }
+
+    @Override
     @Transactional
     public CuotaEntity findOwnedCuotaForUpdate(Integer codcuo, Authentication authentication) {
         CuotaEntity cuota = cuotaRepository.findByCodcuoForUpdate(codcuo).orElseThrow(() -> cuotaNotFound(codcuo));
@@ -56,10 +61,15 @@ public class PaymentOwnershipServiceImpl implements PaymentOwnershipService {
 
     @Override
     public CuentaPagoEntity findOwnedCuentaPago(Integer codcta, Authentication authentication) {
-        CuentaPagoEntity cuenta = cuentaPagoRepository.findByCodcta(codcta)
-                .orElseThrow(() -> new ResourceNotFoundException("La CuentaPago solicitada no existe."));
+        CuentaPagoEntity cuenta = findCuentaPago(codcta);
         propertyOwnershipService.assertCurrentPropietaria(authentication, cuenta.getPropietaria());
         return cuenta;
+    }
+
+    @Override
+    public CuentaPagoEntity findCuentaPago(Integer codcta) {
+        return cuentaPagoRepository.findByCodcta(codcta)
+                .orElseThrow(() -> new ResourceNotFoundException("La CuentaPago solicitada no existe."));
     }
 
     private void assertOwner(Authentication authentication, CuotaEntity cuota) {

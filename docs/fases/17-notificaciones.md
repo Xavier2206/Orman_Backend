@@ -27,13 +27,15 @@ integraciones externas.
 
 - `PagoConfirmadoEvent`, `PagoRechazadoEvent` y `ComprobanteRecibidoEvent`
   son eventos internos de Spring publicados por `payment` después de la
-  transición correspondiente. El handler del módulo `notification` crea las
-  notificaciones en la misma transacción, después de generar el recibo en la
-  confirmación.
+  transición correspondiente. El handler los consume `AFTER_COMMIT`; un fallo
+  de notificación se registra de forma segura y nunca revierte pago, cuota ni
+  recibo.
 - `CuotaNotificacionScheduler` se ejecuta diariamente a las 08:00 con zona
   `America/La_Paz`. Considera solamente cuotas `PENDIENTE` y `PARCIAL`:
   genera aviso próximo un día antes o el día de vencimiento, y aviso vencido
   después de la fecha de vencimiento.
+- Las cuotas `PAGADA` y `ANULADA` quedan fuera de recordatorios automáticos y
+  manuales.
 - `POST /api/v1/cuotas/{codcuo}/notificar` crea un recordatorio manual para
   cuotas pendientes, parciales o vencidas. La capa transaccional verifica
   `Usuario -> Persona -> Propiedad -> Unidad -> Contrato -> Cuota` antes de

@@ -1,6 +1,7 @@
 package com.orman.backend.payment.entity;
 
 import com.orman.backend.contract.entity.CuotaEntity;
+import com.orman.backend.user.entity.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -61,8 +62,16 @@ public class PagoEntity {
     private PagoEstado estado;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private OrigenPago origen;
+    @Column(name = "origen_registro", nullable = false, length = 20)
+    private OrigenRegistroPago origenRegistro;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "registrado_por", nullable = false)
+    private Usuario registradoPor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "revisado_por")
+    private Usuario revisadoPor;
 
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private UUID idempotencyKey;

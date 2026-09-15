@@ -47,7 +47,8 @@ referencia externa HTTP/HTTPS.
 - Un usuario puede tener varias sesiones, con máximo una activa por dispositivo.
 - Una propiedad tiene una Persona propietaria y puede tener varias unidades, sin colección JPA inversa.
 - Una unidad puede tener varias fotografías, administradas mediante consultas del repositorio.
-- Una unidad puede tener múltiples contratos históricos; un contrato vincula una Unidad con una Persona inquilina.
+- Una unidad puede tener contratos históricos, uno actual y contratos futuros;
+  los intervalos `PROGRAMADO`/`VIGENTE` no pueden solaparse.
 - Un contrato puede tener archivos por URL y cuotas mensuales, sin relaciones JPA inversas.
 - Una cuota puede tener varios pagos; cada pago puede tener comprobantes y como máximo un recibo.
 - Una Persona propietaria puede tener varias cuentas de pago; una cuenta puede ser referenciada por pagos históricos.
@@ -68,7 +69,7 @@ La relación Persona–Usuario se implementó en V3: `usuarios.codper` es obliga
 
 ## Estado de implementación
 
-La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5; la subfase 10.1 completó `sesiones_usuario` con V6; la Fase 13 incorporó `otp_challenges` con V9; la Etapa 4.1 incorporó `propiedades`, `unidades` y `unidad_fotos` con V10; la Etapa 4.2 incorporó `contratos`, `contrato_archivos` y `cuotas` con V11; la Etapa 4.3 incorporó `cuentas_pago`, `pagos`, `pago_comprobantes` y `recibos` con V12; y la Etapa 4.4 incorporó `notificaciones` con V13.
+La Fase 04 completó `personas` con V1 y V2; la Fase 06 completó `usuarios` con V3; la Fase 08 completó `roles` y `rolusu` con V4 y V5; la subfase 10.1 completó `sesiones_usuario` con V6; la Fase 13 incorporó `otp_challenges` con V9; la Etapa 4.1 incorporó `propiedades`, `unidades` y `unidad_fotos` con V10; la Etapa 4.2 incorporó `contratos`, `contrato_archivos` y `cuotas` con V11; la Etapa 4.3 incorporó `cuentas_pago`, `pagos`, `pago_comprobantes` y `recibos` con V12; la Etapa 4.4 incorporó `notificaciones` con V13; y la corrección controlada incorporó V16 y V17.
 
 ## ETAPA 4.4 — Notificaciones
 
@@ -84,8 +85,16 @@ V10 implementa `propiedades` con una FK a `personas` para la propietaria y estad
 
 ## ETAPA 4.2 — Contratos y Cuotas
 
-V11 implementa `contratos` con FKs a Unidad, Persona inquilina y contrato origen opcional. El esquema exige períodos mensuales, importes no negativos, estados válidos y un único contrato `VIGENTE` por Unidad. `contrato_archivos` conserva solamente URL y metadatos con orden único por contrato. `cuotas` conserva el período, vencimiento, importe y estado, con unicidad por `(codcon, periodo)`. Las relaciones JPA siguen siendo unidireccionales y LAZY desde el hijo hacia el padre.
+V11 implementa las tablas base. V16 deja `codcon_origen` solo como dato legado,
+incorpora `moneda = BOB`, exige renta positiva y define estados
+`PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`. `contrato_archivos`
+conserva URL y metadatos; `cuotas` conserva cada periodo y puede quedar
+`ANULADA` sin eliminación física.
 
 ## ETAPA 4.3 — Pagos, recibos y cuentas de pago
 
-V12 implementa `cuentas_pago` con titularidad por Persona y activación lógica. `pagos` referencia la cuota y opcionalmente la cuenta, guarda importe `NUMERIC`, método, referencia, fechas, estado, origen e idempotencia. `pago_comprobantes` conserva URL y metadatos por pago. `recibos` garantiza un único comprobante interno por pago confirmado. Los saldos no se almacenan: se calculan con la suma de pagos `CONFIRMADO`.
+V12 implementa las tablas base. V17 redefine `origen_registro` como
+`PROPIETARIA`/`INQUILINO` y agrega `registrado_por` y `revisado_por` con FKs a
+Usuario. `pago_comprobantes` conserva URL y metadatos. `recibos` garantiza una
+constancia interna única por pago confirmado. Los saldos no se almacenan: se
+calculan con pagos `CONFIRMADO`; también se expone la suma pendiente de revisión.

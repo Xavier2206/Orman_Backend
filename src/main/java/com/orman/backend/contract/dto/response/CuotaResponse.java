@@ -4,5 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record CuotaResponse(Integer codcuo, Integer codcon, LocalDate periodo, LocalDate fechaVencimiento,
-                            BigDecimal monto, String estado) {
+                            BigDecimal monto, BigDecimal montoConfirmado, BigDecimal saldo,
+                            BigDecimal montoPendienteRevision, String estado) {
 }

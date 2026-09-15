@@ -16,6 +16,8 @@ import com.orman.backend.property.entity.PropiedadEntity;
 import com.orman.backend.property.entity.UnidadEntity;
 import com.orman.backend.property.repository.PropiedadRepository;
 import com.orman.backend.property.repository.UnidadRepository;
+import com.orman.backend.user.entity.Usuario;
+import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,10 +48,11 @@ class PaymentPersistenceIntegrationTest {
     @Autowired private PagoRepository pagoRepository;
     @Autowired private PagoComprobanteRepository comprobanteRepository;
     @Autowired private ReciboRepository reciboRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayCreatesPaymentTablesWithVersionTwelve() {
+    void flywayAppliesPaymentActorsWithVersionSeventeen() {
         List<String> tables = jdbcTemplate.queryForList("""
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = 'public' ORDER BY table_name
@@ -57,12 +60,13 @@ class PaymentPersistenceIntegrationTest {
 
         assertThat(tables).contains("cuentas_pago", "pagos", "pago_comprobantes", "recibos");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '12' AND success", Integer.class))
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '17' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForList(
                 "SELECT conname FROM pg_constraint WHERE conrelid = 'pagos'::regclass", String.class))
                 .contains("pk_pagos", "fk_pagos_cuotas", "fk_pagos_cuentas_pago", "uk_pagos_idempotency_key",
-                        "ck_pagos_monto", "ck_pagos_metodo", "ck_pagos_estado", "ck_pagos_origen");
+                        "ck_pagos_monto", "ck_pagos_metodo", "ck_pagos_estado", "ck_pagos_origen_registro",
+                        "fk_pagos_usuarios_registrador", "fk_pagos_usuarios_revisor");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'recibos'", String.class))
                 .contains("uk_recibos_codpag");
@@ -113,12 +117,13 @@ class PaymentPersistenceIntegrationTest {
         Persona propietaria = personaRepository.saveAndFlush(persona("PY-OWNER-003"));
         CuentaPagoEntity cuenta = cuentaPagoRepository.saveAndFlush(cuenta(propietaria));
         CuotaEntity cuota = cuota(propietaria, "PY-TENANT-003");
+        String actor = usuarioRepository.findByPersonaCodper(propietaria.getCodper()).orElseThrow().getLogin();
         assertThatThrownBy(() -> jdbcTemplate.update("""
-                INSERT INTO pagos (codcuo, codcta, monto, metodo, fecha_pago, fecha_registro, estado, origen,
-                    idempotency_key)
+                INSERT INTO pagos (codcuo, codcta, monto, metodo, fecha_pago, fecha_registro, estado, origen_registro,
+                    idempotency_key, registrado_por)
                 VALUES (?, ?, 10, 'EFECTIVO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                    'PENDIENTE_REVISION', 'MANUAL', ?)
-                """, cuota.getCodcuo(), cuenta.getCodcta(), UUID.randomUUID()))
+                    'PENDIENTE_REVISION', 'PROPIETARIA', ?, ?)
+                """, cuota.getCodcuo(), cuenta.getCodcta(), UUID.randomUUID(), actor))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -142,13 +147,27 @@ class PaymentPersistenceIntegrationTest {
         pago.setFechaPago(LocalDateTime.now());
         pago.setFechaRegistro(LocalDateTime.now());
         pago.setEstado(PagoEstado.CONFIRMADO);
-        pago.setOrigen(OrigenPago.MANUAL);
+        Usuario actor = usuarioRepository.findByPersonaCodper(
+                cuota.getContrato().getUnidad().getPropiedad().getPropietaria().getCodper()).orElseThrow();
+        pago.setOrigenRegistro(OrigenRegistroPago.PROPIETARIA);
+        pago.setRegistradoPor(actor);
+        pago.setRevisadoPor(actor);
         pago.setIdempotencyKey(UUID.randomUUID());
         pago.setFechaRevision(LocalDateTime.now());
         return pago;
     }
 
     private CuotaEntity cuota(Persona propietaria, String tenantCi) {
+        if (usuarioRepository.findByPersonaCodper(propietaria.getCodper()).isEmpty()) {
+            Usuario usuario = new Usuario();
+            usuario.setLogin(("pay." + propietaria.getCodper()).substring(0,
+                    Math.min(30, ("pay." + propietaria.getCodper()).length())));
+            usuario.setPasswd("hash-no-expuesto");
+            usuario.setEstado((short) 1);
+            usuario.setPersona(propietaria);
+            usuario.setFechaCreacion(LocalDateTime.now());
+            usuarioRepository.saveAndFlush(usuario);
+        }
         PropiedadEntity propiedad = new PropiedadEntity();
         propiedad.setNombre("Propiedad de pagos");
         propiedad.setTipo("CASA");
@@ -175,9 +194,10 @@ class PaymentPersistenceIntegrationTest {
         contrato.setFechaInicio(LocalDate.of(2026, 9, 1));
         contrato.setFechaFin(LocalDate.of(2027, 9, 1));
         contrato.setMontoMensual(new BigDecimal("2500.00"));
+        contrato.setMoneda("BOB");
         contrato.setGarantia(BigDecimal.ZERO);
         contrato.setEstado(ContratoEstado.VIGENTE);
-        contrato.setFechaConfirmacion(LocalDateTime.now());
+        contrato.setFechaRegistro(LocalDateTime.now());
         contrato = contratoRepository.saveAndFlush(contrato);
         CuotaEntity cuota = new CuotaEntity();
         cuota.setContrato(contrato);

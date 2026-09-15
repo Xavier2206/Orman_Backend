@@ -84,10 +84,11 @@ public class ContratoServiceImpl implements ContratoService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ContratoResponse> list(Integer coduni, ContratoEstado estado, Pageable pageable,
-                                                Authentication authentication) {
+    public PageResponse<ContratoResponse> list(Integer codprop, Integer coduni, ContratoEstado estado,
+                                                Pageable pageable, Authentication authentication) {
         Integer codper = propertyOwnershipService.currentPropietaria(authentication).getCodper();
-        Page<ContratoResponse> page = contratoRepository.searchOwned(codper, coduni, estado, defaultSort(pageable))
+        Page<ContratoResponse> page = contratoRepository.searchOwned(codper, codprop, coduni, estado,
+                        defaultSort(pageable))
                 .map(contratoMapper::toResponse);
         return pageResponse(page);
     }

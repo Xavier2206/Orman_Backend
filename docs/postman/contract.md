@@ -30,6 +30,8 @@ estado es `PROGRAMADO`; si ya llegó, es `VIGENTE`.
 
 - `GET {{baseUrl}}/api/v1/unidades/{{coduni}}/contratos?page=0&size=20`
 - `GET {{baseUrl}}/api/v1/contratos?coduni={{coduni}}&estado=PROGRAMADO&page=0&size=20`
+- `GET {{baseUrl}}/api/v1/contratos?codprop={{codprop}}&page=0&size=20`
+- `GET {{baseUrl}}/api/v1/contratos?codprop={{codprop}}&coduni={{coduni}}&estado=VIGENTE&page=0&size=20`
 - `GET {{baseUrl}}/api/v1/contratos/{{codcon}}`
 - `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/finalizar`
 - `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/rescindir`
@@ -37,6 +39,11 @@ estado es `PROGRAMADO`; si ya llegó, es `VIGENTE`.
 Estados permitidos: `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`.
 Un scheduler activa de forma idempotente los contratos programados al llegar
 su fecha de inicio.
+
+En `GET /api/v1/contratos`, `codprop` es opcional y filtra los contratos de
+las Unidades pertenecientes a esa Propiedad. Puede combinarse con `coduni` y
+`estado`; todos los filtros se aplican conjuntamente y la propietaria
+autenticada solo puede consultar sus propias Propiedades.
 
 No hay edición previa, confirmación ni endpoint especial de renovación. Una
 continuación se registra como un contrato nuevo. Los contratos contiguos son

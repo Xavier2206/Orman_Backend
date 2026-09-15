@@ -4,6 +4,7 @@ import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.contract.dto.response.ContratoResponse;
+import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.service.ContratoService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,7 +18,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -69,12 +73,27 @@ class ContratoControllerWebMvcTest {
 
     @Test
     void listsOnlyThroughThePaginatedContract() throws Exception {
-        when(contratoService.list(any(), any(), any(), any())).thenReturn(
+        when(contratoService.list(any(), any(), any(), any(), any())).thenReturn(
                 new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
 
-        mockMvc.perform(get("/api/v1/contratos").param("estado", "PROGRAMADO"))
+        mockMvc.perform(get("/api/v1/contratos")
+                        .param("codprop", "10")
+                        .param("coduni", "25")
+                        .param("estado", "VIGENTE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].codcon").value(12));
+
+        verify(contratoService).list(eq(10), eq(25), eq(ContratoEstado.VIGENTE), any(), any());
+
+        when(contratoService.list(isNull(Integer.class), isNull(Integer.class), isNull(ContratoEstado.class),
+                any(), any())).thenReturn(new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
+
+        mockMvc.perform(get("/api/v1/contratos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].codcon").value(12));
+
+        verify(contratoService).list(isNull(Integer.class), isNull(Integer.class), isNull(ContratoEstado.class),
+                any(), any());
     }
 
     private String validJson() {

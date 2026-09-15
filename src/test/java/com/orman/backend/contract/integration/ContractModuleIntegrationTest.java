@@ -8,6 +8,7 @@ import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
+import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.contract.service.ContratoService;
 import com.orman.backend.contract.service.impl.ContratoActivacionScheduler;
@@ -33,6 +34,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -70,6 +72,44 @@ class ContractModuleIntegrationTest {
         ContratoResponse programado = create(future, MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(3));
         assertThat(programado.estado()).isEqualTo("PROGRAMADO");
         assertThat(cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(programado.codcon())).hasSize(2);
+    }
+
+    @Test
+    void filtersContractsByPropertyUnitAndStateWithoutCrossingOwnerBoundary() {
+        Context propertyA = context("FILTERA", (short) 1, (short) 1, (short) 1);
+        ContratoResponse propertyACurrent = create(propertyA, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+        ContratoResponse propertyAFuture = create(propertyA, MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(2));
+
+        Context propertyB = context("FILTERB", (short) 1, (short) 1, (short) 1);
+        create(propertyB, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        Integer codpropA = propertyA.unidad().getPropiedad().getCodprop();
+        Integer codpropB = propertyB.unidad().getPropiedad().getCodprop();
+
+        assertThat(contratoService.list(codpropA, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon)
+                .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
+        assertThat(contratoService.list(codpropA, propertyA.unidad().getCoduni(), null, page(),
+                propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon)
+                .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
+        assertThat(contratoService.list(codpropA, propertyA.unidad().getCoduni(), ContratoEstado.VIGENTE, page(),
+                propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon)
+                .containsExactly(propertyACurrent.codcon());
+        assertThat(contratoService.list(codpropA, propertyB.unidad().getCoduni(), null, page(),
+                propertyA.authentication()).content()).isEmpty();
+        assertThat(contratoService.list(codpropA, null, ContratoEstado.VIGENTE, page(),
+                propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon)
+                .containsExactly(propertyACurrent.codcon());
+        assertThat(contratoService.list(codpropB, null, null, page(), propertyA.authentication()).content())
+                .isEmpty();
+        assertThat(contratoService.list(null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon)
+                .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
+        assertThat(contratoService.list(codpropA, null, null, page(), propertyB.authentication()).content())
+                .isEmpty();
     }
 
     @Test
@@ -219,6 +259,10 @@ class ContractModuleIntegrationTest {
 
     private ContratoRequest request(Integer tenant, LocalDate start, LocalDate end, BigDecimal amount) {
         return new ContratoRequest(tenant, start, end, amount, new BigDecimal("500.00"));
+    }
+
+    private PageRequest page() {
+        return PageRequest.of(0, 20);
     }
 
     private List<CuotaEntity> cuotas(ContratoResponse contract) {

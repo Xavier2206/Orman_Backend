@@ -57,14 +57,15 @@ public class ContratoController {
 
     @GetMapping("/contratos")
     public PageResponse<ContratoResponse> list(@RequestParam(required = false) Integer coduni,
+                                               @RequestParam(required = false) Integer codprop,
                                                @RequestParam(required = false)
                                                @Pattern(regexp = "PROGRAMADO|VIGENTE|FINALIZADO|RESCINDIDO",
                                                        message = "El estado del Contrato no es válido.") String estado,
                                                @PageableDefault(page = 0, size = 20, sort = "fechaInicio",
                                                        direction = Sort.Direction.DESC) Pageable pageable,
                                                Authentication authentication) {
-        return contratoService.list(coduni, estado == null ? null : ContratoEstado.valueOf(estado), limit(pageable),
-                authentication);
+        return contratoService.list(codprop, coduni,
+                estado == null ? null : ContratoEstado.valueOf(estado), limit(pageable), authentication);
     }
 
     @GetMapping("/contratos/{codcon}")

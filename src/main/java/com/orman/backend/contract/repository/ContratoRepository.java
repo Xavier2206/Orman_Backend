@@ -38,17 +38,20 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
     @Query(value = """
             select c from ContratoEntity c
             where c.unidad.propiedad.propietaria.codper = :codper
+              and (:codprop is null or c.unidad.propiedad.codprop = :codprop)
               and (:coduni is null or c.unidad.coduni = :coduni)
               and (:estado is null or c.estado = :estado)
             """,
             countQuery = """
             select count(c) from ContratoEntity c
             where c.unidad.propiedad.propietaria.codper = :codper
+              and (:codprop is null or c.unidad.propiedad.codprop = :codprop)
               and (:coduni is null or c.unidad.coduni = :coduni)
               and (:estado is null or c.estado = :estado)
             """)
-    Page<ContratoEntity> searchOwned(@Param("codper") Integer codper, @Param("coduni") Integer coduni,
-                                     @Param("estado") ContratoEstado estado, Pageable pageable);
+    Page<ContratoEntity> searchOwned(@Param("codper") Integer codper, @Param("codprop") Integer codprop,
+                                     @Param("coduni") Integer coduni, @Param("estado") ContratoEstado estado,
+                                     Pageable pageable);
 
     boolean existsByUnidadCoduniAndEstadoIn(Integer coduni, Collection<ContratoEstado> estados);
 

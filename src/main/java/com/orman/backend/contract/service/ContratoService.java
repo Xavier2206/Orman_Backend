@@ -14,7 +14,7 @@ public interface ContratoService {
 
     PageResponse<ContratoResponse> listByUnidad(Integer coduni, Pageable pageable, Authentication authentication);
 
-    PageResponse<ContratoResponse> list(Integer coduni, ContratoEstado estado, Pageable pageable,
+    PageResponse<ContratoResponse> list(Integer codprop, Integer coduni, ContratoEstado estado, Pageable pageable,
                                         Authentication authentication);
 
     ContratoResponse get(Integer codcon, Authentication authentication);

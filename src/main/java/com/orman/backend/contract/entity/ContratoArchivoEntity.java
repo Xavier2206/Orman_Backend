@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.Objects;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -34,7 +35,7 @@ public class ContratoArchivoEntity {
     private ContratoEntity contrato;
 
     @Setter
-    @Column(name = "url", nullable = false, length = 500)
+    @Column(name = "url", length = 500)
     private String url;
 
     @Setter
@@ -42,8 +43,32 @@ public class ContratoArchivoEntity {
     private String nombreArchivo;
 
     @Setter
+    @Column(name = "nombre_almacenado", length = 200)
+    private String nombreAlmacenado;
+
+    @Setter
+    @Column(name = "ruta_ref", length = 500)
+    private String rutaRef;
+
+    @Setter
     @Column(name = "tipo_contenido", length = 100)
     private String tipoContenido;
+
+    @Setter
+    @Column(name = "tamano_original")
+    private Long tamanoOriginal;
+
+    @Setter
+    @Column(name = "tamano_final")
+    private Long tamanoFinal;
+
+    @Setter
+    @Column(name = "fecha_subida", nullable = false)
+    private LocalDateTime fechaSubida;
+
+    @Setter
+    @Column(name = "login_subio", length = 30)
+    private String subidoPor;
 
     @Setter
     @Column(name = "orden", nullable = false)

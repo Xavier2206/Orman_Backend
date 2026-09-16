@@ -50,6 +50,13 @@ class ContratoPersistenceIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '16' AND success", Integer.class))
                 .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '18' AND success", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT conname FROM pg_constraint WHERE conrelid = 'contrato_archivos'::regclass", String.class))
+                .contains("fk_contrato_archivos_usuarios", "ck_contrato_archivos_tamanos",
+                        "ck_contrato_archivos_ruta_privada");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT conname FROM pg_constraint WHERE conrelid = 'contratos'::regclass", String.class))
                 .contains("pk_contratos", "fk_contratos_unidades", "fk_contratos_personas_inquilino",

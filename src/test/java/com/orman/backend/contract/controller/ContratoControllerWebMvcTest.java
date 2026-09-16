@@ -138,7 +138,8 @@ class ContratoControllerWebMvcTest {
                 .andExpect(jsonPath("$.content[0].cuotas.totalCuotas").value(12))
                 .andExpect(jsonPath("$.content[0].cuotas.cuotasPagadas").value(8))
                 .andExpect(jsonPath("$.content[0].cuotas.cuotasPendientes").value(4))
-                .andExpect(jsonPath("$.content[0].cuotas.saldoPendiente").value(6000.00));
+                .andExpect(jsonPath("$.content[0].cuotas.saldoPendiente").value(6000.00))
+                .andExpect(jsonPath("$.content[0].archivos").doesNotExist());
     }
 
     private String validJson() {

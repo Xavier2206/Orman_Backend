@@ -46,7 +46,7 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Resultado de Fase 11.2: matriz aplicada a módulos actuales, objetivos propietarios protegidos, Rol PROPIETARIO reservado y mínimo concurrente de un propietario activo.
 - Estado de la Fase 13 global: **COMPLETADA**; OTP WEB administrativo por correo, verify y resend cerrados.
 - Resultado de ETAPA 4.1: módulo backend `property`, Flyway V10 con Propiedades, Unidades y UnidadFotos, acceso exclusivo de la Persona propietaria autenticada con `ROLE_PROPIETARIO`, y 262 pruebas totales sin fallos.
-- Resultado vigente de ETAPA 4.2: V11 más corrección V16; Contratos `PROGRAMADO`/`VIGENTE` sin borradores ni renovación especial, intervalos no solapados, cuotas mensuales y terminación condicionada por cuotas y pagos.
+- Resultado vigente de ETAPA 4.2: V11 más correcciones V16 y V18; Contratos `PROGRAMADO`/`VIGENTE` sin borradores ni renovación especial, intervalos no solapados, cuotas mensuales y terminación condicionada por cuotas y pagos. V18 añade carga/descarga/eliminación privada de documentos PDF de Contrato.
 - Resultado vigente de ETAPA 4.3: V12 más corrección V17; Pagos diferenciados por actor `PROPIETARIA`/`INQUILINO`, confirmación financiera única, trazabilidad de revisión, pagos parciales y un recibo interno por pago confirmado.
 - Resultado de ETAPA 4.4: módulo backend `notification`, Flyway V13 con notificaciones internas por Usuario, consulta propia, lectura idempotente, recordatorios de cuotas y eventos internos de pagos; 290 pruebas totales sin fallos.
 - Corrección controlada de Contratos/Pagos/Notificaciones: **COMPLETADA** el
@@ -56,7 +56,7 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
   endpoints autenticados de portada interna, sin alterar `portada_url` ni las
   fotografías de UnidadFoto.
 - Próxima fase autorizable: **Fase 18 — Documentación OpenAPI**; requiere autorización explícita independiente.
-- Fecha de actualización: **2026-09-15**.
+- Fecha de actualización: **2026-09-16**.
 
 ## Etapas y fases previstas
 

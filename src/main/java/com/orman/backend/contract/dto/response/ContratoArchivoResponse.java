@@ -1,5 +1,9 @@
 package com.orman.backend.contract.dto.response;
 
-public record ContratoArchivoResponse(Integer id, Integer codcon, String url, String nombreArchivo,
-                                      String tipoContenido, Integer orden) {
+import java.time.LocalDateTime;
+
+public record ContratoArchivoResponse(Integer codarc, Integer codcon, String nombreArchivo,
+                                      String tipoContenido, Long tamanoOriginal, Long tamanoFinal,
+                                      LocalDateTime fechaSubida, String subidoPor, Integer orden,
+                                      boolean almacenadoInternamente) {
 }

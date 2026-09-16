@@ -73,6 +73,11 @@ storage:
     root: ./target/test-unit-storage
     max-file-size-bytes: 5242880
     max-dimension: 1600
+  contratos:
+    root: ./target/test-contract-storage
+    max-file-size-bytes: 20971520
+    target-optimized-size-bytes: 10485760
+    max-image-pixels-to-optimize: 16000000
 
 notification:
   scheduler:

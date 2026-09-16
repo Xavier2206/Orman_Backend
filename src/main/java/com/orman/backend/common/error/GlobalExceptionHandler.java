@@ -4,6 +4,7 @@ import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.exception.LastOwnerRequiredException;
+import com.orman.backend.contract.exception.InvalidContratoArchivoException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.OtpDeliveryException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
@@ -166,6 +167,14 @@ public class GlobalExceptionHandler {
                 List.of(new FieldError("foto", exception.getMessage())));
     }
 
+    @ExceptionHandler(InvalidContratoArchivoException.class)
+    ResponseEntity<ProblemDetail> handleInvalidContratoArchivo(
+            InvalidContratoArchivoException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "El documento del Contrato no es válido.", request,
+                List.of(new FieldError("archivo", exception.getMessage())));
+    }
+
     @ExceptionHandler(MissingServletRequestPartException.class)
     ResponseEntity<ProblemDetail> handleMissingMultipartPart(
             MissingServletRequestPartException exception, HttpServletRequest request) {
@@ -177,9 +186,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ProblemDetail> handleMaxUploadSizeExceeded(
             MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        String field = request.getRequestURI().contains("/contratos/") ? "archivo" : "foto";
         return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
                 "Solicitud no válida", "El archivo supera el tamaño máximo permitido.", request,
-                List.of(new FieldError("foto", "El archivo supera el tamaño máximo permitido.")));
+                List.of(new FieldError(field, "El archivo supera el tamaño máximo permitido.")));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

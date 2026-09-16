@@ -90,8 +90,8 @@ class PersonaCrudIntegrationTest {
 
         assertThat(tables).containsExactly("contrato_archivos", "contratos", "cuentas_pago", "cuotas", "flyway_schema_history", "menus", "mepro", "notificaciones", "otp_challenges", "pago_comprobantes", "pagos", "personas", "procesos", "propiedades", "recibos", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17') AND success = true", Integer.class))
-                .isEqualTo(17);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18') AND success = true", Integer.class))
+                .isEqualTo(18);
     }
 
     private CreatePersonaRequest createRequest(String ci, String estado) {

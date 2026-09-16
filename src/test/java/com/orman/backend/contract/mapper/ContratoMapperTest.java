@@ -1,6 +1,5 @@
 package com.orman.backend.contract.mapper;
 
-import com.orman.backend.contract.dto.request.ContratoArchivoRequest;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
@@ -39,11 +38,17 @@ class ContratoMapperTest {
         assertThat(cuotaMapper.toResponse(cuota, BigDecimal.ZERO, BigDecimal.ZERO).fechaVencimiento())
                 .isEqualTo(LocalDate.of(2026, 9, 1));
 
-        var archivo = archivoMapper.toEntity(new ContratoArchivoRequest("https://example.test/contrato.pdf",
-                " Contrato firmado.pdf ", " ", 0), contrato);
+        var uploadedAt = java.time.LocalDateTime.of(2026, 9, 16, 12, 0);
+        var archivo = archivoMapper.toEntity(contrato, "Contrato firmado.pdf", "uuid.pdf",
+                "contratos/12/uuid.pdf", 1200, 900, uploadedAt, "propietaria", 0);
         ReflectionTestUtils.setField(archivo, "id", 8);
-        assertThat(archivo.getTipoContenido()).isNull();
+        assertThat(archivo.getTipoContenido()).isEqualTo("application/pdf");
+        assertThat(archivo.getTamanoOriginal()).isEqualTo(1200L);
+        assertThat(archivo.getTamanoFinal()).isEqualTo(900L);
+        assertThat(archivo.getFechaSubida()).isEqualTo(uploadedAt);
+        assertThat(archivo.getUrl()).isNull();
         assertThat(archivoMapper.toResponse(archivo).nombreArchivo()).isEqualTo("Contrato firmado.pdf");
+        assertThat(archivoMapper.toResponse(archivo).almacenadoInternamente()).isTrue();
     }
 
     @Test

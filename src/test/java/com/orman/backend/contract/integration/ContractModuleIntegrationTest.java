@@ -6,6 +6,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
+import com.orman.backend.contract.service.ContratoArchivoService;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.entity.ContratoEstado;
@@ -26,6 +27,7 @@ import com.orman.backend.property.repository.UnidadRepository;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -34,12 +36,16 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,6 +64,7 @@ class ContractModuleIntegrationTest {
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private ContratoService contratoService;
+    @Autowired private ContratoArchivoService contratoArchivoService;
     @Autowired private ContratoActivacionScheduler contratoActivacionScheduler;
 
     @Test
@@ -72,6 +79,36 @@ class ContractModuleIntegrationTest {
         ContratoResponse programado = create(future, MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(3));
         assertThat(programado.estado()).isEqualTo("PROGRAMADO");
         assertThat(cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(programado.codcon())).hasSize(2);
+    }
+
+    @Test
+    void isolatesContractFileUploadListingDownloadAndDeletionByPropertyOwner() throws Exception {
+        Context ownerA = context("FILEOWNER-A", (short) 1, (short) 1, (short) 1);
+        ContratoResponse contractA = create(ownerA, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+        Context ownerB = context("FILEOWNER-B", (short) 1, (short) 1, (short) 1);
+        ContratoResponse contractB = create(ownerB, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+        byte[] pdf;
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            document.addPage(new PDPage());
+            document.save(output);
+            pdf = output.toByteArray();
+        }
+        var file = contratoArchivoService.create(contractB.codcon(),
+                new MockMultipartFile("archivo", "contrato-b.pdf", "application/pdf", pdf), 0,
+                ownerB.authentication());
+
+        assertThatThrownBy(() -> contratoArchivoService.create(contractB.codcon(),
+                new MockMultipartFile("archivo", "otro.pdf", "application/pdf", pdf), 1,
+                ownerA.authentication())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> contratoArchivoService.listByContrato(contractB.codcon(), ownerA.authentication()))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> contratoArchivoService.download(contractB.codcon(), file.codarc(),
+                ownerA.authentication())).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> contratoArchivoService.delete(contractB.codcon(), file.codarc(),
+                ownerA.authentication())).isInstanceOf(AccessDeniedException.class);
+        assertThat(contratoArchivoService.listByContrato(contractB.codcon(), ownerB.authentication()))
+                .extracting(row -> row.codarc()).containsExactly(file.codarc());
+        assertThat(contractA.codcon()).isNotEqualTo(contractB.codcon());
     }
 
     @Test

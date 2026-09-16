@@ -85,4 +85,29 @@ public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer> {
             """)
     List<CuotaEntity> findAllPendingOrPartialDueOnOrBefore(@Param("fechaLimite") LocalDate fechaLimite,
                                                             @Param("estados") Collection<CuotaEstado> estados);
+
+    @Query(value = """
+            select q.codcon as codcon,
+                   count(q.codcuo) as "totalCuotas",
+                   count(case when q.estado = 'PAGADA' then 1 end) as "cuotasPagadas",
+                   count(case when q.estado in ('PENDIENTE', 'PARCIAL') then 1 end) as "cuotasPendientes",
+                   coalesce(sum(
+                       case
+                           when q.estado = 'PAGADA' then 0
+                           when q.estado = 'PARCIAL' then q.monto - coalesce(p.monto_pagado, 0)
+                           else q.monto
+                       end
+                   ), 0) as "saldoPendiente"
+              from cuotas q
+              left join (
+                  select p.codcuo, sum(p.monto) as monto_pagado
+                    from pagos p
+                   where p.estado = 'CONFIRMADO'
+                   group by p.codcuo
+              ) p on p.codcuo = q.codcuo
+             where q.codcon in (:codcons)
+               and q.estado <> 'ANULADA'
+             group by q.codcon
+            """, nativeQuery = true)
+    List<ContratoCuotasResumenProjection> summarizeByContratoCodcons(@Param("codcons") Collection<Integer> codcons);
 }

@@ -113,6 +113,45 @@ class ContractModuleIntegrationTest {
     }
 
     @Test
+    void summarizesContractStatesWithoutCrossingOwnerBoundary() {
+        Context owner = context("SUMMARY", (short) 1, (short) 1, (short) 1);
+        ContratoResponse vigente = create(owner, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        ContratoResponse programado = createWith(owner, addUnidad(owner, "PROGRAMADO"), owner.inquilino(),
+                MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(2));
+
+        ContratoResponse finalizado = createWith(owner, addUnidad(owner, "FINALIZADO"), owner.inquilino(),
+                MES_ACTUAL.minusMonths(3), MES_ACTUAL.minusMonths(1));
+        markAll(finalizado, CuotaEstado.PAGADA);
+        assertThat(contratoService.finish(finalizado.codcon(), owner.authentication()).estado())
+                .isEqualTo("FINALIZADO");
+
+        ContratoResponse rescindido = createWith(owner, addUnidad(owner, "RESCINDIDO"), owner.inquilino(),
+                MES_ACTUAL.minusMonths(2), MES_ACTUAL.plusMonths(2));
+        cuotas(rescindido).stream().filter(q -> !q.getPeriodo().isAfter(MES_ACTUAL))
+                .forEach(q -> q.setEstado(CuotaEstado.PAGADA));
+        cuotaRepository.flush();
+        assertThat(rescind(rescindido, owner).estado()).isEqualTo("RESCINDIDO");
+
+        Context otherOwner = context("SUMMARYOTHER", (short) 1, (short) 1, (short) 1);
+        create(otherOwner, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        var ownerSummary = contratoService.resumen(owner.authentication());
+        assertThat(ownerSummary.vigentes()).isEqualTo(1);
+        assertThat(ownerSummary.programados()).isEqualTo(1);
+        assertThat(ownerSummary.finalizados()).isEqualTo(1);
+        assertThat(ownerSummary.rescindidos()).isEqualTo(1);
+
+        var otherOwnerSummary = contratoService.resumen(otherOwner.authentication());
+        assertThat(otherOwnerSummary.vigentes()).isEqualTo(1);
+        assertThat(otherOwnerSummary.programados()).isZero();
+        assertThat(otherOwnerSummary.finalizados()).isZero();
+        assertThat(otherOwnerSummary.rescindidos()).isZero();
+        assertThat(vigente.codcon()).isNotEqualTo(0);
+        assertThat(programado.codcon()).isNotEqualTo(0);
+    }
+
+    @Test
     void searchesContractsByTenantNameAndKeepsOwnerIsolation() {
         Context propertyA = context("SEARCHA", (short) 1, (short) 1, (short) 1);
         setTenantName(propertyA, "Álvaro", "Pérez", "Gómez");

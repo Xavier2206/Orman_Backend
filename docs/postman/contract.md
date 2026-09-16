@@ -34,6 +34,7 @@ estado es `PROGRAMADO`; si ya llegó, es `VIGENTE`.
 - `GET {{baseUrl}}/api/v1/contratos?codprop={{codprop}}&coduni={{coduni}}&estado=VIGENTE&page=0&size=20`
 - `GET {{baseUrl}}/api/v1/contratos?q=Juan&page=0&size=20`
 - `GET {{baseUrl}}/api/v1/contratos?q=Juan&codprop={{codprop}}&estado=VIGENTE&page=0&size=20`
+- `GET {{baseUrl}}/api/v1/contratos/resumen`
 - `GET {{baseUrl}}/api/v1/contratos/{{codcon}}`
 - `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/finalizar`
 - `PATCH {{baseUrl}}/api/v1/contratos/{{codcon}}/rescindir`
@@ -46,6 +47,11 @@ En `GET /api/v1/contratos`, `codprop` es opcional y filtra los contratos de
 las Unidades pertenecientes a esa Propiedad. Puede combinarse con `coduni` y
 `estado`; todos los filtros se aplican conjuntamente y la propietaria
 autenticada solo puede consultar sus propias Propiedades.
+
+`GET /api/v1/contratos/resumen` devuelve los conteos de `VIGENTE`,
+`PROGRAMADO`, `FINALIZADO` y `RESCINDIDO` de las Propiedades de la propietaria
+autenticada. Se utiliza para las tarjetas resumen del frontend y no recibe
+filtros de paginación.
 
 El parámetro opcional `q` busca por nombre, apellido paterno o apellido
 materno del inquilino. La coincidencia es parcial y no distingue mayúsculas de

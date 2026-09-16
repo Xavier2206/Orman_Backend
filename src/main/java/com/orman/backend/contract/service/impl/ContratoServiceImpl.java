@@ -6,10 +6,12 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
+import com.orman.backend.contract.dto.response.ContratoResumenResponse;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.mapper.ContratoMapper;
 import com.orman.backend.contract.repository.ContratoRepository;
+import com.orman.backend.contract.repository.ContratoResumenProjection;
 import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.contract.service.ContractOwnershipService;
 import com.orman.backend.contract.service.ContratoService;
@@ -18,6 +20,9 @@ import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.property.entity.UnidadEntity;
 import com.orman.backend.property.service.PropertyOwnershipService;
+import com.orman.backend.contract.dto.response.ContratoCuotasResumenResponse;
+import com.orman.backend.contract.repository.ContratoCuotasResumenProjection;
+import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,6 +30,11 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -70,17 +80,18 @@ public class ContratoServiceImpl implements ContratoService {
                 estado, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)));
         assertCurrency(saved.getMoneda());
         cuotaService.generatePending(saved);
-        return contratoMapper.toResponse(saved);
+        return contratoMapper.toResponse(saved, getCuotasResumen(saved.getCodcon()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<ContratoResponse> listByUnidad(Integer coduni, Pageable pageable, Authentication authentication) {
         UnidadEntity unidad = contractOwnershipService.findOwnedUnidad(coduni, authentication);
-        Page<ContratoResponse> page = contratoRepository.findAllByUnidadOwned(coduni,
-                unidad.getPropiedad().getPropietaria().getCodper(), defaultSort(pageable))
-                .map(contratoMapper::toResponse);
-        return pageResponse(page);
+        Page<ContratoEntity> page = contratoRepository.findAllByUnidadOwned(coduni,
+                unidad.getPropiedad().getPropietaria().getCodper(), defaultSort(pageable));
+        Map<Integer, ContratoCuotasResumenResponse> cuotasMap = summarizeCuotas(page.getContent());
+        Page<ContratoResponse> responsePage = page.map(c -> contratoMapper.toResponse(c, cuotasMap.get(c.getCodcon())));
+        return pageResponse(responsePage);
     }
 
     @Override
@@ -88,16 +99,30 @@ public class ContratoServiceImpl implements ContratoService {
     public PageResponse<ContratoResponse> list(String q, Integer codprop, Integer coduni, ContratoEstado estado,
                                                 Pageable pageable, Authentication authentication) {
         Integer codper = propertyOwnershipService.currentPropietaria(authentication).getCodper();
-        Page<ContratoResponse> page = contratoRepository.searchOwned(codper, codprop, coduni, estado,
-                        normalizeQuery(q), defaultSort(pageable))
-                .map(contratoMapper::toResponse);
-        return pageResponse(page);
+        Page<ContratoEntity> page = contratoRepository.searchOwned(codper, codprop, coduni, estado,
+                        normalizeQuery(q), defaultSort(pageable));
+        Map<Integer, ContratoCuotasResumenResponse> cuotasMap = summarizeCuotas(page.getContent());
+        Page<ContratoResponse> responsePage = page.map(c -> contratoMapper.toResponse(c, cuotasMap.get(c.getCodcon())));
+        return pageResponse(responsePage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ContratoResumenResponse resumen(Authentication authentication) {
+        Integer codper = propertyOwnershipService.currentPropietaria(authentication).getCodper();
+        ContratoResumenProjection resumen = contratoRepository.summarizeOwned(codper);
+        return new ContratoResumenResponse(
+                resumen.getVigentes(),
+                resumen.getProgramados(),
+                resumen.getFinalizados(),
+                resumen.getRescindidos());
     }
 
     @Override
     @Transactional(readOnly = true)
     public ContratoResponse get(Integer codcon, Authentication authentication) {
-        return contratoMapper.toResponse(contractOwnershipService.findOwnedContrato(codcon, authentication));
+        ContratoEntity contrato = contractOwnershipService.findOwnedContrato(codcon, authentication);
+        return contratoMapper.toResponse(contrato, getCuotasResumen(codcon));
     }
 
     @Override
@@ -117,7 +142,8 @@ public class ContratoServiceImpl implements ContratoService {
             throw new BusinessRuleException("Todas las Cuotas exigibles deben estar pagadas para finalizar.");
         }
         contrato.setEstado(ContratoEstado.FINALIZADO);
-        return contratoMapper.toResponse(contratoRepository.saveAndFlush(contrato));
+        ContratoEntity saved = contratoRepository.saveAndFlush(contrato);
+        return contratoMapper.toResponse(saved, getCuotasResumen(codcon));
     }
 
     @Override
@@ -145,7 +171,8 @@ public class ContratoServiceImpl implements ContratoService {
         contrato.setEstado(ContratoEstado.RESCINDIDO);
         contrato.setFechaRescision(request.fechaRescision());
         contrato.setMotivoRescision(request.motivoRescision().trim());
-        return contratoMapper.toResponse(contratoRepository.saveAndFlush(contrato));
+        ContratoEntity saved = contratoRepository.saveAndFlush(contrato);
+        return contratoMapper.toResponse(saved, getCuotasResumen(codcon));
     }
 
     private Persona findActiveInquilino(Integer codperInquilino) {
@@ -225,5 +252,55 @@ public class ContratoServiceImpl implements ContratoService {
     private PageResponse<ContratoResponse> pageResponse(Page<ContratoResponse> page) {
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
+    }
+
+    private Map<Integer, ContratoCuotasResumenResponse> summarizeCuotas(List<ContratoEntity> contratos) {
+        if (contratos == null || contratos.isEmpty()) {
+            return Map.of();
+        }
+        List<Integer> codcons = contratos.stream().map(ContratoEntity::getCodcon).filter(Objects::nonNull).toList();
+        if (codcons.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, ContratoCuotasResumenProjection> projectionMap = cuotaRepository.summarizeByContratoCodcons(codcons)
+                .stream()
+                .collect(Collectors.toMap(ContratoCuotasResumenProjection::getCodcon, p -> p));
+
+        Map<Integer, ContratoCuotasResumenResponse> result = new HashMap<>();
+        for (Integer codcon : codcons) {
+            ContratoCuotasResumenProjection p = projectionMap.get(codcon);
+            if (p != null) {
+                result.put(codcon, new ContratoCuotasResumenResponse(
+                        p.getTotalCuotas(),
+                        p.getCuotasPagadas(),
+                        p.getCuotasPendientes(),
+                        p.getSaldoPendiente() != null
+                                ? p.getSaldoPendiente().setScale(2, RoundingMode.HALF_UP)
+                                : BigDecimal.ZERO.setScale(2)
+                ));
+            } else {
+                result.put(codcon, new ContratoCuotasResumenResponse(0, 0, 0, BigDecimal.ZERO.setScale(2)));
+            }
+        }
+        return result;
+    }
+
+    private ContratoCuotasResumenResponse getCuotasResumen(Integer codcon) {
+        if (codcon == null) {
+            return new ContratoCuotasResumenResponse(0, 0, 0, BigDecimal.ZERO.setScale(2));
+        }
+        List<ContratoCuotasResumenProjection> summaries = cuotaRepository.summarizeByContratoCodcons(List.of(codcon));
+        if (summaries.isEmpty()) {
+            return new ContratoCuotasResumenResponse(0, 0, 0, BigDecimal.ZERO.setScale(2));
+        }
+        ContratoCuotasResumenProjection p = summaries.getFirst();
+        return new ContratoCuotasResumenResponse(
+                p.getTotalCuotas(),
+                p.getCuotasPagadas(),
+                p.getCuotasPendientes(),
+                p.getSaldoPendiente() != null
+                        ? p.getSaldoPendiente().setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO.setScale(2)
+        );
     }
 }

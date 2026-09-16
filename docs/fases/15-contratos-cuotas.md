@@ -39,7 +39,7 @@ revisión. Todas las cuotas posteriores pasan a `ANULADA` sin eliminarse.
 
 | Recurso | Rutas |
 |---|---|
-| Contratos | `POST/GET /api/v1/unidades/{coduni}/contratos`; `GET /api/v1/contratos`; `GET /api/v1/contratos/{codcon}`; `PATCH .../finalizar`; `PATCH .../rescindir` |
+| Contratos | `POST/GET /api/v1/unidades/{coduni}/contratos`; `GET /api/v1/contratos`; `GET /api/v1/contratos/resumen`; `GET /api/v1/contratos/{codcon}`; `PATCH .../finalizar`; `PATCH .../rescindir` |
 | Archivos | `POST/GET /api/v1/contratos/{codcon}/archivos` |
 | Cuotas | `GET /api/v1/contratos/{codcon}/cuotas` |
 

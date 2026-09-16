@@ -117,6 +117,19 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
                                      @Param("coduni") Integer coduni, @Param("estado") ContratoEstado estado,
                                      @Param("q") String q, Pageable pageable);
 
+    @Query(value = """
+            select
+                count(*) filter (where c.estado = 'VIGENTE') as "vigentes",
+                count(*) filter (where c.estado = 'PROGRAMADO') as "programados",
+                count(*) filter (where c.estado = 'FINALIZADO') as "finalizados",
+                count(*) filter (where c.estado = 'RESCINDIDO') as "rescindidos"
+              from contratos c
+              join unidades u on u.coduni = c.coduni
+              join propiedades p on p.codprop = u.codprop
+             where p.codper_propietaria = :codper
+            """, nativeQuery = true)
+    ContratoResumenProjection summarizeOwned(@Param("codper") Integer codper);
+
     boolean existsByUnidadCoduniAndEstadoIn(Integer coduni, Collection<ContratoEstado> estados);
 
     @Query("""

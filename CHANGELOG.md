@@ -4,6 +4,11 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+### Agregado
+
+- Endpoint `GET /api/v1/contratos/resumen` con conteos de contratos por estado,
+  limitado a las Propiedades de la propietaria autenticada.
+
 ## Corrección de lógica de Contratos y Pagos — 2026-09-15
 
 ### Corregido

@@ -4,6 +4,7 @@ import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
+import com.orman.backend.contract.dto.response.ContratoResumenResponse;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.service.ContratoService;
 import jakarta.validation.Valid;
@@ -67,6 +68,11 @@ public class ContratoController {
                                                Authentication authentication) {
         return contratoService.list(q, codprop, coduni,
                 estado == null ? null : ContratoEstado.valueOf(estado), limit(pageable), authentication);
+    }
+
+    @GetMapping("/contratos/resumen")
+    public ContratoResumenResponse resumen(Authentication authentication) {
+        return contratoService.resumen(authentication);
     }
 
     @GetMapping("/contratos/{codcon}")

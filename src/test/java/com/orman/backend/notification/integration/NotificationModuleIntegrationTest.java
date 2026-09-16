@@ -112,7 +112,8 @@ class NotificationModuleIntegrationTest {
                 context.usuario().getLogin(), ReferenciaTipo.CUOTA, paid.getCodcuo())).isEmpty();
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
                 context.usuario().getLogin(), ReferenciaTipo.CUOTA, annulled.getCodcuo())).isEmpty();
-        assertThat(notificacionRepository.count()).isEqualTo(2);
+        assertThat(notificacionRepository.searchOwn(context.usuario().getLogin(), null, null,
+                org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isEqualTo(2);
 
         cuotaNotificacionScheduler.generateFor(LocalDate.of(2026, 11, 1));
         assertThat(notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(

@@ -86,30 +86,217 @@ class ContractModuleIntegrationTest {
         Integer codpropA = propertyA.unidad().getPropiedad().getCodprop();
         Integer codpropB = propertyB.unidad().getPropiedad().getCodprop();
 
-        assertThat(contratoService.list(codpropA, null, null, page(), propertyA.authentication()).content())
+        assertThat(contratoService.list(null, codpropA, null, null, page(), propertyA.authentication()).content())
                 .extracting(ContratoResponse::codcon)
                 .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
-        assertThat(contratoService.list(codpropA, propertyA.unidad().getCoduni(), null, page(),
+        assertThat(contratoService.list(null, codpropA, propertyA.unidad().getCoduni(), null, page(),
                 propertyA.authentication()).content())
                 .extracting(ContratoResponse::codcon)
                 .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
-        assertThat(contratoService.list(codpropA, propertyA.unidad().getCoduni(), ContratoEstado.VIGENTE, page(),
+        assertThat(contratoService.list(null, codpropA, propertyA.unidad().getCoduni(), ContratoEstado.VIGENTE, page(),
                 propertyA.authentication()).content())
                 .extracting(ContratoResponse::codcon)
                 .containsExactly(propertyACurrent.codcon());
-        assertThat(contratoService.list(codpropA, propertyB.unidad().getCoduni(), null, page(),
+        assertThat(contratoService.list(null, codpropA, propertyB.unidad().getCoduni(), null, page(),
                 propertyA.authentication()).content()).isEmpty();
-        assertThat(contratoService.list(codpropA, null, ContratoEstado.VIGENTE, page(),
+        assertThat(contratoService.list(null, codpropA, null, ContratoEstado.VIGENTE, page(),
                 propertyA.authentication()).content())
                 .extracting(ContratoResponse::codcon)
                 .containsExactly(propertyACurrent.codcon());
-        assertThat(contratoService.list(codpropB, null, null, page(), propertyA.authentication()).content())
+        assertThat(contratoService.list(null, codpropB, null, null, page(), propertyA.authentication()).content())
                 .isEmpty();
-        assertThat(contratoService.list(null, null, null, page(), propertyA.authentication()).content())
+        assertThat(contratoService.list(null, null, null, null, page(), propertyA.authentication()).content())
                 .extracting(ContratoResponse::codcon)
                 .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
-        assertThat(contratoService.list(codpropA, null, null, page(), propertyB.authentication()).content())
+        assertThat(contratoService.list(null, codpropA, null, null, page(), propertyB.authentication()).content())
                 .isEmpty();
+    }
+
+    @Test
+    void searchesContractsByTenantNameAndKeepsOwnerIsolation() {
+        Context propertyA = context("SEARCHA", (short) 1, (short) 1, (short) 1);
+        setTenantName(propertyA, "Álvaro", "Pérez", "Gómez");
+        ContratoResponse contractA = create(propertyA, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        Context propertyB = context("SEARCHB", (short) 1, (short) 1, (short) 1);
+        setTenantName(propertyB, "Álvaro", "Pérez", "Gómez");
+        create(propertyB, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        Integer codpropA = propertyA.unidad().getPropiedad().getCodprop();
+
+        // Búsqueda por nombre (con y sin acento, mayúsculas y minúsculas)
+        assertThat(contratoService.list("álvaro", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("alvaro", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("ÁLVARO", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("ALVARO", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Búsqueda por apellido paterno (con y sin acento)
+        assertThat(contratoService.list("Pérez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("perez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("PEREZ", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Búsqueda por apellido materno (con y sin acento)
+        assertThat(contratoService.list("Gómez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("gomez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("GOMEZ", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Búsqueda parcial
+        assertThat(contratoService.list("álv", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("alv", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Pe", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Góm", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("mez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Búsqueda por combinaciones (nombre + apellido, ambos apellidos, etc.)
+        assertThat(contratoService.list("Álvaro Pérez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("alvaro perez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Álvaro Gómez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Pérez Gómez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Pérez Álvaro", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("Álvaro Pérez Gómez", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+        assertThat(contratoService.list("  alvaro    perez  ", null, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Combinación con estado
+        assertThat(contratoService.list("alvaro", null, null, ContratoEstado.VIGENTE, page(),
+                propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Combinación con propiedad
+        assertThat(contratoService.list("alvaro", codpropA, null, null, page(), propertyA.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractA.codcon());
+
+        // Aislamiento por propietaria
+        assertThat(contratoService.list("alvaro", codpropA, null, null, page(), propertyB.authentication()).content())
+                .isEmpty();
+
+        // Sin coincidencia
+        assertThat(contratoService.list("NoExiste", null, null, null, page(), propertyA.authentication()).content())
+                .isEmpty();
+    }
+
+    @Test
+    void searchesTenantWithMaternalSurnameOnlyAndAvoidsDoubleSpaces() {
+        Context context = context("MATONLY", (short) 1, (short) 1, (short) 1);
+        setTenantName(context, "Carlos", null, "Mamani");
+        ContratoResponse contract = create(context, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        assertThat(contratoService.list("Carlos", null, null, null, page(), context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contract.codcon());
+        assertThat(contratoService.list("Mamani", null, null, null, page(), context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contract.codcon());
+        assertThat(contratoService.list("Carlos Mamani", null, null, null, page(), context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contract.codcon());
+        assertThat(contratoService.list("carlos mamani", null, null, null, page(), context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contract.codcon());
+    }
+
+    @Test
+    void filtersContractsByCombinedFiltersWithAndSemantics() {
+        Context context = context("COMB", (short) 1, (short) 1, (short) 1);
+        setTenantName(context, "Juan", "Pérez", "Gómez");
+        ContratoResponse contractVigente = create(context, MES_ACTUAL, MES_ACTUAL.plusMonths(2));
+
+        UnidadEntity unit2 = addUnidad(context, "U2");
+        Persona tenant2 = addInquilino("T2", "María", "López", "Rojas");
+        ContratoResponse contractProgramado = createWith(context, unit2, tenant2,
+                MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(3));
+
+        Integer codprop = context.unidad().getPropiedad().getCodprop();
+        Integer coduni1 = context.unidad().getCoduni();
+        Integer coduni2 = unit2.getCoduni();
+
+        // q + codprop + coduni + estado todos coincidentes
+        assertThat(contratoService.list("Juan", codprop, coduni1, ContratoEstado.VIGENTE, page(),
+                context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractVigente.codcon());
+
+        // Si cambia estado -> vacío (AND)
+        assertThat(contratoService.list("Juan", codprop, coduni1, ContratoEstado.PROGRAMADO, page(),
+                context.authentication()).content()).isEmpty();
+
+        // Si cambia unidad -> vacío (AND)
+        assertThat(contratoService.list("Juan", codprop, coduni2, ContratoEstado.VIGENTE, page(),
+                context.authentication()).content()).isEmpty();
+
+        // Si cambia q -> vacío (AND)
+        assertThat(contratoService.list("María", codprop, coduni1, ContratoEstado.VIGENTE, page(),
+                context.authentication()).content()).isEmpty();
+
+        // Coincidencia para el segundo contrato
+        assertThat(contratoService.list("María", codprop, coduni2, ContratoEstado.PROGRAMADO, page(),
+                context.authentication()).content())
+                .extracting(ContratoResponse::codcon).containsExactly(contractProgramado.codcon());
+
+        // Si se combina con otra propiedad no perteneciente -> vacío
+        assertThat(contratoService.list("Juan", codprop + 9999, coduni1, ContratoEstado.VIGENTE, page(),
+                context.authentication()).content()).isEmpty();
+    }
+
+    @Test
+    void paginatesContractsCorrectly() {
+        Context context = context("PAGE", (short) 1, (short) 1, (short) 1);
+        setTenantName(context, "Ana", "Silva", "Castro");
+        create(context, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        UnidadEntity unit2 = addUnidad(context, "U2");
+        Persona t2 = addInquilino("T2", "Ana", "Torres", "Paz");
+        createWith(context, unit2, t2, MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(2));
+
+        UnidadEntity unit3 = addUnidad(context, "U3");
+        Persona t3 = addInquilino("T3", "Beatriz", "Vega", "Molina");
+        createWith(context, unit3, t3, MES_ACTUAL.plusMonths(2), MES_ACTUAL.plusMonths(3));
+
+        // Paginación general con size 2
+        var page0 = contratoService.list(null, null, null, null, PageRequest.of(0, 2), context.authentication());
+        assertThat(page0.content()).hasSize(2);
+        assertThat(page0.totalElements()).isEqualTo(3);
+        assertThat(page0.totalPages()).isEqualTo(2);
+        assertThat(page0.first()).isTrue();
+        assertThat(page0.last()).isFalse();
+
+        var page1 = contratoService.list(null, null, null, null, PageRequest.of(1, 2), context.authentication());
+        assertThat(page1.content()).hasSize(1);
+        assertThat(page1.totalElements()).isEqualTo(3);
+        assertThat(page1.totalPages()).isEqualTo(2);
+        assertThat(page1.first()).isFalse();
+        assertThat(page1.last()).isTrue();
+
+        // Paginación con filtro q="Ana" (2 resultados) y size 1
+        var filteredPage0 = contratoService.list("Ana", null, null, null, PageRequest.of(0, 1), context.authentication());
+        assertThat(filteredPage0.content()).hasSize(1);
+        assertThat(filteredPage0.totalElements()).isEqualTo(2);
+        assertThat(filteredPage0.totalPages()).isEqualTo(2);
+        assertThat(filteredPage0.first()).isTrue();
+        assertThat(filteredPage0.last()).isFalse();
+
+        var filteredPage1 = contratoService.list("Ana", null, null, null, PageRequest.of(1, 1), context.authentication());
+        assertThat(filteredPage1.content()).hasSize(1);
+        assertThat(filteredPage1.totalElements()).isEqualTo(2);
+        assertThat(filteredPage1.totalPages()).isEqualTo(2);
+        assertThat(filteredPage1.first()).isFalse();
+        assertThat(filteredPage1.last()).isTrue();
     }
 
     @Test
@@ -248,6 +435,44 @@ class ContractModuleIntegrationTest {
     private ContratoResponse create(Context context, LocalDate start, LocalDate end) {
         return contratoService.create(context.unidad().getCoduni(),
                 request(context.inquilino().getCodper(), start, end, new BigDecimal("1500.00")),
+                context.authentication());
+    }
+
+    private void setTenantName(Context context, String name, String ap, String am) {
+        context.inquilino().setNombre(name);
+        context.inquilino().setAp(ap);
+        context.inquilino().setAm(am);
+        context.inquilino().setFechaRegistro(LocalDateTime.now());
+        personaRepository.flush();
+    }
+
+    private UnidadEntity addUnidad(Context context, String suffix) {
+        UnidadEntity unit = new UnidadEntity();
+        unit.setPropiedad(context.unidad().getPropiedad());
+        unit.setNombre(context.unidad().getNombre() + "-" + suffix);
+        unit.setTipoUnidad("DEPARTAMENTO");
+        unit.setArea(new BigDecimal("40.00"));
+        unit.setDormitorios((short) 1);
+        unit.setBanos((short) 1);
+        unit.setPiso(1);
+        unit.setPrecioBase(new BigDecimal("1500.00"));
+        unit.setEstadoOperativo((short) 1);
+        return unidadRepository.saveAndFlush(unit);
+    }
+
+    private Persona addInquilino(String prefix, String name, String ap, String am) {
+        String token = Long.toUnsignedString(System.nanoTime(), 36);
+        Persona p = persona(prefix + token, (short) 1);
+        p.setNombre(name);
+        p.setAp(ap);
+        p.setAm(am);
+        p.setFechaRegistro(LocalDateTime.now());
+        return personaRepository.saveAndFlush(p);
+    }
+
+    private ContratoResponse createWith(Context context, UnidadEntity unit, Persona tenant, LocalDate start, LocalDate end) {
+        return contratoService.create(unit.getCoduni(),
+                request(tenant.getCodper(), start, end, new BigDecimal("1500.00")),
                 context.authentication());
     }
 

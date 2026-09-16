@@ -18,6 +18,7 @@ import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.property.entity.UnidadEntity;
 import com.orman.backend.property.service.PropertyOwnershipService;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Clock;
@@ -84,11 +85,11 @@ public class ContratoServiceImpl implements ContratoService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ContratoResponse> list(Integer codprop, Integer coduni, ContratoEstado estado,
+    public PageResponse<ContratoResponse> list(String q, Integer codprop, Integer coduni, ContratoEstado estado,
                                                 Pageable pageable, Authentication authentication) {
         Integer codper = propertyOwnershipService.currentPropietaria(authentication).getCodper();
         Page<ContratoResponse> page = contratoRepository.searchOwned(codper, codprop, coduni, estado,
-                        defaultSort(pageable))
+                        normalizeQuery(q), defaultSort(pageable))
                 .map(contratoMapper::toResponse);
         return pageResponse(page);
     }
@@ -209,6 +210,16 @@ public class ContratoServiceImpl implements ContratoService {
         }
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                 Sort.by(Sort.Direction.DESC, "fechaInicio"));
+    }
+
+    private String normalizeQuery(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        String singleSpaced = value.trim().replaceAll("\\s+", " ");
+        return Normalizer.normalize(singleSpaced, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase();
     }
 
     private PageResponse<ContratoResponse> pageResponse(Page<ContratoResponse> page) {

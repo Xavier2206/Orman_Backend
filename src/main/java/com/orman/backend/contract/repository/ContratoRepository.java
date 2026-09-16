@@ -41,6 +41,38 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
               and (:codprop is null or c.unidad.propiedad.codprop = :codprop)
               and (:coduni is null or c.unidad.coduni = :coduni)
               and (:estado is null or c.estado = :estado)
+              and (:q is null
+                   or cast(function('translate', lower(c.inquilino.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate', lower(coalesce(c.inquilino.ap, '')), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate', lower(coalesce(c.inquilino.am, '')), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   c.inquilino.nombre,
+                                                   nullif(c.inquilino.ap, ''),
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   c.inquilino.nombre,
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   nullif(c.inquilino.ap, ''),
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   nullif(c.inquilino.ap, ''),
+                                                   c.inquilino.nombre)),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%')))
             """,
             countQuery = """
             select count(c) from ContratoEntity c
@@ -48,10 +80,42 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
               and (:codprop is null or c.unidad.propiedad.codprop = :codprop)
               and (:coduni is null or c.unidad.coduni = :coduni)
               and (:estado is null or c.estado = :estado)
+              and (:q is null
+                   or cast(function('translate', lower(c.inquilino.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate', lower(coalesce(c.inquilino.ap, '')), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate', lower(coalesce(c.inquilino.am, '')), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   c.inquilino.nombre,
+                                                   nullif(c.inquilino.ap, ''),
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   c.inquilino.nombre,
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   nullif(c.inquilino.ap, ''),
+                                                   nullif(c.inquilino.am, ''))),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%'))
+                   or cast(function('translate',
+                                    lower(function('concat_ws', ' ',
+                                                   nullif(c.inquilino.ap, ''),
+                                                   c.inquilino.nombre)),
+                                    'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') as string)
+                       like lower(concat('%', cast(:q as string), '%')))
             """)
     Page<ContratoEntity> searchOwned(@Param("codper") Integer codper, @Param("codprop") Integer codprop,
                                      @Param("coduni") Integer coduni, @Param("estado") ContratoEstado estado,
-                                     Pageable pageable);
+                                     @Param("q") String q, Pageable pageable);
 
     boolean existsByUnidadCoduniAndEstadoIn(Integer coduni, Collection<ContratoEstado> estados);
 

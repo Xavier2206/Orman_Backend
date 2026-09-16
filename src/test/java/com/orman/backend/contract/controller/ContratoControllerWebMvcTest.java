@@ -73,27 +73,29 @@ class ContratoControllerWebMvcTest {
 
     @Test
     void listsOnlyThroughThePaginatedContract() throws Exception {
-        when(contratoService.list(any(), any(), any(), any(), any())).thenReturn(
+        when(contratoService.list(any(), any(), any(), any(), any(), any())).thenReturn(
                 new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
 
         mockMvc.perform(get("/api/v1/contratos")
+                        .param("q", "Juan")
                         .param("codprop", "10")
                         .param("coduni", "25")
                         .param("estado", "VIGENTE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].codcon").value(12));
 
-        verify(contratoService).list(eq(10), eq(25), eq(ContratoEstado.VIGENTE), any(), any());
+        verify(contratoService).list(eq("Juan"), eq(10), eq(25), eq(ContratoEstado.VIGENTE), any(), any());
 
-        when(contratoService.list(isNull(Integer.class), isNull(Integer.class), isNull(ContratoEstado.class),
-                any(), any())).thenReturn(new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
+        when(contratoService.list(isNull(String.class), isNull(Integer.class), isNull(Integer.class),
+                isNull(ContratoEstado.class), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(response(12)), 0, 20, 1, 1, true, true));
 
         mockMvc.perform(get("/api/v1/contratos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].codcon").value(12));
 
-        verify(contratoService).list(isNull(Integer.class), isNull(Integer.class), isNull(ContratoEstado.class),
-                any(), any());
+        verify(contratoService).list(isNull(String.class), isNull(Integer.class), isNull(Integer.class),
+                isNull(ContratoEstado.class), any(), any());
     }
 
     private String validJson() {

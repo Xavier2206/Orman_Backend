@@ -374,6 +374,13 @@ class ContractModuleIntegrationTest {
         assertThatThrownBy(() -> create(inactiveTenant, MES_ACTUAL, MES_ACTUAL.plusMonths(1)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("inquilina");
 
+        Context activeWrongType = context("TENANTTYPE", (short) 1, (short) 1, (short) 1);
+        Persona activeAdmin = persona("ACTIVEADMIN-" + System.nanoTime(), (short) 1);
+        assertThatThrownBy(() -> contratoService.create(activeWrongType.unidad().getCoduni(),
+                request(activeAdmin.getCodper(), MES_ACTUAL, MES_ACTUAL.plusMonths(1), new BigDecimal("1500.00")),
+                activeWrongType.authentication()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("tipo INQUILINO");
+
         Context money = context("MONEY", (short) 1, (short) 1, (short) 1);
         assertThatThrownBy(() -> contratoService.create(money.unidad().getCoduni(),
                 request(money.inquilino().getCodper(), MES_ACTUAL, MES_ACTUAL.plusMonths(1), BigDecimal.ZERO),
@@ -501,7 +508,7 @@ class ContractModuleIntegrationTest {
 
     private Persona addInquilino(String prefix, String name, String ap, String am) {
         String token = Long.toUnsignedString(System.nanoTime(), 36);
-        Persona p = persona(prefix + token, (short) 1);
+        Persona p = persona(prefix + token, (short) 1, 'I');
         p.setNombre(name);
         p.setAp(ap);
         p.setAm(am);
@@ -576,11 +583,15 @@ class ContractModuleIntegrationTest {
         unit.setPrecioBase(new BigDecimal("1500.00"));
         unit.setEstadoOperativo(unitState);
         unit = unidadRepository.saveAndFlush(unit);
-        Persona tenant = persona(prefix + "T" + token, tenantState);
+        Persona tenant = persona(prefix + "T" + token, tenantState, 'I');
         return new Context(user, authentication(user), unit, tenant);
     }
 
     private Persona persona(String ci, short estado) {
+        return persona(ci, estado, 'A');
+    }
+
+    private Persona persona(String ci, short estado, char tipoPersona) {
         String normalized = ci.substring(0, Math.min(20, ci.length()));
         Persona persona = new Persona();
         persona.setCi(normalized);
@@ -589,7 +600,8 @@ class ContractModuleIntegrationTest {
         persona.setEstado(estado);
         persona.setCorreo(normalized.toLowerCase() + "@example.test");
         persona.setTelefono("70000000");
-        persona.setTipoPersona('A');
+        persona.setTipoPersona(tipoPersona);
+        persona.setFechaRegistro(LocalDateTime.now());
         return personaRepository.saveAndFlush(persona);
     }
 

@@ -194,7 +194,7 @@ class PropertyModuleIntegrationTest {
         PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
         UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-02", (short) 1),
                 ownerAuthentication);
-        Persona tenant = createPersona("PM-ACTION-TENANT-001");
+        Persona tenant = createTenant("PM-ACTION-TENANT-001");
         ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
         var quotasBefore = cuotaRepository.findAllByContratoCodconOrderByPeriodoAsc(contract.codcon()).stream()
                 .map(quota -> quota.getPeriodo() + "|" + quota.getMonto() + "|" + quota.getEstado())
@@ -220,7 +220,7 @@ class PropertyModuleIntegrationTest {
         PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
         UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-03", (short) 1),
                 ownerAuthentication);
-        Persona tenant = createPersona("PM-ACTION-TENANT-002");
+        Persona tenant = createTenant("PM-ACTION-TENANT-002");
         ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
 
         ContratoEntity storedContract = contratoRepository.findById(contract.codcon()).orElseThrow();
@@ -240,7 +240,7 @@ class PropertyModuleIntegrationTest {
         PropiedadResponse property = propiedadService.create(propiedadRequest(owner.getCodper()), ownerAuthentication);
         UnidadResponse unit = unidadService.create(property.codprop(), unidadRequest("ACTION-04", (short) 1),
                 ownerAuthentication);
-        Persona tenant = createPersona("PM-ACTION-TENANT-003");
+        Persona tenant = createTenant("PM-ACTION-TENANT-003");
         ContratoResponse contract = createConfirmedContract(unit.coduni(), tenant, ownerAuthentication);
 
         ContratoEntity storedContract = contratoRepository.findById(contract.codcon()).orElseThrow();
@@ -462,6 +462,14 @@ class PropertyModuleIntegrationTest {
     }
 
     private Persona createPersona(String ci) {
+        return createPersona(ci, 'A');
+    }
+
+    private Persona createTenant(String ci) {
+        return createPersona(ci, 'I');
+    }
+
+    private Persona createPersona(String ci, char tipoPersona) {
         Persona persona = new Persona();
         persona.setCi(ci);
         persona.setNombre("Persona de prueba");
@@ -469,7 +477,7 @@ class PropertyModuleIntegrationTest {
         persona.setEstado((short) 1);
         persona.setCorreo(ci.toLowerCase() + "@example.test");
         persona.setTelefono("70000000");
-        persona.setTipoPersona('A');
+        persona.setTipoPersona(tipoPersona);
         return personaRepository.saveAndFlush(persona);
     }
 

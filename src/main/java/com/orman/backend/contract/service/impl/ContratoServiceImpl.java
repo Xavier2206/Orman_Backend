@@ -49,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ContratoServiceImpl implements ContratoService {
 
     private static final short ACTIVO = 1;
+    private static final char TIPO_PERSONA_INQUILINO = 'I';
     private static final String MONEDA_BOB = "BOB";
     private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
 
@@ -180,6 +181,9 @@ public class ContratoServiceImpl implements ContratoService {
                 .orElseThrow(() -> new BusinessRuleException("La Persona inquilina no existe."));
         if (!Short.valueOf(ACTIVO).equals(inquilino.getEstado())) {
             throw new BusinessRuleException("La Persona inquilina debe estar activa.");
+        }
+        if (!Character.valueOf(TIPO_PERSONA_INQUILINO).equals(inquilino.getTipoPersona())) {
+            throw new BusinessRuleException("La Persona seleccionada debe ser de tipo INQUILINO.");
         }
         return inquilino;
     }

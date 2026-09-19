@@ -47,6 +47,7 @@ class UnidadControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].coduni").value(501))
                 .andExpect(jsonPath("$.content[0].estadoOperativo").value(1))
+                .andExpect(jsonPath("$.content[0].disponibleParaContrato").value(true))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.totalPages").value(1));
 
@@ -154,6 +155,6 @@ class UnidadControllerWebMvcTest {
     private UnidadResponse response(Integer coduni, Short estadoOperativo) {
         return new UnidadResponse(coduni, 161, "Unidad 101", "DEPARTAMENTO", null,
                 new BigDecimal("45.50"), (short) 1, (short) 1, 1, "Torre A",
-                new BigDecimal("2500.00"), estadoOperativo);
+                new BigDecimal("2500.00"), estadoOperativo, true);
     }
 }

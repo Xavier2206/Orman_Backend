@@ -53,6 +53,20 @@ La portada interna de Propiedad utiliza `PUT/GET/DELETE
 /api/v1/propiedades/{codprop}/portada` y mantiene separada la referencia
 externa `portada_url` de la referencia interna `portada_ref`.
 
+### Ampliación posterior: disponibilidad contractual de Unidad
+
+El 2026-09-17, sin modificar el esquema ni las reglas de creación de
+Contratos, `UnidadResponse` incorporó `disponibleParaContrato`. El endpoint
+`GET /api/v1/propiedades/{codprop}/unidades` deriva el campo a partir de los
+Contratos `PROGRAMADO` y `VIGENTE`, que son los únicos estados bloqueantes
+según ETAPA 4.2; `FINALIZADO` y `RESCINDIDO` dejan la Unidad disponible.
+
+La página de Unidades conserva su consulta y paginación existentes y resuelve
+los IDs bloqueados mediante una consulta agregada por lote, filtrada por la
+propietaria autenticada. No se expone la relación JPA ni se incorpora una
+colección inversa en `UnidadEntity`. Las respuestas individuales de Unidad
+también informan el mismo campo calculado.
+
 Las creaciones responden `201 Created` y `Location`; la eliminación de foto
 responde `204 No Content`. Los errores usan `ProblemDetail` con
 `application/problem+json` y códigos estables existentes.
@@ -87,6 +101,13 @@ responde `204 No Content`. Los errores usan `ProblemDetail` con
 - Validación posterior de la portada interna V14: `./mvnw.cmd clean test`:
   **BUILD SUCCESS**; 311 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL
   real validó Flyway V1–V14 y Hibernate mantuvo `ddl-auto=validate`.
+
+Validación posterior de disponibilidad contractual: se agregaron pruebas de
+estados `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`, unidad sin
+contratos, aislamiento por propietaria, paginación y ausencia de N+1 en la
+consulta de la página. `./mvnw.cmd clean test`: **BUILD SUCCESS**; 389
+pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL real validó Flyway
+V1–V18 y Hibernate mantuvo `ddl-auto=validate`.
 
 ## Riesgos y pendientes
 

@@ -8,6 +8,16 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 - Endpoint `GET /api/v1/contratos/resumen` con conteos de contratos por estado,
   limitado a las Propiedades de la propietaria autenticada.
+- Campo `disponibleParaContrato` en las respuestas de Unidad, calculado con
+  una consulta agregada de Contratos `PROGRAMADO`/`VIGENTE` y respetando el
+  aislamiento por propietaria.
+
+### Verificación
+
+- Se agregaron pruebas de disponibilidad sin contratos, con Contratos
+  `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y `RESCINDIDO`, aislamiento,
+  paginación y ausencia de N+1. `./mvnw.cmd clean test`: **BUILD SUCCESS**;
+  389 pruebas, 0 fallos, 0 errores y 0 omitidas.
 
 ## Corrección de lógica de Contratos y Pagos — 2026-09-15
 

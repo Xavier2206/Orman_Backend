@@ -25,6 +25,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import java.util.Objects;
 
 @Service
@@ -33,6 +36,8 @@ public class UnidadServiceImpl implements UnidadService {
 
     private static final short ACTIVO = 1;
     private static final short INACTIVO = 0;
+    private static final List<ContratoEstado> ESTADOS_CONTRATO_BLOQUEANTES =
+            List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE);
 
     private final PropiedadRepository propiedadRepository;
     private final UnidadRepository unidadRepository;
@@ -49,7 +54,7 @@ public class UnidadServiceImpl implements UnidadService {
         }
         try {
             UnidadEntity saved = unidadRepository.saveAndFlush(unidadMapper.toEntity(request, propiedad));
-            return unidadMapper.toResponse(saved);
+            return unidadMapper.toResponse(saved, true);
         } catch (DataIntegrityViolationException exception) {
             throw duplicateNombre();
         }
@@ -60,9 +65,12 @@ public class UnidadServiceImpl implements UnidadService {
     public PageResponse<UnidadResponse> listByPropiedad(Integer codprop, Short estadoOperativo, Pageable pageable,
                                                          Authentication authentication) {
         PropiedadEntity propiedad = findOwnedPropiedad(codprop, authentication);
-        Page<UnidadResponse> page = unidadRepository.findAllByPropiedadOwned(codprop,
-                propiedad.getPropietaria().getCodper(), estadoOperativo, defaultSort(pageable))
-                .map(unidadMapper::toResponse);
+        Integer codper = propiedad.getPropietaria().getCodper();
+        Page<UnidadEntity> unitsPage = unidadRepository.findAllByPropiedadOwned(codprop, codper, estadoOperativo,
+                defaultSort(pageable));
+        Set<Integer> blockedUnitIds = blockingUnitIds(codper, unitsPage.getContent());
+        Page<UnidadResponse> page = unitsPage.map(unidad -> unidadMapper.toResponse(unidad,
+                !blockedUnitIds.contains(unidad.getCoduni())));
         return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
     }
@@ -70,7 +78,7 @@ public class UnidadServiceImpl implements UnidadService {
     @Override
     @Transactional(readOnly = true)
     public UnidadResponse get(Integer coduni, Authentication authentication) {
-        return unidadMapper.toResponse(findOwnedUnidad(coduni, authentication));
+        return toResponse(findOwnedUnidad(coduni, authentication));
     }
 
     @Override
@@ -87,7 +95,7 @@ public class UnidadServiceImpl implements UnidadService {
         }
         try {
             unidadMapper.update(unidad, request);
-            return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));
+            return toResponse(unidadRepository.saveAndFlush(unidad));
         } catch (DataIntegrityViolationException exception) {
             throw duplicateNombre();
         }
@@ -98,10 +106,10 @@ public class UnidadServiceImpl implements UnidadService {
     public UnidadResponse activate(Integer coduni, Authentication authentication) {
         UnidadEntity unidad = findOwnedUnidadForUpdate(coduni, authentication);
         if (Objects.equals(unidad.getEstadoOperativo(), ACTIVO)) {
-            return unidadMapper.toResponse(unidad);
+            return toResponse(unidad);
         }
         unidad.setEstadoOperativo(ACTIVO);
-        return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));
+        return toResponse(unidadRepository.saveAndFlush(unidad));
     }
 
     @Override
@@ -109,15 +117,14 @@ public class UnidadServiceImpl implements UnidadService {
     public UnidadResponse deactivate(Integer coduni, Authentication authentication) {
         UnidadEntity unidad = findOwnedUnidadForUpdate(coduni, authentication);
         if (Objects.equals(unidad.getEstadoOperativo(), INACTIVO)) {
-            return unidadMapper.toResponse(unidad);
+            return toResponse(unidad);
         }
-        if (contratoRepository.existsByUnidadCoduniAndEstadoIn(coduni,
-                java.util.List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE))) {
+        if (hasBlockingContract(coduni)) {
             throw new BusinessRuleException(
                     "No se puede desactivar la unidad porque tiene un Contrato PROGRAMADO o VIGENTE.");
         }
         unidad.setEstadoOperativo(INACTIVO);
-        return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad));
+        return unidadMapper.toResponse(unidadRepository.saveAndFlush(unidad), true);
     }
 
     private PropiedadEntity findOwnedPropiedad(Integer codprop, Authentication authentication) {
@@ -139,6 +146,22 @@ public class UnidadServiceImpl implements UnidadService {
                 .orElseThrow(() -> new ResourceNotFoundException("Unidad no encontrada."));
         propertyOwnershipService.assertCurrentPropietaria(authentication, unidad.getPropiedad().getPropietaria());
         return unidad;
+    }
+
+    private UnidadResponse toResponse(UnidadEntity unidad) {
+        return unidadMapper.toResponse(unidad, !hasBlockingContract(unidad.getCoduni()));
+    }
+
+    private boolean hasBlockingContract(Integer coduni) {
+        return contratoRepository.existsByUnidadCoduniAndEstadoIn(coduni, ESTADOS_CONTRATO_BLOQUEANTES);
+    }
+
+    private Set<Integer> blockingUnitIds(Integer codper, Collection<UnidadEntity> units) {
+        if (units.isEmpty()) {
+            return Set.of();
+        }
+        List<Integer> codunis = units.stream().map(UnidadEntity::getCoduni).toList();
+        return contratoRepository.findOwnedUnitIdsWithBlockingContracts(codper, codunis);
     }
 
     private Pageable defaultSort(Pageable pageable) {

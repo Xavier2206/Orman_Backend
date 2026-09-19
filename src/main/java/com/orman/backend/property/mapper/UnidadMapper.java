@@ -19,11 +19,11 @@ public class UnidadMapper {
         apply(unidad, request, unidad.getPropiedad());
     }
 
-    public UnidadResponse toResponse(UnidadEntity unidad) {
+    public UnidadResponse toResponse(UnidadEntity unidad, boolean disponibleParaContrato) {
         return new UnidadResponse(unidad.getCoduni(), unidad.getPropiedad().getCodprop(), unidad.getNombre(),
                 unidad.getTipoUnidad(), unidad.getDescripcion(), unidad.getArea(), unidad.getDormitorios(),
                 unidad.getBanos(), unidad.getPiso(), unidad.getUbicacionInterna(), unidad.getPrecioBase(),
-                unidad.getEstadoOperativo());
+                unidad.getEstadoOperativo(), disponibleParaContrato);
     }
 
     private void apply(UnidadEntity unidad, UnidadRequest request, PropiedadEntity propiedad) {

@@ -77,6 +77,12 @@ responden `404 RESOURCE_NOT_FOUND`.
 - `GET {{baseUrl}}/api/v1/unidades/{{coduni}}`
 - `PUT {{baseUrl}}/api/v1/unidades/{{coduni}}`
 
+Las respuestas de Unidad incluyen `disponibleParaContrato`. Es `false` cuando
+la Unidad tiene un Contrato `PROGRAMADO` o `VIGENTE`, y `true` cuando no tiene
+contratos bloqueantes; `FINALIZADO` y `RESCINDIDO` no impiden una nueva
+creación. El cálculo respeta la propietaria autenticada y se realiza en lote
+para conservar la paginación sin una consulta por Unidad.
+
 ## UnidadFotos
 
 `POST {{baseUrl}}/api/v1/unidades/{{coduni}}/fotos`

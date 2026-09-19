@@ -164,6 +164,85 @@ class PropertyModuleIntegrationTest {
     }
 
     @Test
+    void reportsAvailabilityFromBlockingContractStatesAndPreservesPagination() {
+        Persona owner = createPersona("PAVO-001");
+        Authentication ownerAuthentication = authentication(createUsuario("pav-owner-1", owner));
+        PropiedadResponse property = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "Propiedad disponibilidad", "EDIFICIO", (short) 1),
+                ownerAuthentication);
+        Persona tenant = createTenant("PAVT-001");
+
+        UnidadResponse withoutContract = unidadService.create(property.codprop(), unidadRequest("A-01", (short) 1),
+                ownerAuthentication);
+        UnidadResponse current = unidadService.create(property.codprop(), unidadRequest("A-02", (short) 1),
+                ownerAuthentication);
+        UnidadResponse scheduled = unidadService.create(property.codprop(), unidadRequest("A-03", (short) 1),
+                ownerAuthentication);
+        UnidadResponse finished = unidadService.create(property.codprop(), unidadRequest("A-04", (short) 1),
+                ownerAuthentication);
+        UnidadResponse rescinded = unidadService.create(property.codprop(), unidadRequest("A-05", (short) 1),
+                ownerAuthentication);
+
+        createContract(current.coduni(), property.codprop(), owner, tenant, ContratoEstado.VIGENTE);
+        createContract(scheduled.coduni(), property.codprop(), owner, tenant, ContratoEstado.PROGRAMADO);
+        createContract(finished.coduni(), property.codprop(), owner, tenant, ContratoEstado.FINALIZADO);
+        createContract(rescinded.coduni(), property.codprop(), owner, tenant, ContratoEstado.RESCINDIDO);
+
+        PageResponse<UnidadResponse> firstPage = unidadService.listByPropiedad(property.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 2), ownerAuthentication);
+        assertThat(firstPage.content()).hasSize(2);
+        assertThat(firstPage.totalElements()).isEqualTo(5);
+        assertThat(firstPage.totalPages()).isEqualTo(3);
+        assertThat(firstPage.first()).isTrue();
+        assertThat(firstPage.last()).isFalse();
+
+        PageResponse<UnidadResponse> all = unidadService.listByPropiedad(property.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+        assertThat(all.content()).extracting(UnidadResponse::nombre)
+                .containsExactly("A-01", "A-02", "A-03", "A-04", "A-05");
+        assertThat(all.content()).filteredOn(unit -> unit.coduni().equals(withoutContract.coduni()))
+                .extracting(UnidadResponse::disponibleParaContrato).containsExactly(true);
+        assertThat(all.content()).filteredOn(unit -> unit.coduni().equals(current.coduni()))
+                .extracting(UnidadResponse::disponibleParaContrato).containsExactly(false);
+        assertThat(all.content()).filteredOn(unit -> unit.coduni().equals(scheduled.coduni()))
+                .extracting(UnidadResponse::disponibleParaContrato).containsExactly(false);
+        assertThat(all.content()).filteredOn(unit -> unit.coduni().equals(finished.coduni()))
+                .extracting(UnidadResponse::disponibleParaContrato).containsExactly(true);
+        assertThat(all.content()).filteredOn(unit -> unit.coduni().equals(rescinded.coduni()))
+                .extracting(UnidadResponse::disponibleParaContrato).containsExactly(true);
+    }
+
+    @Test
+    void isolatesAvailabilityAndUnitsByAuthenticatedOwner() {
+        Persona owner = createPersona("PAVO-002");
+        Authentication ownerAuthentication = authentication(createUsuario("pav-owner-2", owner));
+        PropiedadResponse ownProperty = propiedadService.create(
+                propiedadRequest(owner.getCodper(), "Propiedad propia disponibilidad", "CASA", (short) 1),
+                ownerAuthentication);
+        UnidadResponse ownUnit = unidadService.create(ownProperty.codprop(), unidadRequest("OWN-01", (short) 1),
+                ownerAuthentication);
+
+        Persona otherOwner = createPersona("PAVO-003");
+        Authentication otherAuthentication = authentication(createUsuario("pav-other", otherOwner));
+        PropiedadResponse otherProperty = propiedadService.create(
+                propiedadRequest(otherOwner.getCodper(), "Propiedad ajena disponibilidad", "CASA", (short) 1),
+                otherAuthentication);
+        Persona tenant = createTenant("PAVT-002");
+        UnidadResponse otherUnit = unidadService.create(otherProperty.codprop(), unidadRequest("OTHER-01", (short) 1),
+                otherAuthentication);
+        createContract(otherUnit.coduni(), otherProperty.codprop(), otherOwner, tenant, ContratoEstado.VIGENTE);
+
+        PageResponse<UnidadResponse> ownUnits = unidadService.listByPropiedad(ownProperty.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication);
+
+        assertThat(ownUnits.content()).extracting(UnidadResponse::coduni).containsExactly(ownUnit.coduni());
+        assertThat(ownUnits.content().getFirst().disponibleParaContrato()).isTrue();
+        assertThatThrownBy(() -> unidadService.listByPropiedad(otherProperty.codprop(), null,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     void changesOnlyOperationalStateThroughExplicitActions() {
         Persona owner = createPersona("PM-ACTION-OWNER-001");
         Authentication ownerAuthentication = authentication(createUsuario("property.action.owner", owner));

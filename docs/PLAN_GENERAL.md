@@ -55,8 +55,13 @@ No se adelantan código, tablas, migraciones, dependencias o funcionalidades de 
 - Ampliación posterior de Propiedades: Flyway V14 añade `portada_ref` y los
   endpoints autenticados de portada interna, sin alterar `portada_url` ni las
   fotografías de UnidadFoto.
+- Mejora puntual de disponibilidad de Unidades: `UnidadResponse` informa
+  `disponibleParaContrato` usando los estados contractuales bloqueantes
+  existentes, con consulta agregada por página, paginación conservada y
+  aislamiento por propietaria; sin migración ni cambios en Contratos, Pagos,
+  Cuotas o Recibos. La validación global quedó en 389 pruebas sin fallos.
 - Próxima fase autorizable: **Fase 18 — Documentación OpenAPI**; requiere autorización explícita independiente.
-- Fecha de actualización: **2026-09-16**.
+- Fecha de actualización: **2026-09-17**.
 
 ## Etapas y fases previstas
 
@@ -336,6 +341,11 @@ Este bloque conserva el alcance previamente definido como Fase 14 y se desarroll
 **Ampliación posterior:** Flyway V14 incorpora `propiedades.portada_ref` y el
 módulo de Propiedades expone carga, descarga y eliminación autenticadas de una
 portada interna, manteniendo `portada_url` como URL externa de compatibilidad.
+
+**Mejora posterior:** `GET /api/v1/propiedades/{codprop}/unidades` expone
+`disponibleParaContrato`, derivado mediante una consulta agregada de los
+Contratos `PROGRAMADO`/`VIGENTE` de la propietaria autenticada. La mejora no
+crea tablas ni migraciones y mantiene intacta la creación de Contratos.
 
 #### Detalle funcional de ETAPA 4.2 — Contratos y cuotas
 

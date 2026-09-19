@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -131,6 +132,18 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
     ContratoResumenProjection summarizeOwned(@Param("codper") Integer codper);
 
     boolean existsByUnidadCoduniAndEstadoIn(Integer coduni, Collection<ContratoEstado> estados);
+
+    @Query("""
+            select c.unidad.coduni
+              from ContratoEntity c
+             where c.unidad.coduni in :codunis
+               and c.unidad.propiedad.propietaria.codper = :codper
+               and c.estado in (com.orman.backend.contract.entity.ContratoEstado.PROGRAMADO,
+                                com.orman.backend.contract.entity.ContratoEstado.VIGENTE)
+             group by c.unidad.coduni
+            """)
+    Set<Integer> findOwnedUnitIdsWithBlockingContracts(@Param("codper") Integer codper,
+                                                       @Param("codunis") Collection<Integer> codunis);
 
     @Query("""
             select (count(c) > 0) from ContratoEntity c

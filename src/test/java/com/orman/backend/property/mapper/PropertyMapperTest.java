@@ -44,7 +44,7 @@ class PropertyMapperTest {
         UnidadEntity unidad = unidadMapper.toEntity(unidadRequest(), propiedad);
         ReflectionTestUtils.setField(unidad, "coduni", 15);
         assertThat(unidad.getDescripcion()).isNull();
-        assertThat(unidadMapper.toResponse(unidad).codprop()).isEqualTo(9);
+        assertThat(unidadMapper.toResponse(unidad, true).codprop()).isEqualTo(9);
 
         UnidadFotoEntity foto = unidadFotoMapper.toEntity(fotoRequest(), unidad);
         ReflectionTestUtils.setField(foto, "id", 22);

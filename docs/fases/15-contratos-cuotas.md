@@ -10,6 +10,11 @@
   ocupación actual y programación futura se derivan de contratos.
 - Los estados contractuales son `PROGRAMADO`, `VIGENTE`, `FINALIZADO` y
   `RESCINDIDO`.
+- La disponibilidad informativa de una Unidad reutiliza esos mismos estados:
+  `PROGRAMADO` y `VIGENTE` bloquean la creación, mientras que `FINALIZADO` y
+  `RESCINDIDO` no la bloquean. Esta ampliación solo agrega el campo calculado
+  `disponibleParaContrato` a la respuesta de Unidad; no modifica la creación
+  de Contratos ni sus validaciones.
 - Registrar un contrato es una decisión efectiva: se crea `PROGRAMADO` si su
   inicio aún no llegó y `VIGENTE` en caso contrario, junto con todas sus cuotas.
 - Un scheduler transaccional e idempotente ejecuta `PROGRAMADO -> VIGENTE`.

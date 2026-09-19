@@ -1,5 +1,6 @@
 package com.orman.backend.property.service.impl;
 
+import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.contract.entity.ContratoEstado;
@@ -17,6 +18,7 @@ import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
@@ -24,6 +26,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -53,12 +57,35 @@ class UnidadServiceImplTest {
     @InjectMocks private UnidadServiceImpl service;
 
     @Test
+    void loadsContractAvailabilityForAUnitPageWithOneAggregatedLookup() {
+        PropiedadEntity propiedad = unidad(CODUNI, (short) 1).getPropiedad();
+        UnidadEntity blockedUnit = unidad(CODUNI, (short) 1);
+        UnidadEntity availableUnit = unidad(502, (short) 1);
+        when(propiedadRepository.findById(0)).thenReturn(Optional.of(propiedad));
+        when(unidadRepository.findAllByPropiedadOwned(eq(0), eq(77), eq((Short) null), any()))
+                .thenReturn(new PageImpl<>(List.of(blockedUnit, availableUnit), PageRequest.of(0, 20), 2));
+        when(contratoRepository.findOwnedUnitIdsWithBlockingContracts(77, List.of(CODUNI, 502)))
+                .thenReturn(Set.of(CODUNI));
+        UnidadResponse blockedResponse = response((short) 1, false);
+        UnidadResponse availableResponse = response(502, (short) 1, true);
+        when(unidadMapper.toResponse(blockedUnit, false)).thenReturn(blockedResponse);
+        when(unidadMapper.toResponse(availableUnit, true)).thenReturn(availableResponse);
+
+        PageResponse<UnidadResponse> result = service.listByPropiedad(0, null, PageRequest.of(0, 20), authentication);
+
+        assertThat(result.content()).containsExactly(blockedResponse, availableResponse);
+        verify(contratoRepository).findOwnedUnitIdsWithBlockingContracts(77, List.of(CODUNI, 502));
+        verify(contratoRepository, never()).existsByUnidadCoduniAndEstadoIn(any(), any());
+    }
+
+    @Test
     void activatesAnInactiveUnitUsingThePessimisticUnitLookup() {
         UnidadEntity unidad = unidad((short) 0);
         UnidadResponse response = response((short) 1);
         givenLockedUnit(unidad);
         when(unidadRepository.saveAndFlush(unidad)).thenReturn(unidad);
-        when(unidadMapper.toResponse(unidad)).thenReturn(response);
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates())).thenReturn(false);
+        when(unidadMapper.toResponse(unidad, true)).thenReturn(response);
 
         UnidadResponse result = service.activate(CODUNI, authentication);
 
@@ -68,31 +95,31 @@ class UnidadServiceImplTest {
         verify(propertyOwnershipService).assertCurrentPropietaria(authentication,
                 unidad.getPropiedad().getPropietaria());
         verify(unidadRepository).saveAndFlush(unidad);
-        verifyNoInteractions(contratoRepository);
+        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates());
     }
 
     @Test
     void activationIsIdempotentWhenTheUnitIsAlreadyActive() {
         UnidadEntity unidad = unidad((short) 1);
         when(unidadRepository.findByCoduniForUpdate(CODUNI)).thenReturn(Optional.of(unidad));
-        when(unidadMapper.toResponse(unidad)).thenReturn(response((short) 1));
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates())).thenReturn(false);
+        when(unidadMapper.toResponse(unidad, true)).thenReturn(response((short) 1));
 
         service.activate(CODUNI, authentication);
 
         assertThat(unidad.getEstadoOperativo()).isEqualTo((short) 1);
         verify(unidadRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(contratoRepository);
+        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates());
     }
 
     @Test
     void deactivatesAnActiveUnitWhenThereIsNoCurrentContract() {
         UnidadEntity unidad = unidad((short) 1);
         givenLockedUnit(unidad);
-        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI,
-                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE)))
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates()))
                 .thenReturn(false);
         when(unidadRepository.saveAndFlush(unidad)).thenReturn(unidad);
-        when(unidadMapper.toResponse(unidad)).thenReturn(response((short) 0));
+        when(unidadMapper.toResponse(unidad, true)).thenReturn(response((short) 0));
 
         UnidadResponse result = service.deactivate(CODUNI, authentication);
 
@@ -102,8 +129,7 @@ class UnidadServiceImplTest {
         order.verify(unidadRepository).findByCoduniForUpdate(CODUNI);
         order.verify(propertyOwnershipService).assertCurrentPropietaria(authentication,
                 unidad.getPropiedad().getPropietaria());
-        order.verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI,
-                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE));
+        order.verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates());
         verify(unidadRepository).saveAndFlush(unidad);
     }
 
@@ -111,8 +137,7 @@ class UnidadServiceImplTest {
     void blocksDeactivationWithACurrentContractWithoutChangingTheUnit() {
         UnidadEntity unidad = unidad((short) 1);
         givenLockedUnit(unidad);
-        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI,
-                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE)))
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates()))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.deactivate(CODUNI, authentication))
@@ -120,8 +145,7 @@ class UnidadServiceImplTest {
                 .hasMessage("No se puede desactivar la unidad porque tiene un Contrato PROGRAMADO o VIGENTE.");
 
         assertThat(unidad.getEstadoOperativo()).isEqualTo((short) 1);
-        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI,
-                List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE));
+        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates());
         verify(unidadRepository, never()).saveAndFlush(any());
     }
 
@@ -129,13 +153,14 @@ class UnidadServiceImplTest {
     void deactivationIsIdempotentWhenTheUnitIsAlreadyInactive() {
         UnidadEntity unidad = unidad((short) 0);
         when(unidadRepository.findByCoduniForUpdate(CODUNI)).thenReturn(Optional.of(unidad));
-        when(unidadMapper.toResponse(unidad)).thenReturn(response((short) 0));
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates())).thenReturn(false);
+        when(unidadMapper.toResponse(unidad, true)).thenReturn(response((short) 0));
 
         service.deactivate(CODUNI, authentication);
 
         assertThat(unidad.getEstadoOperativo()).isEqualTo((short) 0);
         verify(unidadRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(contratoRepository);
+        verify(contratoRepository).existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates());
     }
 
     @Test
@@ -159,7 +184,8 @@ class UnidadServiceImplTest {
         when(unidadRepository.existsByPropiedadCodpropAndNombreAndCoduniNot(0, "Unidad editada", CODUNI))
                 .thenReturn(false);
         when(unidadRepository.saveAndFlush(unidad)).thenReturn(unidad);
-        when(unidadMapper.toResponse(unidad)).thenReturn(response((short) 1));
+        when(contratoRepository.existsByUnidadCoduniAndEstadoIn(CODUNI, blockingStates())).thenReturn(false);
+        when(unidadMapper.toResponse(unidad, true)).thenReturn(response((short) 1));
 
         UnidadResponse result = service.update(CODUNI, request("Unidad editada", (short) 1), authentication);
 
@@ -220,8 +246,12 @@ class UnidadServiceImplTest {
     }
 
     private UnidadEntity unidad(short estadoOperativo) {
+        return unidad(CODUNI, estadoOperativo);
+    }
+
+    private UnidadEntity unidad(int coduni, short estadoOperativo) {
         UnidadEntity unidad = new UnidadEntity();
-        ReflectionTestUtils.setField(unidad, "coduni", CODUNI);
+        ReflectionTestUtils.setField(unidad, "coduni", coduni);
         PropiedadEntity propiedad = new PropiedadEntity();
         ReflectionTestUtils.setField(propiedad, "codprop", 0);
         Persona propietaria = new Persona();
@@ -239,8 +269,20 @@ class UnidadServiceImplTest {
     }
 
     private UnidadResponse response(short estadoOperativo) {
-        return new UnidadResponse(CODUNI, 0, "Unidad 101", "DEPARTAMENTO", null,
+        return response(CODUNI, estadoOperativo, true);
+    }
+
+    private UnidadResponse response(short estadoOperativo, boolean disponibleParaContrato) {
+        return response(CODUNI, estadoOperativo, disponibleParaContrato);
+    }
+
+    private UnidadResponse response(int coduni, short estadoOperativo, boolean disponibleParaContrato) {
+        return new UnidadResponse(coduni, 0, "Unidad 101", "DEPARTAMENTO", null,
                 new BigDecimal("40.00"), (short) 1, (short) 1, 1, "Bloque A",
-                new BigDecimal("2500.00"), estadoOperativo);
+                new BigDecimal("2500.00"), estadoOperativo, disponibleParaContrato);
+    }
+
+    private List<ContratoEstado> blockingStates() {
+        return List.of(ContratoEstado.PROGRAMADO, ContratoEstado.VIGENTE);
     }
 }

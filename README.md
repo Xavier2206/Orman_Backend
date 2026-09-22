@@ -1,62 +1,141 @@
-# ORMAN-BACKEND
+# ORMAN Backend
 
-Backend de ORMAN construido con Java 21 y Spring Boot 4.1.0. La Fase 12.2 incorpora la administración REST de Menús, Procesos y sus relaciones sin alterar la autorización existente.
+Backend del sistema ORMAN desarrollado con Java y Spring Boot para la gestión de personas, usuarios, roles, propiedades, contratos, pagos, notificaciones y procesos relacionados con la administración inmobiliaria.
 
-## Estado actual
+El proyecto expone una API REST utilizada por las aplicaciones cliente y centraliza la lógica de negocio, seguridad, persistencia y acceso a datos del sistema.
 
-**Última subfase completada: Fase 12.2 — Administración REST de Menús, Procesos y relaciones**
+## Tecnologías
 
-**Fases 10, 11 y 12: `COMPLETADAS`; Fase 12.3 no iniciada**
+* Java 21
+* Spring Boot 4.1.0
+* Maven y Maven Wrapper
+* PostgreSQL
+* Spring Data JPA
+* Hibernate
+* Flyway
+* Bean Validation
+* Spring Security
+* JWT
+* BCrypt
+* Lombok
+* API REST
+* Empaquetado JAR
 
-El backend incorpora Persona, Usuario, Roles, login WEB/MOBILE, refresh rotatorio, seguridad stateless y sesiones propias. En cada petición protegida carga Roles activos como authorities `ROLE_<NOMBRE>` sin incluirlos en el JWT. La matriz protege Personas, Usuarios, Roles y asignaciones; reserva PROPIETARIO y exige al menos uno activo. Flyway está en V7 con `menus`, `procesos`, `rolme` y `mepro`, sin endpoints ni autorización por Proceso.
+## Arquitectura
 
-Antes de desplegar 11.2, el entorno debe tener un Rol activo exacto `PROPIETARIO` asignado a un Usuario y Persona activos. La base local auditada no cumple todavía esa precondición; consulte la [preparación manual](docs/fases/11-2-matriz-autorizacion-propietario.md#precondición-operativa). La aplicación no crea propietarios automáticamente.
+El backend utiliza una arquitectura de monolito modular organizada por funcionalidades.
 
-## Stack confirmado
+La aplicación separa las responsabilidades principales en:
 
-- Java 21
-- Spring Boot
-- Maven y Maven Wrapper
-- PostgreSQL
-- Spring Data JPA e Hibernate
-- Flyway
-- Bean Validation
-- Lombok
-- Empaquetado JAR
-- IntelliJ IDEA y Codex CLI como herramientas de trabajo
+* controladores REST;
+* servicios de negocio;
+* repositorios;
+* entidades JPA;
+* DTO de entrada y salida;
+* mappers;
+* validaciones;
+* manejo centralizado de errores;
+* seguridad y autenticación.
 
-El servidor se configura para usar el puerto `9090`. La API de Persona está disponible en `/api/v1/personas`.
+Las entidades de persistencia no se exponen directamente mediante la API.
+
+## Funcionalidades principales
+
+El sistema incluye funcionalidades para:
+
+* gestión de personas;
+* gestión de usuarios;
+* administración de roles;
+* asignación de roles a usuarios;
+* autenticación de usuarios;
+* sesiones por dispositivo;
+* autenticación mediante JWT;
+* renovación mediante refresh token;
+* gestión de menús y procesos;
+* administración de propiedades y unidades;
+* registro de fotografías asociadas;
+* gestión de contratos;
+* administración de cuotas;
+* registro de pagos;
+* emisión y gestión de recibos;
+* gestión de cuentas de pago;
+* notificaciones;
+* control de acceso mediante roles.
+
+## API REST
+
+Los endpoints utilizan el prefijo:
+
+```text
+/api/v1
+```
+
+El servidor se ejecuta por defecto en:
+
+```text
+http://localhost:9090
+```
+
+Las respuestas HTTP utilizan DTO específicos y los errores se representan utilizando `ProblemDetail`.
 
 ## Requisitos
 
-- JDK 21
-- Una terminal compatible con el Maven Wrapper
+Para ejecutar el proyecto se necesita:
 
-Para iniciar la aplicación se requiere PostgreSQL, `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` de al menos 32 bytes.
+* JDK 21;
+* PostgreSQL;
+* Maven Wrapper incluido en el proyecto.
 
-`ORMAN_FRONTEND_URL` define el origen permitido para Angular. CORS admite credenciales y nunca usa `*`. Angular envía el access token mediante `Authorization: Bearer`, mantiene el refresh en cookie HttpOnly y copia el valor crudo de la cookie `XSRF-TOKEN` al header `X-XSRF-TOKEN` al renovar. Flutter envía Bearer y conserva su refresh MOBILE en almacenamiento seguro.
+No es necesario tener Maven instalado globalmente.
 
-## Configuración local de PostgreSQL
+## Configuración
 
-La aplicación obtiene la conexión de estas variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` y `DB_PASSWORD`. Los valores no sensibles de host, puerto y base tienen valores predeterminados en `application.yml`; usuario y contraseña son obligatorios.
+La aplicación utiliza variables de entorno para la configuración sensible.
 
-Usa [.env.example](.env.example) como referencia. `application.yml` importa opcionalmente `.env` como archivo de propiedades (`optional:file:./.env[.properties]`); el archivo real está ignorado por Git y nunca se empaqueta. Si no existe, siguen funcionando las variables del sistema, que tienen prioridad sobre `.env`.
+Las principales variables son:
 
-## Configuración local de JWT
-
-`JWT_SECRET` es obligatorio y debe tener al menos 32 bytes. Genera un valor local una sola vez con PowerShell; no ejecutes ni compartas su resultado:
-
-```powershell
-$bytes = New-Object byte[] 32
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
+```text
+DB_HOST
+DB_PORT
+DB_NAME
+DB_USERNAME
+DB_PASSWORD
+JWT_SECRET
+OTP_HMAC_SECRET
+MAIL_USERNAME
+MAIL_PASSWORD
+ORMAN_FRONTEND_URL
 ```
 
-Alternativa A — `.env` local: crea `.env` en la raíz a partir de `.env.example`, coloca el resultado en `JWT_SECRET=<valor>` y arranca `OrmanBackendApplication`. Spring Boot 4.1.0 lo carga mediante el import opcional. No versionas ese archivo.
+El archivo:
 
-Alternativa B — IntelliJ: abre **Run → Edit Configurations → Environment variables** y agrega `JWT_SECRET=<valor-local-seguro>`. Si creaste una variable global de Windows después de abrir IntelliJ, reinicia IntelliJ para que pueda heredarla.
+```text
+.env.example
+```
 
-En PowerShell, configura las variables solo para la sesión actual antes de ejecutar Maven:
+sirve como referencia para configurar el entorno local.
+
+El archivo real:
+
+```text
+.env
+```
+
+no forma parte del repositorio y no debe contenerse en Git.
+
+## Configuración de PostgreSQL
+
+La conexión con PostgreSQL utiliza las siguientes variables:
+
+```text
+DB_HOST
+DB_PORT
+DB_NAME
+DB_USERNAME
+DB_PASSWORD
+```
+
+Ejemplo para PowerShell:
 
 ```powershell
 $env:DB_HOST = "localhost"
@@ -64,69 +143,171 @@ $env:DB_PORT = "5432"
 $env:DB_NAME = "orman"
 $env:DB_USERNAME = "<usuario>"
 $env:DB_PASSWORD = "<contraseña>"
-$env:JWT_SECRET = "<secreto-aleatorio-de-al-menos-32-bytes>"
+```
+
+Los cambios de estructura de la base de datos son administrados mediante Flyway.
+
+Hibernate se utiliza para validar el esquema existente y no para generar automáticamente las tablas.
+
+## Configuración de JWT
+
+`JWT_SECRET` es necesario para la generación y validación de tokens JWT.
+
+Debe configurarse mediante una variable de entorno o mediante un archivo `.env` local que no esté versionado.
+
+Ejemplo en PowerShell:
+
+```powershell
+$env:JWT_SECRET = "<secreto-seguro>"
+```
+
+Para generar un valor aleatorio local puede utilizarse:
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+El valor generado no debe publicarse ni incluirse en el repositorio.
+
+## Seguridad
+
+El backend implementa mecanismos de seguridad para proteger las operaciones y los datos del sistema.
+
+Entre ellos:
+
+* contraseñas almacenadas mediante BCrypt;
+* autenticación mediante JWT;
+* refresh tokens;
+* sesiones diferenciadas por dispositivo;
+* autorización basada en roles;
+* protección de endpoints;
+* configuración CORS;
+* protección de información sensible;
+* códigos OTP cuando corresponde.
+
+Las contraseñas, tokens, secretos y credenciales no deben almacenarse directamente en el código fuente.
+
+## Ejecución
+
+### Windows
+
+Para ejecutar las pruebas:
+
+```powershell
 .\mvnw.cmd test
 ```
 
-Para iniciar desde Maven en la sesión actual:
+Para compilar el proyecto:
 
 ```powershell
-$env:JWT_SECRET = "<valor-local-seguro>"
-.\mvnw.cmd spring-boot:run
-```
-
-La variable de PowerShell dura solo durante esa sesión. Una variable de entorno configurada de este modo o en IntelliJ sobrescribe cualquier valor de `.env`.
-
-En IntelliJ IDEA, abre la configuración de ejecución o prueba, agrega las cinco variables en **Environment variables** y ejecuta la configuración. No guardes contraseñas en Git, documentación ni archivos versionados.
-
-## Comandos Maven
-
-En Windows:
-
-```powershell
-.\mvnw.cmd test
 .\mvnw.cmd clean package
+```
+
+Para iniciar la aplicación:
+
+```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-En Linux o macOS:
+### Linux y macOS
+
+Para ejecutar las pruebas:
 
 ```bash
 ./mvnw test
+```
+
+Para compilar:
+
+```bash
 ./mvnw clean package
+```
+
+Para iniciar la aplicación:
+
+```bash
 ./mvnw spring-boot:run
 ```
 
-Con las variables configuradas, puedes iniciar la aplicación con `./mvnw spring-boot:run` en Linux/macOS o `.\mvnw.cmd spring-boot:run` en Windows. Flyway administrará el historial de esquema y aplicará las migraciones de `personas` y `usuarios` cuando corresponda.
+## Base de datos
 
-## Documentación
+PostgreSQL es la base de datos utilizada por el sistema.
 
-- [Reglas permanentes de trabajo](AGENTS.md)
-- [Registro de cambios](CHANGELOG.md)
-- [Índice de documentación](docs/README.md)
-- [Plan general](docs/PLAN_GENERAL.md)
-- [Etapa 1 — Fundación técnica](docs/etapas/etapa-01-fundacion-tecnica.md)
-- [Etapa 2 — Personas, usuarios y roles](docs/etapas/etapa-02-personas-usuarios-roles.md)
-- [Fase 00 — Planificación general](docs/fases/00-planificacion-general.md)
-- [Fase 01 — Revisión y normalización Spring Boot](docs/fases/01-revision-normalizacion-spring-boot.md)
-- [Fase 02 — Configuración PostgreSQL y Flyway](docs/fases/02-configuracion-postgresql-flyway.md)
-- [Fase 03 — Infraestructura común y manejo global de errores](docs/fases/03-infraestructura-comun-manejo-errores.md)
-- [Fase 04 — Modelo y migración de Persona](docs/fases/04-modelo-migracion-persona.md)
-- [Fase 05 — API CRUD de Persona](docs/fases/05-crud-persona.md)
-- [Fase 06 — Modelo y migración de Usuario](docs/fases/06-modelo-migracion-usuario.md)
-- [Fase 07 — Administración de Usuarios y Contraseñas](docs/fases/07-administracion-usuarios-contrasenas.md)
-- [Fase 08 — Roles y relación Usuario–Rol](docs/fases/08-roles-relacion-usuario-rol.md)
-- [Fase 09 — Autenticación y validación de credenciales](docs/fases/09-autenticacion-validacion-credenciales.md)
-- [Fase 10.1 — Sesiones por dispositivo, JWT y refresh token](docs/fases/10-1-sesiones-jwt-refresh.md)
-- [Fase 10.2 — Seguridad HTTP y administración de sesiones](docs/fases/10-2-seguridad-sesiones.md)
-- [Fase 11.1 — Carga de Roles activos y base de autorización](docs/fases/11-1-base-autorizacion-roles.md)
-- [Fase 11.2 — Matriz de autorización y protección del propietario](docs/fases/11-2-matriz-autorizacion-propietario.md)
-- [Fase 12.1 — Modelo persistente de Menús y Procesos](docs/fases/12-1-modelo-menus-procesos.md)
-- [Fase 12.2 — Administración REST de Menús, Procesos y relaciones](docs/fases/12-2-administracion-rest-menus-procesos.md)
-- [Guía Postman de asignaciones Usuario–Rol](docs/postman/rolusu.md)
-- [Guía Postman de la API Persona](docs/postman/persona.md)
-- [Guía Postman de la API Usuario](docs/postman/usuario.md)
-- [Guía Postman de la API Roles](docs/postman/rol.md)
-- [Guía Postman de Autenticación](docs/postman/auth.md)
+Flyway administra las migraciones y mantiene el historial de cambios del esquema.
 
-La documentación generada por Spring Initializr se conserva en `HELP.md`.
+Las migraciones se encuentran en:
+
+```text
+src/main/resources/db/migration/
+```
+
+Al iniciar la aplicación, Flyway valida y aplica automáticamente las migraciones pendientes cuando corresponde.
+
+## Pruebas
+
+El proyecto incluye pruebas para validar las diferentes capas y reglas del backend.
+
+Para ejecutar la suite:
+
+```powershell
+.\mvnw.cmd clean test
+```
+
+Las pruebas permiten validar, entre otros aspectos:
+
+* lógica de negocio;
+* persistencia;
+* contratos HTTP;
+* validaciones;
+* seguridad;
+* restricciones de base de datos;
+* manejo de errores.
+
+## Archivos excluidos del repositorio
+
+Por seguridad y limpieza del proyecto no se incluyen en Git:
+
+```text
+.env
+docs/
+storage/
+target/
+.idea/
+.vscode/
+```
+
+Tampoco se incluyen archivos temporales, logs, credenciales, claves privadas ni documentos almacenados durante la ejecución de la aplicación.
+
+## Estructura general
+
+```text
+src/
+├── main/
+│   ├── java/
+│   │   └── com/orman/backend/
+│   └── resources/
+│       ├── application.yml
+│       └── db/
+│           └── migration/
+└── test/
+    ├── java/
+    └── resources/
+```
+
+## Compilación
+
+Para generar el archivo ejecutable:
+
+```powershell
+.\mvnw.cmd clean package
+```
+
+El artefacto generado se almacena en:
+
+```text
+target/
+```
+
+La carpeta `target/` es generada automáticamente y no se incluye en el repositorio.

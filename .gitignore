@@ -1,38 +1,135 @@
-HELP.md
-target/
+# ==========================================
+# Documentación y archivos internos
+# ==========================================
+
 docs/
-storage/
-.mvn/wrapper/maven-wrapper.jar
+AGENTS.md
+HELP.md
+
+
+# ==========================================
+# Maven / compilados
+# ==========================================
+
+target/
+build/
+out/
+dist/
+bin/
+
+*.class
+*.jar
+*.war
+*.ear
+
+
+# ==========================================
+# Variables de entorno / secretos
+# ==========================================
+
 .env
 .env.*
 !.env.example
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### STS ###
+*.local
+*.local.properties
+*.local.yml
+*.local.yaml
+
+application-local.properties
+application-local.yml
+application-local.yaml
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+secrets/
+credentials/
+
+
+# ==========================================
+# Archivos subidos / datos locales
+# ==========================================
+
+storage/
+uploads/
+runtime-data/
+
+
+# ==========================================
+# Logs y reportes
+# ==========================================
+
+*.log
+logs/
+
+surefire-reports/
+failsafe-reports/
+coverage/
+reports/
+jacoco.exec
+
+
+# ==========================================
+# Temporales
+# ==========================================
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+
+# ==========================================
+# STS / Eclipse
+# ==========================================
+
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
+
+# ==========================================
+# IntelliJ IDEA
+# ==========================================
+
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+
+# ==========================================
+# NetBeans
+# ==========================================
+
 /nbproject/private/
 /nbbuild/
-/dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
+
+# ==========================================
+# VS Code
+# ==========================================
+
 .vscode/
+
+
+# ==========================================
+# Sistema operativo
+# ==========================================
+
+.DS_Store
+Thumbs.db
+desktop.ini

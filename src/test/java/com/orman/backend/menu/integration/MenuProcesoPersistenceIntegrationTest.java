@@ -31,6 +31,7 @@ import com.orman.backend.user.service.UsuarioService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class MenuProcesoPersistenceIntegrationTest {
 
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private Flyway flyway;
     @Autowired private MenuRepository menuRepository;
     @Autowired private ProcesoRepository procesoRepository;
     @Autowired private RolMeRepository rolMeRepository;
@@ -90,10 +92,7 @@ class MenuProcesoPersistenceIntegrationTest {
                 SELECT COUNT(*) FROM flyway_schema_history
                 WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20') AND success
                 """, Integer.class)).isEqualTo(19);
-        assertThat(jdbcTemplate.queryForObject("""
-                SELECT version FROM flyway_schema_history
-                WHERE success ORDER BY installed_rank DESC LIMIT 1
-                """, String.class)).isEqualTo("20");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("20");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '7' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8' AND success", Integer.class))

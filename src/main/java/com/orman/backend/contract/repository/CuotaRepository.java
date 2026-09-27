@@ -16,6 +16,31 @@ import org.springframework.data.repository.query.Param;
 
 public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer>, CuotaListRepository {
 
+    @Query(value = """
+            select q.codcuo as \"codcuo\",
+                   q.codcon as \"codcon\",
+                   q.periodo as \"periodo\",
+                   q.fecha_vencimiento as \"fechaVencimiento\",
+                   q.monto as \"monto\",
+                   coalesce(sum(p.monto) filter (where p.estado = 'CONFIRMADO'), 0) as \"montoConfirmado\",
+                   coalesce(sum(p.monto) filter (where p.estado = 'PENDIENTE_REVISION'), 0)
+                       as \"montoPendienteRevision\",
+                   q.monto - coalesce(sum(p.monto) filter (where p.estado = 'CONFIRMADO'), 0) as \"saldo\",
+                   q.estado as \"estado\"
+              from cuotas q
+              join contratos c on c.codcon = q.codcon
+              left join pagos p on p.codcuo = q.codcuo
+                             and p.estado in ('CONFIRMADO', 'PENDIENTE_REVISION')
+             where c.codper_inquilino = :codper
+               and (:codcon is null or q.codcon = :codcon)
+               and (:codcuo is null or q.codcuo = :codcuo)
+             group by q.codcuo, q.codcon, q.periodo, q.fecha_vencimiento, q.monto, q.estado
+             order by q.periodo asc, q.codcuo asc
+            """, nativeQuery = true)
+    List<InquilinoCuotaProjection> findTenantQuotaSummaries(@Param("codper") Integer codper,
+                                                            @Param("codcon") Integer codcon,
+                                                            @Param("codcuo") Integer codcuo);
+
     boolean existsByContratoCodconAndPeriodo(Integer codcon, LocalDate periodo);
 
     List<CuotaEntity> findAllByContratoCodconOrderByPeriodoAsc(Integer codcon);

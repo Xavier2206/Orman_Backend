@@ -6,6 +6,16 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ### Corregido
 
+- `POST /api/v1/cuotas/{codcuo}/notificar` ahora valida el saldo confirmado y
+  crea la notificación para el usuario activo del Inquilino, con el período y
+  saldo pendientes calculados por backend. Usa `CUOTA_VENCIDA` si la fecha de
+  vencimiento ya pasó y `CUOTA_PROXIMA_VENCER` en caso contrario; al repetir
+  una solicitud reutiliza la notificación y la marca nuevamente como no leída,
+  sin alterar su fecha de creación.
+- El scheduler diario dirige `CUOTA_PROXIMA_VENCER` y `CUOTA_VENCIDA` al usuario
+  activo del inquilino, solo cuando la cuota `PENDIENTE` o `PARCIAL` tiene saldo
+  confirmado pendiente. Omite cuotas sin destinatario válido, continúa con las
+  demás y conserva la deduplicación sin reabrir avisos leídos.
 - `PATCH /api/v1/pagos/{codpag}/anular` permite anular pagos confirmados
   registrados por la propietaria, conserva el historial y recalcula la cuota
   dentro de la transacción. Se mantiene el bloqueo en orden cuota → pago y no

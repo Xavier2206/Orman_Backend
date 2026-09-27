@@ -15,11 +15,19 @@ import com.orman.backend.notification.service.NotificacionGeneracionService;
 import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.repository.PagoRepository;
 import com.orman.backend.property.service.PropertyOwnershipService;
+import com.orman.backend.person.entity.Persona;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
+import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +35,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class NotificacionGeneracionServiceImpl implements NotificacionGeneracionService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificacionGeneracionServiceImpl.class);
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
+    private static final Locale SPANISH_BOLIVIA = Locale.forLanguageTag("es-BO");
+    private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("MMMM 'de' uuuu",
+            SPANISH_BOLIVIA);
+    private static final Short ACTIVE = 1;
 
     private final NotificacionRepository notificacionRepository;
     private final NotificacionMapper notificacionMapper;
@@ -63,22 +78,39 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     @Transactional
     public void generateUpcomingQuota(Integer codcuo, LocalDate fechaActual) {
         CuotaEntity cuota = findCuota(codcuo);
-        String unidad = cuota.getContrato().getUnidad().getNombre();
-        String propiedad = cuota.getContrato().getUnidad().getPropiedad().getNombre();
-        String mensaje = cuota.getFechaVencimiento().equals(fechaActual)
-                ? "La cuota de alquiler del " + unidad + " vence hoy."
-                : "La cuota de alquiler del " + unidad + " del " + propiedad + " vence mañana.";
-        createIfAbsent(ownerUser(cuota), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA, codcuo,
-                "Cuota próxima a vencer", mensaje);
+        BigDecimal saldo = positiveBalance(cuota);
+        if (saldo == null) {
+            return;
+        }
+        Optional<Usuario> destinatario = findActiveTenantUser(cuota.getContrato().getInquilino());
+        if (destinatario.isEmpty()) {
+            logSkippedAutomaticNotification(codcuo);
+            return;
+        }
+        String vencimiento = cuota.getFechaVencimiento().equals(fechaActual) ? "vence hoy." : "vence mañana.";
+        String mensaje = "Tu cuota de " + cuota.getPeriodo().format(PERIOD_FORMAT)
+                + " tiene un saldo pendiente de Bs " + formatAmount(saldo) + " y " + vencimiento;
+        createIfAbsent(destinatario.get(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA, codcuo,
+                "Pago próximo a vencer", mensaje);
     }
 
     @Override
     @Transactional
     public void generateOverdueQuota(Integer codcuo) {
         CuotaEntity cuota = findCuota(codcuo);
-        String unidad = cuota.getContrato().getUnidad().getNombre();
-        createIfAbsent(ownerUser(cuota), NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA, codcuo,
-                "Cuota vencida", "La cuota de alquiler del " + unidad + " se encuentra vencida.");
+        BigDecimal saldo = positiveBalance(cuota);
+        if (saldo == null) {
+            return;
+        }
+        Optional<Usuario> destinatario = findActiveTenantUser(cuota.getContrato().getInquilino());
+        if (destinatario.isEmpty()) {
+            logSkippedAutomaticNotification(codcuo);
+            return;
+        }
+        String mensaje = "Tu cuota de " + cuota.getPeriodo().format(PERIOD_FORMAT)
+                + " tiene un saldo pendiente de Bs " + formatAmount(saldo) + " y se encuentra vencida.";
+        createIfAbsent(destinatario.get(), NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA, codcuo,
+                "Pago vencido", mensaje);
     }
 
     @Override
@@ -88,13 +120,69 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
         propertyOwnershipService.assertCurrentPropietaria(authentication,
                 cuota.getContrato().getUnidad().getPropiedad().getPropietaria());
         if (cuota.getEstado() != CuotaEstado.PENDIENTE && cuota.getEstado() != CuotaEstado.PARCIAL) {
-            throw new BusinessRuleException("Solo se puede notificar una Cuota pendiente, parcial o vencida.");
+            throw new BusinessRuleException("Solo se puede notificar una Cuota pendiente o parcial con saldo.");
         }
-        NotificacionTipo tipo = cuota.getFechaVencimiento().isBefore(LocalDate.now(ZoneId.of("America/La_Paz")))
+        BigDecimal montoConfirmado = pagoRepository.sumConfirmedMontoByCuota(codcuo);
+        BigDecimal saldo = cuota.getMonto().subtract(montoConfirmado);
+        if (saldo.signum() <= 0) {
+            throw new BusinessRuleException("No se puede notificar una Cuota sin saldo pendiente.");
+        }
+
+        Usuario destinatario = tenantUser(cuota.getContrato().getInquilino());
+        NotificacionTipo tipo = cuota.getFechaVencimiento().isBefore(LocalDate.now(BUSINESS_ZONE))
                 ? NotificacionTipo.CUOTA_VENCIDA : NotificacionTipo.CUOTA_PROXIMA_VENCER;
-        NotificacionEntity notificacion = createIfAbsent(ownerUser(cuota), tipo, ReferenciaTipo.CUOTA, codcuo,
-                "Recordatorio de pago", "Le recordamos que su cuota de alquiler se encuentra pendiente de pago.");
+        String titulo = "Pago pendiente";
+        String mensaje = manualPaymentMessage(cuota, montoConfirmado, saldo);
+        NotificacionEntity notificacion = createOrRefreshManualReminder(destinatario, tipo, codcuo, titulo, mensaje);
         return notificacionMapper.toResponse(notificacion);
+    }
+
+    private NotificacionEntity createOrRefreshManualReminder(Usuario destinatario, NotificacionTipo tipo,
+                                                              Integer codcuo, String titulo, String mensaje) {
+        NotificacionEntity notificacion = notificacionRepository
+                .findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                        destinatario.getLogin(), tipo, ReferenciaTipo.CUOTA, codcuo)
+                .orElse(null);
+        if (notificacion == null) {
+            return notificacionRepository.saveAndFlush(notificacionMapper.toEntity(destinatario, tipo, titulo, mensaje,
+                    ReferenciaTipo.CUOTA, codcuo));
+        }
+
+        notificacion.setTitulo(titulo);
+        notificacion.setMensaje(mensaje);
+        notificacion.setFechaLectura(null);
+        return notificacionRepository.saveAndFlush(notificacion);
+    }
+
+    private String manualPaymentMessage(CuotaEntity cuota, BigDecimal montoConfirmado, BigDecimal saldo) {
+        String periodo = cuota.getPeriodo().format(PERIOD_FORMAT);
+        if (montoConfirmado.signum() == 0) {
+            return "Tienes pendiente el pago de Bs " + formatAmount(cuota.getMonto())
+                    + " correspondiente a " + periodo + ".";
+        }
+        return "Tienes un saldo pendiente de Bs " + formatAmount(saldo)
+                + " correspondiente a " + periodo + ".";
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        NumberFormat amountFormat = NumberFormat.getNumberInstance(SPANISH_BOLIVIA);
+        amountFormat.setMinimumFractionDigits(2);
+        amountFormat.setMaximumFractionDigits(2);
+        return amountFormat.format(amount);
+    }
+
+    private BigDecimal positiveBalance(CuotaEntity cuota) {
+        if (cuota.getEstado() != CuotaEstado.PENDIENTE && cuota.getEstado() != CuotaEstado.PARCIAL) {
+            return null;
+        }
+        BigDecimal confirmed = pagoRepository.sumConfirmedMontoByCuota(cuota.getCodcuo());
+        BigDecimal saldo = cuota.getMonto().subtract(confirmed);
+        return saldo.signum() > 0 ? saldo : null;
+    }
+
+    private void logSkippedAutomaticNotification(Integer codcuo) {
+        LOGGER.warn("Se omite la notificación automática de la cuota {}: el inquilino no tiene un usuario activo válido.",
+                codcuo);
     }
 
     private NotificacionEntity createIfAbsent(Usuario destinatario, NotificacionTipo tipo,
@@ -120,5 +208,30 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
         Integer codper = cuota.getContrato().getUnidad().getPropiedad().getPropietaria().getCodper();
         return usuarioRepository.findByPersonaCodper(codper)
                 .orElseThrow(() -> new BusinessRuleException("La Persona propietaria no tiene un Usuario asociado."));
+    }
+
+    private Usuario tenantUser(Persona inquilino) {
+        Usuario usuario = findTenantUser(inquilino)
+                .orElseThrow(() -> new BusinessRuleException("El Inquilino no tiene un Usuario asociado."));
+        if (!isActiveTenantUser(inquilino, usuario)) {
+            throw new BusinessRuleException("El Inquilino no tiene un Usuario activo asociado.");
+        }
+        return usuario;
+    }
+
+    private Optional<Usuario> findActiveTenantUser(Persona inquilino) {
+        return findTenantUser(inquilino).filter(usuario -> isActiveTenantUser(inquilino, usuario));
+    }
+
+    private Optional<Usuario> findTenantUser(Persona inquilino) {
+        if (inquilino == null) {
+            return Optional.empty();
+        }
+        return usuarioRepository.findByPersonaCodper(inquilino.getCodper());
+    }
+
+    private boolean isActiveTenantUser(Persona inquilino, Usuario usuario) {
+        return ACTIVE.equals(usuario.getEstado()) && ACTIVE.equals(inquilino.getEstado())
+                && Character.valueOf('I').equals(inquilino.getTipoPersona());
     }
 }

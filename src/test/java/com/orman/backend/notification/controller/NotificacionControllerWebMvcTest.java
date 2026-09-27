@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +33,7 @@ class NotificacionControllerWebMvcTest {
     @MockitoBean private NotificacionGeneracionService notificacionGeneracionService;
 
     @Test
+    @WithMockUser(roles = "INQUILINO")
     void exposesTheNotificationQueriesAndReadAction() throws Exception {
         when(notificacionService.list(any(), any(), any(), any())).thenReturn(
                 new PageResponse<>(List.of(response(14)), 0, 20, 1, 1, true, true));
@@ -54,15 +56,24 @@ class NotificacionControllerWebMvcTest {
     }
 
     @Test
+    @WithMockUser(roles = "PROPIETARIO")
     void validatesTypeAndCreatesManualPendingPaymentReminder() throws Exception {
-        when(notificacionGeneracionService.notifyPendingPayment(any(), any())).thenReturn(response(15));
+        when(notificacionGeneracionService.notifyPendingPayment(any(), any())).thenReturn(
+                new NotificacionResponse(15L, "CUOTA_VENCIDA", "Pago pendiente",
+                        "Tienes pendiente el pago de Bs 2.500,00 correspondiente a septiembre de 2026.",
+                        "CUOTA", 8, LocalDateTime.of(2026, 9, 10, 10, 0), false, null));
 
         mockMvc.perform(get("/api/v1/notificaciones").param("tipo", "INVALIDA"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         mockMvc.perform(post("/api/v1/cuotas/8/notificar"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.codnot").value(15));
+                .andExpect(jsonPath("$.codnot").value(15))
+                .andExpect(jsonPath("$.titulo").value("Pago pendiente"))
+                .andExpect(jsonPath("$.referenciaTipo").value("CUOTA"))
+                .andExpect(jsonPath("$.referenciaId").value(8))
+                .andExpect(jsonPath("$.mensaje").value(
+                        "Tienes pendiente el pago de Bs 2.500,00 correspondiente a septiembre de 2026."));
     }
 
     private NotificacionResponse response(long codnot) {

@@ -21,6 +21,7 @@ import com.orman.backend.user.repository.UsuarioRepository;
 import com.orman.backend.user.service.UsuarioService;
 
 import java.util.Map;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +46,7 @@ class AuthIntegrationTest {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtService jwtService;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private Flyway flyway;
 
     @Test
     void revokesSessionsAfterPasswordAndAdministrativeDeactivations() {
@@ -156,9 +158,7 @@ class AuthIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20') AND success",
                 Integer.class)).isEqualTo(19);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
-                String.class)).isEqualTo("20");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("20");
         Map<String, Object> loginColumn = jdbcTemplate.queryForMap("""
                 SELECT data_type, character_maximum_length, is_nullable
                 FROM information_schema.columns

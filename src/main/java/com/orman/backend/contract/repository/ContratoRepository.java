@@ -36,6 +36,26 @@ public interface ContratoRepository extends JpaRepository<ContratoEntity, Intege
     @EntityGraph(attributePaths = {"unidad", "unidad.propiedad", "unidad.propiedad.propietaria", "inquilino"})
     Optional<ContratoEntity> findByCodcon(Integer codcon);
 
+    @EntityGraph(attributePaths = {"unidad", "unidad.propiedad"})
+    @Query(value = """
+            select c from ContratoEntity c
+            where c.inquilino.codper = :codper
+            order by case
+                       when c.estado = com.orman.backend.contract.entity.ContratoEstado.VIGENTE then 0
+                       when c.estado = com.orman.backend.contract.entity.ContratoEstado.PROGRAMADO then 1
+                       else 2
+                     end,
+                     c.fechaInicio desc,
+                     c.codcon desc
+            """, countQuery = """
+            select count(c) from ContratoEntity c
+            where c.inquilino.codper = :codper
+            """)
+    Page<ContratoEntity> findAllForTenant(@Param("codper") Integer codper, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"unidad", "unidad.propiedad"})
+    Optional<ContratoEntity> findByCodconAndInquilinoCodper(Integer codcon, Integer codper);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"unidad", "unidad.propiedad", "unidad.propiedad.propietaria", "inquilino"})
     @Query("select c from ContratoEntity c where c.codcon = :codcon")

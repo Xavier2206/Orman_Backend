@@ -10,7 +10,9 @@ import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.repository.ContratoRepository;
 import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.notification.entity.NotificacionTipo;
+import com.orman.backend.notification.entity.NotificacionEntity;
 import com.orman.backend.notification.entity.ReferenciaTipo;
+import com.orman.backend.notification.mapper.NotificacionMapper;
 import com.orman.backend.notification.repository.NotificacionRepository;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
 import com.orman.backend.notification.service.NotificacionService;
@@ -37,7 +39,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +69,7 @@ class NotificationModuleIntegrationTest {
     @Autowired private ContratoRepository contratoRepository;
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private NotificacionRepository notificacionRepository;
+    @Autowired private NotificacionMapper notificacionMapper;
     @Autowired private NotificacionService notificacionService;
     @Autowired private NotificacionGeneracionService notificacionGeneracionService;
     @Autowired private CuotaNotificacionScheduler cuotaNotificacionScheduler;
@@ -95,74 +100,285 @@ class NotificationModuleIntegrationTest {
     @Test
     void schedulerGeneratesUpcomingTodayAndOverdueNotificationsOnlyOnce() {
         Context context = context("SCH");
+        Usuario tenant = user("not.scheduler.tenant." + UUID.randomUUID(), context.contrato().getInquilino());
         CuotaEntity overdue = cuota(context, LocalDate.of(2026, 9, 1), CuotaEstado.PARCIAL);
         CuotaEntity tomorrow = cuota(context, LocalDate.of(2026, 10, 1), CuotaEstado.PENDIENTE);
         CuotaEntity today = cuota(context, LocalDate.of(2026, 11, 1), CuotaEstado.PENDIENTE);
         CuotaEntity paid = cuota(context, LocalDate.of(2026, 8, 1), CuotaEstado.PAGADA);
         CuotaEntity annulled = cuota(context, LocalDate.of(2026, 7, 1), CuotaEstado.ANULADA);
+        Context noBalanceContext = context("SCH-NO-BALANCE");
+        Usuario noBalanceTenant = user("not.scheduler.no.balance." + UUID.randomUUID(),
+                noBalanceContext.contrato().getInquilino());
+        CuotaEntity noBalance = cuota(noBalanceContext, LocalDate.of(2026, 10, 1), CuotaEstado.PENDIENTE);
+        pagoService.create(noBalance.getCodcuo(), paymentRequest(), null,
+                authentication(noBalanceContext.usuario()));
+        noBalance.setEstado(CuotaEstado.PENDIENTE);
+        cuotaRepository.saveAndFlush(noBalance);
 
         cuotaNotificacionScheduler.generateFor(LocalDate.of(2026, 9, 30));
         cuotaNotificacionScheduler.generateFor(LocalDate.of(2026, 9, 30));
 
-        assertNotification(context.usuario(), NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA,
+        assertNotification(tenant, NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA,
                 overdue.getCodcuo());
-        assertNotification(context.usuario(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
+        assertNotification(tenant, NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
                 tomorrow.getCodcuo());
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
-                context.usuario().getLogin(), ReferenciaTipo.CUOTA, paid.getCodcuo())).isEmpty();
+                tenant.getLogin(), ReferenciaTipo.CUOTA, paid.getCodcuo())).isEmpty();
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
-                context.usuario().getLogin(), ReferenciaTipo.CUOTA, annulled.getCodcuo())).isEmpty();
-        assertThat(notificacionRepository.searchOwn(context.usuario().getLogin(), null, null,
+                tenant.getLogin(), ReferenciaTipo.CUOTA, annulled.getCodcuo())).isEmpty();
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                noBalanceTenant.getLogin(), ReferenciaTipo.CUOTA, noBalance.getCodcuo())).isEmpty();
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                context.usuario().getLogin(), ReferenciaTipo.CUOTA, overdue.getCodcuo())).isEmpty();
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                context.usuario().getLogin(), ReferenciaTipo.CUOTA, tomorrow.getCodcuo())).isEmpty();
+        assertThat(notificacionRepository.searchOwn(tenant.getLogin(), null, null,
                 org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isEqualTo(2);
+        assertThat(notificacionRepository.searchOwn(context.usuario().getLogin(), null, null,
+                org.springframework.data.domain.Pageable.unpaged()).getTotalElements()).isZero();
 
         cuotaNotificacionScheduler.generateFor(LocalDate.of(2026, 11, 1));
         assertThat(notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
-                context.usuario().getLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
+                tenant.getLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
                 today.getCodcuo()).orElseThrow().getMensaje()).contains("vence hoy");
+    }
+
+    @Test
+    void schedulerUsesConfirmedBalanceForPartialQuotaAndIgnoresPendingReviewAmount() {
+        Context context = context("SCH-PARTIAL");
+        Usuario tenant = user("not.sch.partial." + UUID.randomUUID(), context.contrato().getInquilino());
+        LocalDate dueTomorrow = LocalDate.of(2026, 10, 1);
+        LocalDate today = dueTomorrow.minusDays(1);
+        CuotaEntity partial = cuota(context, dueTomorrow, CuotaEstado.PENDIENTE, new BigDecimal("2500.00"));
+
+        pagoService.create(partial.getCodcuo(), paymentRequest(new BigDecimal("1000.00")), null,
+                authentication(context.usuario()));
+        pendingPayment(context, partial, new BigDecimal("500.00"));
+
+        cuotaNotificacionScheduler.generateFor(today);
+
+        NotificacionEntity notification = notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
+                partial.getCodcuo()).orElseThrow();
+        assertThat(notification.getMensaje()).contains("1.500", periodDescription(dueTomorrow));
+        assertThat(notification.getMensaje()).doesNotContain("2.000");
+        assertThat(pagoRepository.sumConfirmedMontoByCuota(partial.getCodcuo())).isEqualByComparingTo("1000.00");
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                context.usuario().getLogin(), ReferenciaTipo.CUOTA, partial.getCodcuo())).isEmpty();
+    }
+
+    @Test
+    void schedulerSkipsMissingTenantUserAndContinuesProcessingOtherQuotas() {
+        LocalDate dueTomorrow = LocalDate.of(2026, 10, 1);
+        LocalDate today = dueTomorrow.minusDays(1);
+        Context missingUserContext = context("SCH-NO-USER");
+        CuotaEntity missingUserQuota = cuota(missingUserContext, dueTomorrow, CuotaEstado.PENDIENTE);
+        Context validContext = context("SCH-VALID");
+        Usuario tenant = user("not.sch.valid." + UUID.randomUUID(), validContext.contrato().getInquilino());
+        CuotaEntity validQuota = cuota(validContext, dueTomorrow, CuotaEstado.PENDIENTE);
+
+        cuotaNotificacionScheduler.generateFor(today);
+
+        assertNotification(tenant, NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA,
+                validQuota.getCodcuo());
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                missingUserContext.usuario().getLogin(), ReferenciaTipo.CUOTA, missingUserQuota.getCodcuo())).isEmpty();
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), ReferenciaTipo.CUOTA, missingUserQuota.getCodcuo())).isEmpty();
+    }
+
+    @Test
+    void schedulerAllowsUpcomingAndOverdueTypesAndDoesNotReopenReadNotifications() {
+        Context context = context("SCH-TRANSITION");
+        Usuario tenant = user("not.sch.transition." + UUID.randomUUID(), context.contrato().getInquilino());
+        LocalDate dueTomorrow = LocalDate.of(2026, 10, 1);
+        CuotaEntity quota = cuota(context, dueTomorrow, CuotaEstado.PENDIENTE);
+
+        cuotaNotificacionScheduler.generateFor(dueTomorrow.minusDays(1));
+        NotificacionEntity upcoming = notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA, quota.getCodcuo())
+                .orElseThrow();
+        var read = notificacionService.markAsRead(upcoming.getCodnot(), authentication(tenant, "ROLE_INQUILINO"));
+
+        cuotaNotificacionScheduler.generateFor(dueTomorrow.minusDays(1));
+        cuotaNotificacionScheduler.generateFor(dueTomorrow.minusDays(1));
+        cuotaNotificacionScheduler.generateFor(dueTomorrow.plusDays(1));
+        cuotaNotificacionScheduler.generateFor(dueTomorrow.plusDays(1));
+
+        NotificacionEntity overdue = notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA, quota.getCodcuo())
+                .orElseThrow();
+        NotificacionEntity unchangedUpcoming = notificacionRepository.findById(upcoming.getCodnot()).orElseThrow();
+        assertThat(overdue.getCodnot()).isNotEqualTo(upcoming.getCodnot());
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), ReferenciaTipo.CUOTA, quota.getCodcuo())).hasSize(2);
+        assertThat(unchangedUpcoming.getFechaLectura()).isEqualTo(read.fechaLectura());
+        assertThat(unchangedUpcoming.getFechaCreacion()).isEqualTo(upcoming.getFechaCreacion());
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                context.usuario().getLogin(), ReferenciaTipo.CUOTA, quota.getCodcuo())).isEmpty();
     }
 
     @Test
     void createsManualReminderOnlyForOwnedPendingOrPartialQuotaAndAvoidsDuplicates() {
         Context context = context("MANUAL");
-        CuotaEntity pending = cuota(context, LocalDate.of(2026, 12, 1), CuotaEstado.PENDIENTE);
+        Usuario tenant = user("not.manual.tenant." + UUID.randomUUID(), context.contrato().getInquilino());
+        LocalDate pendingPeriod = LocalDate.now(ZoneId.of("America/La_Paz")).plusMonths(1).withDayOfMonth(1);
+        CuotaEntity pending = cuota(context, pendingPeriod, CuotaEstado.PENDIENTE,
+                new BigDecimal("2500.00"));
         Authentication ownerAuthentication = authentication(context.usuario());
 
         var first = notificacionGeneracionService.notifyPendingPayment(pending.getCodcuo(), ownerAuthentication);
+        NotificacionEntity stored = notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER, ReferenciaTipo.CUOTA, pending.getCodcuo())
+                .orElseThrow();
+        var creationTime = stored.getFechaCreacion();
         var repeated = notificacionGeneracionService.notifyPendingPayment(pending.getCodcuo(), ownerAuthentication);
 
         assertThat(first.codnot()).isEqualTo(repeated.codnot());
         assertThat(first.referenciaTipo()).isEqualTo("CUOTA");
-        assertThat(first.mensaje()).isEqualTo("Le recordamos que su cuota de alquiler se encuentra pendiente de pago.");
+        assertThat(first.tipo()).isEqualTo("CUOTA_PROXIMA_VENCER");
+        assertThat(first.titulo()).isEqualTo("Pago pendiente");
+        assertThat(first.mensaje()).contains("Bs ", "2.500", periodDescription(pendingPeriod));
+        assertThat(stored.getDestinatario().getLogin()).isEqualTo(tenant.getLogin());
+        assertThat(stored.getReferenciaId()).isEqualTo(pending.getCodcuo());
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
-                context.usuario().getLogin(), ReferenciaTipo.CUOTA, pending.getCodcuo())).hasSize(1);
+                tenant.getLogin(), ReferenciaTipo.CUOTA, pending.getCodcuo())).hasSize(1);
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                context.usuario().getLogin(), ReferenciaTipo.CUOTA, pending.getCodcuo())).isEmpty();
+        assertThat(repeated.leida()).isFalse();
+        assertThat(stored.getFechaCreacion()).isEqualTo(creationTime);
+
+        var read = notificacionService.markAsRead(first.codnot(), authentication(tenant, "ROLE_INQUILINO"));
+        assertThat(read.leida()).isTrue();
+        var reopened = notificacionGeneracionService.notifyPendingPayment(pending.getCodcuo(), ownerAuthentication);
+        NotificacionEntity reopenedEntity = notificacionRepository.findById(first.codnot()).orElseThrow();
+        assertThat(reopened.codnot()).isEqualTo(first.codnot());
+        assertThat(reopened.leida()).isFalse();
+        assertThat(reopened.fechaLectura()).isNull();
+        assertThat(reopenedEntity.getFechaCreacion()).isEqualTo(creationTime);
 
         Context other = context("OTHER");
         assertThatThrownBy(() -> notificacionGeneracionService.notifyPendingPayment(pending.getCodcuo(),
                 authentication(other.usuario()))).isInstanceOf(AccessDeniedException.class);
-        CuotaEntity paid = cuota(context, LocalDate.of(2026, 11, 1), CuotaEstado.PAGADA);
+        CuotaEntity paid = cuota(context, pendingPeriod.plusMonths(1), CuotaEstado.PAGADA);
         assertThatThrownBy(() -> notificacionGeneracionService.notifyPendingPayment(paid.getCodcuo(), ownerAuthentication))
                 .isInstanceOf(BusinessRuleException.class);
+        CuotaEntity annulled = cuota(context, pendingPeriod.plusMonths(2), CuotaEstado.ANULADA);
+        assertThatThrownBy(() -> notificacionGeneracionService.notifyPendingPayment(annulled.getCodcuo(), ownerAuthentication))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void manualReminderUsesConfirmedBalanceAndDoesNotSubtractPendingReviewPayments() {
+        Context context = context("MANUAL-PARTIAL");
+        Usuario tenant = user("not.partial.tenant." + UUID.randomUUID(), context.contrato().getInquilino());
+        LocalDate pastPeriod = LocalDate.now(ZoneId.of("America/La_Paz")).minusMonths(1).withDayOfMonth(1);
+        CuotaEntity partial = cuota(context, pastPeriod, CuotaEstado.PENDIENTE,
+                new BigDecimal("2500.00"));
+        Authentication ownerAuthentication = authentication(context.usuario());
+
+        pagoService.create(partial.getCodcuo(), paymentRequest(new BigDecimal("1000.00")), null, ownerAuthentication);
+        assertThat(cuotaRepository.findByCodcuo(partial.getCodcuo()).orElseThrow().getEstado())
+                .isEqualTo(CuotaEstado.PARCIAL);
+        pendingPayment(context, partial, new BigDecimal("500.00"));
+
+        var response = notificacionGeneracionService.notifyPendingPayment(partial.getCodcuo(), ownerAuthentication);
+        NotificacionEntity stored = notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), NotificacionTipo.CUOTA_VENCIDA, ReferenciaTipo.CUOTA, partial.getCodcuo())
+                .orElseThrow();
+
+        assertThat(response.tipo()).isEqualTo("CUOTA_VENCIDA");
+        assertThat(response.mensaje()).contains("Bs ", "1.500", periodDescription(pastPeriod));
+        assertThat(response.mensaje()).doesNotContain("2.500");
+        assertThat(pagoRepository.sumConfirmedMontoByCuota(partial.getCodcuo()))
+                .isEqualByComparingTo("1000.00");
+        assertThat(stored.getDestinatario().getLogin()).isEqualTo(tenant.getLogin());
+    }
+
+    @Test
+    void manualReminderRejectsNonPositiveBalanceEvenIfQuotaStateIsInconsistent() {
+        Context context = context("MANUAL-ZERO");
+        Usuario tenant = user("not.zero.tenant." + UUID.randomUUID(), context.contrato().getInquilino());
+        CuotaEntity quota = cuota(context, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE);
+        Authentication ownerAuthentication = authentication(context.usuario());
+        pagoService.create(quota.getCodcuo(), paymentRequest(), null, ownerAuthentication);
+        quota.setEstado(CuotaEstado.PENDIENTE);
+        cuotaRepository.saveAndFlush(quota);
+
+        assertThatThrownBy(() -> notificacionGeneracionService.notifyPendingPayment(quota.getCodcuo(), ownerAuthentication))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("No se puede notificar una Cuota sin saldo pendiente.");
+        assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
+                tenant.getLogin(), ReferenciaTipo.CUOTA, quota.getCodcuo())).isEmpty();
+    }
+
+    @Test
+    void manualReminderRequiresAnActiveTenantUser() {
+        Context context = context("MANUAL-NO-USER");
+        CuotaEntity pending = cuota(context, LocalDate.of(2026, 12, 1), CuotaEstado.PENDIENTE);
+
+        assertThatThrownBy(() -> notificacionGeneracionService.notifyPendingPayment(
+                pending.getCodcuo(), authentication(context.usuario())))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessage("El Inquilino no tiene un Usuario asociado.");
     }
 
     @Test
     void listsOwnNotificationsAndMarksThemReadIdempotently() {
         Context context = context("READ");
+        Usuario tenant = user("not.read.tenant." + UUID.randomUUID(), context.contrato().getInquilino());
         CuotaEntity pending = cuota(context, LocalDate.of(2026, 12, 1), CuotaEstado.PENDIENTE);
         Authentication ownerAuthentication = authentication(context.usuario());
         var created = notificacionGeneracionService.notifyPendingPayment(pending.getCodcuo(), ownerAuthentication);
+        Authentication tenantAuthentication = authentication(tenant, "ROLE_INQUILINO");
 
         assertThat(notificacionService.list(null, false,
-                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication).content())
+                org.springframework.data.domain.PageRequest.of(0, 20), tenantAuthentication).content())
                 .extracting(response -> response.codnot()).contains(created.codnot());
-        assertThat(notificacionService.summary(ownerAuthentication).noLeidas()).isEqualTo(1);
-        var firstRead = notificacionService.markAsRead(created.codnot(), ownerAuthentication);
-        var repeatedRead = notificacionService.markAsRead(created.codnot(), ownerAuthentication);
+        assertThat(notificacionService.list(null, false,
+                org.springframework.data.domain.PageRequest.of(0, 20), ownerAuthentication).content()).isEmpty();
+        assertThat(notificacionService.summary(tenantAuthentication).noLeidas()).isEqualTo(1);
+        var firstRead = notificacionService.markAsRead(created.codnot(), tenantAuthentication);
+        var repeatedRead = notificacionService.markAsRead(created.codnot(), tenantAuthentication);
         assertThat(firstRead.leida()).isTrue();
         assertThat(repeatedRead.fechaLectura()).isEqualTo(firstRead.fechaLectura());
-        assertThat(notificacionService.summary(ownerAuthentication).noLeidas()).isZero();
+        assertThat(notificacionService.summary(tenantAuthentication).noLeidas()).isZero();
 
         Context other = context("READ-OTHER");
-        assertThatThrownBy(() -> notificacionService.get(created.codnot(), authentication(other.usuario())))
+        Usuario otherTenant = user("not.read.other." + UUID.randomUUID(), other.contrato().getInquilino());
+        assertThatThrownBy(() -> notificacionService.get(created.codnot(),
+                authentication(otherTenant, "ROLE_INQUILINO")))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void tenantNotificationReadsRemainIsolatedByAuthenticatedLogin() {
+        Context context = context("TENANT-READ");
+        Usuario tenantA = user("notification.tenant.a." + UUID.randomUUID(), context.contrato().getInquilino());
+        Persona tenantBPerson = persona("NOTIFY-TENANT-B-" + UUID.randomUUID());
+        Usuario tenantB = user("notification.tenant.b." + UUID.randomUUID(), tenantBPerson);
+        NotificacionEntity tenantANotification = notification(tenantA, NotificacionTipo.CUOTA_VENCIDA, 71);
+        NotificacionEntity tenantASecondNotification = notification(tenantA, NotificacionTipo.CUOTA_PROXIMA_VENCER, 72);
+        NotificacionEntity tenantBNotification = notification(tenantB, NotificacionTipo.CUOTA_VENCIDA, 73);
+        NotificacionEntity ownerNotification = notification(context.usuario(), NotificacionTipo.PAGO_CONFIRMADO, 74,
+                ReferenciaTipo.PAGO);
+        Authentication tenantAAuthentication = authentication(tenantA, "ROLE_INQUILINO");
+
+        var ownPage = notificacionService.list(null, null,
+                org.springframework.data.domain.PageRequest.of(0, 20), tenantAAuthentication);
+
+        assertThat(ownPage.content()).extracting(row -> row.codnot())
+                .containsExactlyInAnyOrder(tenantANotification.getCodnot(), tenantASecondNotification.getCodnot())
+                .doesNotContain(tenantBNotification.getCodnot(), ownerNotification.getCodnot());
+        assertThat(notificacionService.summary(tenantAAuthentication).noLeidas()).isEqualTo(2);
+        assertThat(notificacionService.get(tenantANotification.getCodnot(), tenantAAuthentication).referenciaTipo())
+                .isEqualTo("CUOTA");
+        assertThat(notificacionService.markAsRead(tenantANotification.getCodnot(), tenantAAuthentication).leida())
+                .isTrue();
+        assertThat(notificacionService.summary(tenantAAuthentication).noLeidas()).isEqualTo(1);
+        assertThatThrownBy(() -> notificacionService.get(tenantBNotification.getCodnot(), tenantAAuthentication))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> notificacionService.markAsRead(tenantBNotification.getCodnot(), tenantAAuthentication))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -205,7 +421,11 @@ class NotificationModuleIntegrationTest {
     }
 
     private PagoRequest paymentRequest() {
-        return new PagoRequest(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null, UUID.randomUUID());
+        return paymentRequest(new BigDecimal("100.00"));
+    }
+
+    private PagoRequest paymentRequest(BigDecimal amount) {
+        return new PagoRequest(amount, MetodoPago.EFECTIVO, null, UUID.randomUUID());
     }
 
     private Context context(String prefix) {
@@ -244,7 +464,8 @@ class NotificationModuleIntegrationTest {
 
         ContratoEntity contrato = new ContratoEntity();
         contrato.setUnidad(unidad);
-        contrato.setInquilino(persona((prefix + "T" + token).substring(0, Math.min(20, prefix.length() + token.length() + 1))));
+        contrato.setInquilino(persona(
+                (prefix + "T" + token).substring(0, Math.min(20, prefix.length() + token.length() + 1)), 'I'));
         contrato.setFechaInicio(LocalDate.of(2026, 1, 1));
         contrato.setFechaFin(LocalDate.of(2027, 1, 1));
         contrato.setMontoMensual(new BigDecimal("100.00"));
@@ -257,9 +478,13 @@ class NotificationModuleIntegrationTest {
     }
 
     private PagoEntity pendingPayment(Context context, CuotaEntity cuota) {
+        return pendingPayment(context, cuota, new BigDecimal("100.00"));
+    }
+
+    private PagoEntity pendingPayment(Context context, CuotaEntity cuota, BigDecimal amount) {
         PagoEntity pago = new PagoEntity();
         pago.setCuota(cuota);
-        pago.setMonto(new BigDecimal("100.00"));
+        pago.setMonto(amount);
         pago.setMetodo(MetodoPago.EFECTIVO);
         pago.setFechaPago(LocalDateTime.now());
         pago.setFechaRegistro(LocalDateTime.now());
@@ -271,30 +496,67 @@ class NotificationModuleIntegrationTest {
     }
 
     private CuotaEntity cuota(Context context, LocalDate periodo, CuotaEstado estado) {
+        return cuota(context, periodo, estado, new BigDecimal("100.00"));
+    }
+
+    private CuotaEntity cuota(Context context, LocalDate periodo, CuotaEstado estado, BigDecimal amount) {
         CuotaEntity cuota = new CuotaEntity();
         cuota.setContrato(context.contrato());
         cuota.setPeriodo(periodo);
         cuota.setFechaVencimiento(periodo);
-        cuota.setMonto(new BigDecimal("100.00"));
+        cuota.setMonto(amount);
         cuota.setEstado(estado);
         return cuotaRepository.saveAndFlush(cuota);
     }
 
     private Persona persona(String ci) {
+        return persona(ci, 'A');
+    }
+
+    private Persona persona(String ci, Character tipoPersona) {
+        String normalizedCi = ci.substring(0, Math.min(20, ci.length()));
         Persona persona = new Persona();
-        persona.setCi(ci);
+        persona.setCi(normalizedCi);
         persona.setNombre("Persona de notificación");
         persona.setGenero('F');
         persona.setEstado((short) 1);
-        persona.setCorreo(ci.toLowerCase() + "@example.test");
+        persona.setCorreo(normalizedCi.toLowerCase() + "@example.test");
         persona.setTelefono("70000000");
-        persona.setTipoPersona('A');
+        persona.setTipoPersona(tipoPersona);
         return personaRepository.saveAndFlush(persona);
     }
 
     private Authentication authentication(Usuario usuario) {
+        return authentication(usuario, "ROLE_PROPIETARIO");
+    }
+
+    private Authentication authentication(Usuario usuario, String role) {
         return new TestingAuthenticationToken(new AuthenticatedUser(usuario.getLogin(), UUID.randomUUID()), null,
-                List.of(new SimpleGrantedAuthority("ROLE_PROPIETARIO")));
+                List.of(new SimpleGrantedAuthority(role)));
+    }
+
+    private String periodDescription(LocalDate period) {
+        return period.format(DateTimeFormatter.ofPattern("MMMM 'de' uuuu", Locale.forLanguageTag("es-BO")));
+    }
+
+    private NotificacionEntity notification(Usuario recipient, NotificacionTipo type, Integer referenceId) {
+        return notification(recipient, type, referenceId, ReferenciaTipo.CUOTA);
+    }
+
+    private NotificacionEntity notification(Usuario recipient, NotificacionTipo type, Integer referenceId,
+                                            ReferenciaTipo referenceType) {
+        return notificacionRepository.saveAndFlush(notificacionMapper.toEntity(recipient, type, "Aviso de prueba",
+                "NotificaciÃ³n de prueba.", referenceType, referenceId));
+    }
+
+    private Usuario user(String login, Persona persona) {
+        Usuario usuario = new Usuario();
+        usuario.setLogin(login.substring(0, Math.min(30, login.length())));
+        usuario.setPasswd("hash-no-expuesto");
+        usuario.setEstado((short) 1);
+        usuario.setPersona(persona);
+        usuario.setFechaCreacion(LocalDateTime.now());
+        return usuarioRepository.saveAndFlush(usuario);
     }
 
     private record Context(Usuario usuario, ContratoEntity contrato) {

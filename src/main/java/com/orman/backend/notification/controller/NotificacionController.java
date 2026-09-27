@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/notificaciones")
 @RequiredArgsConstructor
 @Validated
-@PreAuthorize("hasRole('PROPIETARIO')")
+@PreAuthorize("hasAnyRole('PROPIETARIO','INQUILINO')")
 public class NotificacionController {
 
     private final NotificacionService notificacionService;

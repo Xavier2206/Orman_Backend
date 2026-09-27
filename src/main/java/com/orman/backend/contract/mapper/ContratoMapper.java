@@ -56,7 +56,7 @@ public class ContratoMapper {
                 inquilino, unidad, propiedad, cuotasResumen);
     }
 
-    private ContratoInquilinoResponse toInquilinoResponse(Persona inquilino) {
+    public ContratoInquilinoResponse toInquilinoResponse(Persona inquilino) {
         if (inquilino == null) {
             return null;
         }

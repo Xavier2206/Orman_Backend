@@ -30,17 +30,14 @@ public class PagoComprobanteEntity {
     @JoinColumn(name = "codpag", nullable = false)
     private PagoEntity pago;
 
-    @Column(nullable = false, length = 500)
-    private String url;
+    @Column(name = "ruta_archivo", nullable = false, length = 500)
+    private String rutaArchivo;
 
     @Column(name = "nombre_archivo", nullable = false, length = 255)
     private String nombreArchivo;
 
     @Column(name = "tipo_contenido", nullable = false, length = 100)
     private String tipoContenido;
-
-    @Column(nullable = false)
-    private Integer orden;
 
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;

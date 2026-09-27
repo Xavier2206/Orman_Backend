@@ -2,8 +2,10 @@ package com.orman.backend.contract.repository;
 
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
+import com.orman.backend.person.entity.Persona;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import java.util.List;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Set;
@@ -17,6 +19,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ContratoRepository extends JpaRepository<ContratoEntity, Integer> {
+
+    @Query("""
+            select i
+              from Persona i
+             where i.codper in (
+                   select c.inquilino.codper
+                     from ContratoEntity c
+                    where c.unidad.propiedad.propietaria.codper = :codper
+                      and c.inquilino.tipoPersona = 'I'
+             )
+             order by i.nombre, i.ap, i.am, i.codper
+            """)
+    List<Persona> findDistinctInquilinosOwned(@Param("codper") Integer codper);
 
     @EntityGraph(attributePaths = {"unidad", "unidad.propiedad", "unidad.propiedad.propietaria", "inquilino"})
     Optional<ContratoEntity> findByCodcon(Integer codcon);

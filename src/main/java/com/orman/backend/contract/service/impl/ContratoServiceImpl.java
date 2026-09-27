@@ -7,6 +7,7 @@ import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.dto.response.ContratoResumenResponse;
+import com.orman.backend.contract.dto.response.ContratoInquilinoResponse;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.mapper.ContratoMapper;
@@ -117,6 +118,15 @@ public class ContratoServiceImpl implements ContratoService {
                 resumen.getProgramados(),
                 resumen.getFinalizados(),
                 resumen.getRescindidos());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContratoInquilinoResponse> inquilinos(Authentication authentication) {
+        Integer codperPropietaria = propertyOwnershipService.currentPropietaria(authentication).getCodper();
+        return contratoRepository.findDistinctInquilinosOwned(codperPropietaria).stream()
+                .map(contratoMapper::toInquilinoResponse)
+                .toList();
     }
 
     @Override

@@ -38,8 +38,8 @@ public class PagoEntity {
     private CuotaEntity cuota;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "codcta")
-    private CuentaPagoEntity cuentaPago;
+    @JoinColumn(name = "codqr")
+    private QrCobroEntity qrCobro;
 
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal monto;
@@ -47,9 +47,6 @@ public class PagoEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MetodoPago metodo;
-
-    @Column(name = "referencia_externa", length = 100)
-    private String referenciaExterna;
 
     @Column(name = "fecha_pago", nullable = false)
     private LocalDateTime fechaPago;

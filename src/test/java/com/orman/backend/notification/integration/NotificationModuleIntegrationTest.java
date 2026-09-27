@@ -15,15 +15,15 @@ import com.orman.backend.notification.repository.NotificacionRepository;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
 import com.orman.backend.notification.service.NotificacionService;
 import com.orman.backend.notification.service.impl.CuotaNotificacionScheduler;
-import com.orman.backend.payment.dto.request.PagoComprobanteRequest;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.OrigenRegistroPago;
 import com.orman.backend.payment.entity.PagoEntity;
+import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEstado;
 import com.orman.backend.payment.repository.PagoRepository;
-import com.orman.backend.payment.service.PagoComprobanteService;
+import com.orman.backend.payment.repository.PagoComprobanteRepository;
 import com.orman.backend.payment.service.PagoService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
@@ -69,7 +69,7 @@ class NotificationModuleIntegrationTest {
     @Autowired private NotificacionGeneracionService notificacionGeneracionService;
     @Autowired private CuotaNotificacionScheduler cuotaNotificacionScheduler;
     @Autowired private PagoService pagoService;
-    @Autowired private PagoComprobanteService pagoComprobanteService;
+    @Autowired private PagoComprobanteRepository pagoComprobanteRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -171,7 +171,7 @@ class NotificationModuleIntegrationTest {
         Context context = context("PAYMENT");
         Authentication ownerAuthentication = authentication(context.usuario());
         CuotaEntity confirmedQuota = cuota(context, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE);
-        var confirmed = pagoService.create(confirmedQuota.getCodcuo(), paymentRequest(), ownerAuthentication);
+        var confirmed = pagoService.create(confirmedQuota.getCodcuo(), paymentRequest(), null, ownerAuthentication);
         notificacionGeneracionService.generatePaymentConfirmed(confirmed.codpag());
         assertNotification(context.usuario(), NotificacionTipo.PAGO_CONFIRMADO, ReferenciaTipo.PAGO, confirmed.codpag());
 
@@ -183,8 +183,14 @@ class NotificationModuleIntegrationTest {
 
         CuotaEntity proofQuota = cuota(context, LocalDate.of(2026, 11, 1), CuotaEstado.PENDIENTE);
         PagoEntity proofPayment = pendingPayment(context, proofQuota);
-        pagoComprobanteService.create(proofPayment.getCodpag(), new PagoComprobanteRequest("https://example.test/pago.pdf",
-                "pago.pdf", "application/pdf", 0), ownerAuthentication);
+        PagoComprobanteEntity proof = new PagoComprobanteEntity();
+        proof.setPago(proofPayment);
+        proof.setRutaArchivo("comprobantes/" + proofPayment.getCodpag()
+                + "/00000000-0000-0000-0000-000000000001.png");
+        proof.setNombreArchivo("pago.png");
+        proof.setTipoContenido("image/png");
+        proof.setFechaRegistro(LocalDateTime.of(2026, 9, 25, 12, 0));
+        pagoComprobanteRepository.saveAndFlush(proof);
         notificacionGeneracionService.generateComprobanteReceived(proofPayment.getCodpag());
         assertThat(notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
                 context.usuario().getLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO, ReferenciaTipo.PAGO,
@@ -199,8 +205,7 @@ class NotificationModuleIntegrationTest {
     }
 
     private PagoRequest paymentRequest() {
-        return new PagoRequest(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null,
-                "REF-" + UUID.randomUUID(), LocalDateTime.now(), UUID.randomUUID());
+        return new PagoRequest(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null, UUID.randomUUID());
     }
 
     private Context context(String prefix) {

@@ -5,11 +5,13 @@ import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.dto.response.ContratoResumenResponse;
+import com.orman.backend.contract.dto.response.ContratoInquilinoResponse;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.service.ContratoService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -73,6 +75,11 @@ public class ContratoController {
     @GetMapping("/contratos/resumen")
     public ContratoResumenResponse resumen(Authentication authentication) {
         return contratoService.resumen(authentication);
+    }
+
+    @GetMapping("/contratos/inquilinos")
+    public List<ContratoInquilinoResponse> inquilinos(Authentication authentication) {
+        return contratoService.inquilinos(authentication);
     }
 
     @GetMapping("/contratos/{codcon}")

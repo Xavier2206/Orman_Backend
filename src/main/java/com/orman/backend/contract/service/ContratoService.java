@@ -5,9 +5,11 @@ import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.dto.response.ContratoResumenResponse;
+import com.orman.backend.contract.dto.response.ContratoInquilinoResponse;
 import com.orman.backend.contract.entity.ContratoEstado;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
+import java.util.List;
 
 public interface ContratoService {
 
@@ -19,6 +21,8 @@ public interface ContratoService {
                                         Pageable pageable, Authentication authentication);
 
     ContratoResumenResponse resumen(Authentication authentication);
+
+    List<ContratoInquilinoResponse> inquilinos(Authentication authentication);
 
     ContratoResponse get(Integer codcon, Authentication authentication);
 

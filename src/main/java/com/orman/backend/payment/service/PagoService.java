@@ -9,10 +9,11 @@ import com.orman.backend.payment.entity.PagoEstado;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface PagoService {
 
-    PagoResponse create(Integer codcuo, PagoRequest request, Authentication authentication);
+    PagoResponse create(Integer codcuo, PagoRequest request, MultipartFile comprobante, Authentication authentication);
 
     List<PagoResponse> listByCuota(Integer codcuo, Authentication authentication);
 

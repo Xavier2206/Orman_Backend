@@ -4,6 +4,7 @@ import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.contract.dto.request.ContratoRequest;
+import com.orman.backend.contract.dto.request.CuotaListCriteria;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
 import com.orman.backend.contract.service.ContratoArchivoService;
@@ -11,7 +12,9 @@ import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.repository.CuotaRepository;
+import com.orman.backend.contract.repository.CuotaListProjection;
 import com.orman.backend.contract.service.ContratoService;
+import com.orman.backend.contract.service.CuotaService;
 import com.orman.backend.contract.service.impl.ContratoActivacionScheduler;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.OrigenRegistroPago;
@@ -64,6 +67,7 @@ class ContractModuleIntegrationTest {
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private ContratoService contratoService;
+    @Autowired private CuotaService cuotaService;
     @Autowired private ContratoArchivoService contratoArchivoService;
     @Autowired private ContratoActivacionScheduler contratoActivacionScheduler;
 
@@ -515,6 +519,132 @@ class ContractModuleIntegrationTest {
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("pendientes de revisión");
     }
 
+    @Test
+    void listsGlobalQuotasWithOwnerFiltersAggregatesPagingAndDerivedDueBuckets() {
+        Context owner = context("GLOBALQUOTAS", (short) 1, (short) 1, (short) 1);
+        setTenantName(owner, "Carlos", "Mendoza", "Rojas");
+        LocalDate start = MES_ACTUAL.minusMonths(1);
+        LocalDate end = MES_ACTUAL.plusMonths(3);
+        ContratoResponse firstContract = create(owner, start, end);
+        UnidadEntity secondUnit = addUnidad(owner, "GLOBAL-SECOND");
+        createWith(owner, secondUnit, owner.inquilino(), start, end);
+
+        Context otherOwner = context("GLOBALOTHER", (short) 1, (short) 1, (short) 1);
+        ContratoResponse otherContract = create(otherOwner, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        List<CuotaEntity> firstContractQuotas = cuotas(firstContract);
+        CuotaEntity partiallyPaid = firstContractQuotas.getFirst();
+        partiallyPaid.setEstado(CuotaEstado.PARCIAL);
+        cuotaRepository.flush();
+        savePayment(partiallyPaid, owner.usuario(), PagoEstado.CONFIRMADO, new BigDecimal("300.00"));
+        pendingPaymentWithAmount(partiallyPaid, owner.usuario(), new BigDecimal("200.00"));
+        CuotaEntity pendingForReview = firstContractQuotas.get(2);
+        pendingPaymentWithAmount(pendingForReview, owner.usuario(), new BigDecimal("100.00"));
+
+        var firstPage = cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                null, "0", "2"), owner.authentication());
+        var secondPage = cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                null, "1", "2"), owner.authentication());
+        var defaultPage = cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                null, null, null), owner.authentication());
+        assertThat(firstPage.content()).hasSize(2);
+        assertThat(firstPage.content()).extracting(row -> row.fechaVencimiento()).containsOnly(start);
+        assertThat(firstPage.content()).extracting(row -> row.codcuo()).isSorted();
+        assertThat(firstPage.totalElements()).isEqualTo(8);
+        assertThat(firstPage.totalPages()).isEqualTo(4);
+        assertThat(firstPage.first()).isTrue();
+        assertThat(firstPage.last()).isFalse();
+        assertThat(defaultPage.content()).hasSize(8);
+        assertThat(defaultPage.page()).isZero();
+        assertThat(defaultPage.size()).isEqualTo(20);
+        assertThat(defaultPage.totalElements()).isEqualTo(8);
+        assertThat(defaultPage.totalPages()).isEqualTo(1);
+        assertThat(defaultPage.first()).isTrue();
+        assertThat(defaultPage.last()).isTrue();
+        assertThat(secondPage.content()).hasSize(2);
+        assertThat(secondPage.content()).extracting(row -> row.codcuo())
+                .doesNotContainAnyElementsOf(firstPage.content().stream().map(row -> row.codcuo()).toList());
+
+        var all = cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                null, "0", "100"), owner.authentication());
+        assertThat(all.content()).hasSize(8);
+        var firstItem = all.content().stream().filter(row -> row.codcuo().equals(partiallyPaid.getCodcuo()))
+                .findFirst().orElseThrow();
+        assertThat(firstItem.codcon()).isEqualTo(firstContract.codcon());
+        assertThat(firstItem.codperInquilino()).isEqualTo(owner.inquilino().getCodper());
+        assertThat(firstItem.nombreCompleto()).isEqualTo("Carlos Mendoza Rojas");
+        assertThat(firstItem.ci()).isEqualTo(owner.inquilino().getCi());
+        assertThat(firstItem.codprop()).isEqualTo(owner.unidad().getPropiedad().getCodprop());
+        assertThat(firstItem.nombrePropiedad()).isEqualTo(owner.unidad().getPropiedad().getNombre());
+        assertThat(firstItem.coduni()).isEqualTo(owner.unidad().getCoduni());
+        assertThat(firstItem.nombreUnidad()).isEqualTo(owner.unidad().getNombre());
+        assertThat(firstItem.monto()).isEqualByComparingTo("1500.00");
+        assertThat(firstItem.montoConfirmado()).isEqualByComparingTo("300.00");
+        assertThat(firstItem.montoPendienteRevision()).isEqualByComparingTo("200.00");
+        assertThat(firstItem.saldo()).isEqualByComparingTo("1200.00");
+        assertThat(firstItem.estado()).isEqualTo("PARCIAL");
+        assertThat(firstItem.situacionVencimiento()).isIn("VENCIDA", "HOY", "PROXIMA", "AL_DIA");
+
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(owner.inquilino().getCodper().toString(),
+                null, null, null, null, null, null, "0", "100"), owner.authentication()).totalElements())
+                .isEqualTo(8);
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, MES_ACTUAL.toString(), null, null,
+                null, null, null, "0", "100"), owner.authentication()).totalElements()).isEqualTo(2);
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, "PARCIAL", null, null, null,
+                null, "0", "100"), owner.authentication()).content())
+                .extracting(row -> row.codcuo()).containsExactly(partiallyPaid.getCodcuo());
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null,
+                owner.unidad().getPropiedad().getCodprop().toString(), null, null, "0", "100"),
+                owner.authentication()).totalElements()).isEqualTo(8);
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null,
+                secondUnit.getCoduni().toString(), null, "0", "100"), owner.authentication()).totalElements())
+                .isEqualTo(4);
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                "true", "0", "100"), owner.authentication()).content())
+                .extracting(row -> row.codcuo()).containsExactlyInAnyOrder(partiallyPaid.getCodcuo(),
+                        pendingForReview.getCodcuo());
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
+                "false", "0", "100"), owner.authentication()).totalElements()).isEqualTo(8);
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null,
+                otherOwner.unidad().getPropiedad().getCodprop().toString(), null, null, "0", "100"),
+                owner.authentication()).content()).isEmpty();
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null,
+                otherOwner.unidad().getCoduni().toString(), null, "0", "100"),
+                owner.authentication()).content()).isEmpty();
+        assertThat(cuotaService.listGlobal(CuotaListCriteria.from(otherOwner.inquilino().getCodper().toString(),
+                null, null, null, null, null, null, "0", "100"), owner.authentication()).content()).isEmpty();
+        assertThat(contratoService.inquilinos(owner.authentication()))
+                .extracting(row -> row.codper()).containsExactly(owner.inquilino().getCodper());
+
+        Integer ownerId = owner.unidad().getPropiedad().getPropietaria().getCodper();
+        assertThat(cuotaRepository.searchOwned(ownerId, criteriaForDue("HOY"), MES_ACTUAL,
+                MES_ACTUAL.plusDays(7)).content())
+                .extracting(CuotaListProjection::fechaVencimiento)
+                .containsExactlyInAnyOrder(MES_ACTUAL, MES_ACTUAL);
+        LocalDate dueInSixDays = MES_ACTUAL.plusDays(24);
+        assertThat(cuotaRepository.searchOwned(ownerId, criteriaForDue("VENCIDAS"), dueInSixDays,
+                dueInSixDays.plusDays(7)).content())
+                .extracting(CuotaListProjection::fechaVencimiento)
+                .containsExactlyInAnyOrder(start, start, MES_ACTUAL, MES_ACTUAL);
+        assertThat(cuotaRepository.searchOwned(ownerId, criteriaForDue("PROXIMAS"), dueInSixDays,
+                dueInSixDays.plusDays(7)).content())
+                .extracting(CuotaListProjection::fechaVencimiento)
+                .containsExactlyInAnyOrder(MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(1));
+        assertThat(cuotaRepository.searchOwned(ownerId, criteriaForDue("AL_DIA"), dueInSixDays,
+                dueInSixDays.plusDays(7)).content())
+                .extracting(CuotaListProjection::fechaVencimiento)
+                .containsExactlyInAnyOrder(MES_ACTUAL.plusMonths(2), MES_ACTUAL.plusMonths(2));
+        assertThat(cuotaRepository.searchOwned(ownerId,
+                CuotaListCriteria.from(null, null, null, null, null, null, null, "0", "100"),
+                dueInSixDays, dueInSixDays.plusDays(7)).content())
+                .extracting(CuotaListProjection::fechaVencimiento)
+                .containsExactly(start, start, MES_ACTUAL, MES_ACTUAL, MES_ACTUAL.plusMonths(1),
+                        MES_ACTUAL.plusMonths(1), MES_ACTUAL.plusMonths(2), MES_ACTUAL.plusMonths(2));
+
+        assertThat(cuotaService.listByContrato(firstContract.codcon(), owner.authentication())).hasSize(4);
+        assertThat(otherContract.codcon()).isNotNull();
+    }
+
     private ContratoResponse create(Context context, LocalDate start, LocalDate end) {
         return contratoService.create(context.unidad().getCoduni(),
                 request(context.inquilino().getCodper(), start, end, new BigDecimal("1500.00")),
@@ -583,9 +713,13 @@ class ContractModuleIntegrationTest {
     }
 
     private void pendingPayment(CuotaEntity cuota, Usuario actor) {
+        pendingPaymentWithAmount(cuota, actor, new BigDecimal("10.00"));
+    }
+
+    private void pendingPaymentWithAmount(CuotaEntity cuota, Usuario actor, BigDecimal amount) {
         PagoEntity pago = new PagoEntity();
         pago.setCuota(cuota);
-        pago.setMonto(new BigDecimal("10.00"));
+        pago.setMonto(amount);
         pago.setMetodo(MetodoPago.EFECTIVO);
         pago.setFechaPago(LocalDateTime.now());
         pago.setFechaRegistro(LocalDateTime.now());
@@ -594,6 +728,26 @@ class ContractModuleIntegrationTest {
         pago.setRegistradoPor(actor);
         pago.setIdempotencyKey(UUID.randomUUID());
         pagoRepository.saveAndFlush(pago);
+    }
+
+    private void savePayment(CuotaEntity cuota, Usuario actor, PagoEstado state, BigDecimal amount) {
+        PagoEntity pago = new PagoEntity();
+        pago.setCuota(cuota);
+        pago.setMonto(amount);
+        pago.setMetodo(MetodoPago.EFECTIVO);
+        pago.setFechaPago(LocalDateTime.now());
+        pago.setFechaRegistro(LocalDateTime.now());
+        pago.setEstado(state);
+        pago.setOrigenRegistro(OrigenRegistroPago.PROPIETARIA);
+        pago.setRegistradoPor(actor);
+        pago.setRevisadoPor(actor);
+        pago.setFechaRevision(LocalDateTime.now());
+        pago.setIdempotencyKey(UUID.randomUUID());
+        pagoRepository.saveAndFlush(pago);
+    }
+
+    private CuotaListCriteria criteriaForDue(String due) {
+        return CuotaListCriteria.from(null, null, null, due, null, null, null, "0", "100");
     }
 
     private Context context(String prefix, short propertyState, short unitState, short tenantState) {

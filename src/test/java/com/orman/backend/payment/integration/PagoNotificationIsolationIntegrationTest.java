@@ -12,7 +12,6 @@ import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.repository.PagoRepository;
-import com.orman.backend.payment.repository.ReciboRepository;
 import com.orman.backend.payment.service.PagoService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
@@ -52,13 +51,12 @@ class PagoNotificationIsolationIntegrationTest {
     @Autowired private ContratoRepository contratoRepository;
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private PagoRepository pagoRepository;
-    @Autowired private ReciboRepository reciboRepository;
     @Autowired private TransactionTemplate transactionTemplate;
     @Autowired private JdbcTemplate jdbcTemplate;
     @MockitoBean private NotificacionGeneracionService notificacionGeneracionService;
 
     @Test
-    void notificationFailureAfterCommitDoesNotRollbackPaymentQuotaOrReceipt() {
+    void notificationFailureAfterCommitDoesNotRollbackPaymentOrQuota() {
         TestContext context = transactionTemplate.execute(status -> createContext());
         doThrow(new IllegalStateException("notification unavailable"))
                 .when(notificacionGeneracionService).generatePaymentConfirmed(org.mockito.ArgumentMatchers.anyInt());
@@ -66,8 +64,8 @@ class PagoNotificationIsolationIntegrationTest {
         PagoResponse[] created = new PagoResponse[1];
         try {
             assertThatCode(() -> created[0] = transactionTemplate.execute(status -> pagoService.create(
-                    context.codcuo(), new PagoRequest(new BigDecimal("100.00"), MetodoPago.EFECTIVO, null,
-                            "Efectivo verificado", LocalDateTime.now(), UUID.randomUUID()), context.authentication())))
+                    context.codcuo(), new PagoRequest(new BigDecimal("100.00"), MetodoPago.EFECTIVO,
+                            null, UUID.randomUUID()), null, context.authentication())))
                     .doesNotThrowAnyException();
 
             assertThat(created[0]).isNotNull();
@@ -75,7 +73,6 @@ class PagoNotificationIsolationIntegrationTest {
                     .isEqualTo("CONFIRMADO");
             assertThat(cuotaRepository.findById(context.codcuo()).orElseThrow().getEstado())
                     .isEqualTo(CuotaEstado.PAGADA);
-            assertThat(reciboRepository.findByPagoCodpag(created[0].codpag())).isPresent();
         } finally {
             cleanup(context, created[0]);
         }
@@ -156,7 +153,6 @@ class PagoNotificationIsolationIntegrationTest {
 
     private void cleanup(TestContext context, PagoResponse payment) {
         if (payment != null) {
-            jdbcTemplate.update("DELETE FROM recibos WHERE codpag = ?", payment.codpag());
             jdbcTemplate.update("DELETE FROM pagos WHERE codpag = ?", payment.codpag());
         }
         jdbcTemplate.update("DELETE FROM cuotas WHERE codcuo = ?", context.codcuo());

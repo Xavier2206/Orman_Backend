@@ -14,7 +14,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer> {
+public interface CuotaRepository extends JpaRepository<CuotaEntity, Integer>, CuotaListRepository {
 
     boolean existsByContratoCodconAndPeriodo(Integer codcon, LocalDate periodo);
 

@@ -4,6 +4,74 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+### Corregido
+
+- `PATCH /api/v1/pagos/{codpag}/anular` permite anular pagos confirmados
+  registrados por la propietaria, conserva el historial y recalcula la cuota
+  dentro de la transacción. Se mantiene el bloqueo en orden cuota → pago y no
+  se agrega notificación ni migración.
+
+## Simplificación definitiva del backend de pagos - 2026-09-25
+
+### Cambiado
+
+- V20 crea `qr_cobro` asociado a la propietaria, cambia `pagos.codcta` por
+  `pagos.codqr`, restringe métodos nuevos a `EFECTIVO` y `QR`, elimina
+  `referencia_externa`, `cuentas_pago` y `recibos` y limita a un comprobante
+  privado por pago.
+- El registro de pago ahora recibe JSON y archivo opcional/obligatorio por
+  `multipart/form-data`. Los archivos PNG/JPEG se validan por contenido, se
+  normalizan y se guardan con UUID fuera de rutas públicas.
+- La propietaria confirma sus pagos directamente; pagos QR de inquilino
+  quedan pendientes con comprobante obligatorio. Se conserva `ANULADO` para
+  cancelar un registro pendiente.
+- La migración aborta antes de eliminar datos heredados que no se puedan
+  convertir inequívocamente. El preflight de `orman` halló vacías las tablas de
+  pagos, cuentas, comprobantes y recibos; la migración se aplicó solo en
+  `orman_test`.
+
+### Verificación
+
+- `orman_test` pasó de Flyway V18 a V20; se verificó `current_database()` antes
+  de ejecutar la integración. `orman` se inspeccionó mediante consultas de
+  lectura y conserva su V19 residual.
+- `PaymentPersistenceIntegrationTest` (6), `PaymentModuleIntegrationTest`
+  (10), `PagoControllerWebMvcTest`, `PagoMapperTest` y
+  `PaymentImageStorageServiceTest` pasan.
+- `mvnw clean test`: 404 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- Tras agregar la prueba HTTP de rechazo de `TRANSFERENCIA`,
+  `PagoControllerWebMvcTest`: 5 pruebas, 0 fallos ni errores.
+- `mvnw -DskipTests package`: BUILD SUCCESS.
+
+## Ajuste controlado de fecha de Pago - 2026-09-25
+
+### Corregido
+
+- EFECTIVO asigna `fechaPago` desde el backend e ignora el valor enviado; TRANSFERENCIA y QR requieren fecha manual no futura y una CuentaPago activa de la propietaria.
+- `America/La_Paz` se usa solo para resolver `fechaPago` de EFECTIVO y validar fechas de TRANSFERENCIA/QR. `fechaRegistro`, `fechaRevision` y demás marcas temporales mantienen el comportamiento UTC anterior.
+- No se modificaron endpoints, esquema ni pagos históricos.
+
+### Verificación
+
+- Pruebas de Pagos: 22 ejecutadas en `orman_test` (Flyway V18), 0 fallos, 0 errores y 0 omitidas; no se ejecutaron migraciones.
+- `mvnw clean test` anterior: 400 pruebas, 2 fallos, 0 errores y 0 omitidas. Usó `DB_NAME=orman`; `AuthIntegrationTest` y `MenuProcesoPersistenceIntegrationTest` esperan V18, mientras que `orman` conserva aplicada V19 `V19__index_cuotas_fecha_vencimiento.sql`, ausente de `src/main/resources/db/migration`. No se modificó esa base.
+- `mvnw -DskipTests package`: BUILD SUCCESS.
+
+## Gestion de Pagos: listado global de cuotas - 2026-09-25
+
+### Agregado
+
+- GET /api/v1/cuotas: listado owner-scoped, paginado y filtrable de cuotas con datos de inquilino, propiedad, unidad y agregados de pagos.
+- GET /api/v1/contratos/inquilinos: selector minimo de inquilinos asociados a contratos de propiedades propias.
+- DTO de fila independiente; los endpoints de cuotas por contrato y de escritura de pagos no cambian.
+- Sin resumen financiero ni migracion. La consulta usa agregacion SQL y paginacion en PostgreSQL.
+
+### Verificacion
+
+- Compilacion Java 21 correcta; seis pruebas enfocadas nuevas pasan; el grupo seleccionado ejecuto 23 pruebas sin fallos.
+- Prueba de integracion PostgreSQL agregada, pendiente de ejecucion hasta confirmar una base de pruebas aislada.
+
+
 ### Agregado
 
 - Endpoint `GET /api/v1/contratos/resumen` con conteos de contratos por estado,

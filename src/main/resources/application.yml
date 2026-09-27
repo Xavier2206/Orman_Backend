@@ -82,6 +82,11 @@ storage:
     target-optimized-size-bytes: ${CONTRACT_DOCUMENT_TARGET_SIZE_BYTES:10485760}
     max-image-pixels-to-optimize: ${CONTRACT_DOCUMENT_MAX_IMAGE_PIXELS:16000000}
 
+  pagos:
+    root: ${PAYMENT_IMAGE_STORAGE_ROOT:./storage}
+    max-file-size-bytes: ${PAYMENT_IMAGE_MAX_FILE_SIZE_BYTES:5242880}
+    max-dimension: ${PAYMENT_IMAGE_MAX_DIMENSION:1920}
+
 notification:
   scheduler:
     cron: ${NOTIFICATION_SCHEDULER_CRON:0 0 8 * * *}

@@ -19,20 +19,21 @@ import org.springframework.data.repository.query.Param;
 public interface PagoRepository extends JpaRepository<PagoEntity, Integer> {
 
     String OWNERSHIP_GRAPH = "cuota, cuota.contrato, cuota.contrato.unidad, cuota.contrato.unidad.propiedad, "
-            + "cuota.contrato.unidad.propiedad.propietaria, cuentaPago";
+            + "cuota.contrato.unidad.propiedad.propietaria, qrCobro";
 
-    @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
+    @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.inquilino", "cuota.contrato.unidad",
+            "cuota.contrato.unidad.propiedad", "cuota.contrato.unidad.propiedad.propietaria", "qrCobro",
+            "registradoPor", "revisadoPor"})
     Optional<PagoEntity> findByCodpag(Integer codpag);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
+            "cuota.contrato.unidad.propiedad.propietaria", "qrCobro", "registradoPor", "revisadoPor"})
     @Query("select p from PagoEntity p where p.codpag = :codpag")
     Optional<PagoEntity> findByCodpagForUpdate(@Param("codpag") Integer codpag);
 
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
+            "cuota.contrato.unidad.propiedad.propietaria", "qrCobro", "registradoPor", "revisadoPor"})
     @Query("""
             select p from PagoEntity p
             where p.cuota.codcuo = :codcuo
@@ -42,7 +43,7 @@ public interface PagoRepository extends JpaRepository<PagoEntity, Integer> {
     List<PagoEntity> findAllByCuotaOwned(@Param("codcuo") Integer codcuo, @Param("codper") Integer codper);
 
     @EntityGraph(attributePaths = {"cuota", "cuota.contrato", "cuota.contrato.unidad", "cuota.contrato.unidad.propiedad",
-            "cuota.contrato.unidad.propiedad.propietaria", "cuentaPago", "registradoPor", "revisadoPor"})
+            "cuota.contrato.unidad.propiedad.propietaria", "qrCobro", "registradoPor", "revisadoPor"})
     @Query(value = """
             select p from PagoEntity p
             where p.cuota.contrato.unidad.propiedad.propietaria.codper = :codper

@@ -40,7 +40,7 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     public void generatePaymentConfirmed(Integer codpag) {
         PagoEntity pago = findPago(codpag);
         createIfAbsent(ownerUser(pago.getCuota()), NotificacionTipo.PAGO_CONFIRMADO, ReferenciaTipo.PAGO, codpag,
-                "Pago confirmado", "El pago de la cuota fue confirmado. Su recibo se encuentra disponible.");
+                "Pago confirmado", "El pago de la cuota fue confirmado.");
     }
 
     @Override

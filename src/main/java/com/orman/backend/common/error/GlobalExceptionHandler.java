@@ -5,6 +5,7 @@ import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.common.exception.LastOwnerRequiredException;
 import com.orman.backend.contract.exception.InvalidContratoArchivoException;
+import com.orman.backend.contract.exception.InvalidCuotaListFilterException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.OtpDeliveryException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
@@ -17,6 +18,7 @@ import com.orman.backend.person.exception.InvalidPersonaFilterException;
 import com.orman.backend.person.exception.InvalidPersonaPhotoException;
 import com.orman.backend.property.exception.InvalidPropiedadPortadaException;
 import com.orman.backend.property.exception.InvalidUnidadFotoException;
+import com.orman.backend.payment.exception.InvalidPaymentImageException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -143,6 +145,14 @@ public class GlobalExceptionHandler {
                 List.of(new FieldError(exception.getField(), exception.getMessage())));
     }
 
+    @ExceptionHandler(InvalidCuotaListFilterException.class)
+    ResponseEntity<ProblemDetail> handleInvalidCuotaListFilter(
+            InvalidCuotaListFilterException exception, HttpServletRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no vÃ¡lida", "Uno o mÃ¡s parÃ¡metros no son vÃ¡lidos.", request,
+                List.of(new FieldError(exception.getField(), exception.getMessage())));
+    }
+
     @ExceptionHandler(InvalidPersonaPhotoException.class)
     ResponseEntity<ProblemDetail> handleInvalidPersonaPhoto(
             InvalidPersonaPhotoException exception, HttpServletRequest request) {
@@ -175,6 +185,15 @@ public class GlobalExceptionHandler {
                 List.of(new FieldError("archivo", exception.getMessage())));
     }
 
+    @ExceptionHandler(InvalidPaymentImageException.class)
+    ResponseEntity<ProblemDetail> handleInvalidPaymentImage(
+            InvalidPaymentImageException exception, HttpServletRequest request) {
+        String field = request.getRequestURI().contains("qr-cobro") ? "imagen" : "comprobante";
+        return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Solicitud no válida", "La imagen no es válida.", request,
+                List.of(new FieldError(field, exception.getMessage())));
+    }
+
     @ExceptionHandler(MissingServletRequestPartException.class)
     ResponseEntity<ProblemDetail> handleMissingMultipartPart(
             MissingServletRequestPartException exception, HttpServletRequest request) {
@@ -186,7 +205,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ProblemDetail> handleMaxUploadSizeExceeded(
             MaxUploadSizeExceededException exception, HttpServletRequest request) {
-        String field = request.getRequestURI().contains("/contratos/") ? "archivo" : "foto";
+        String path = request.getRequestURI();
+        String field = path.contains("/contratos/") ? "archivo"
+                : path.contains("qr-cobro") ? "imagen"
+                : path.contains("/pagos") ? "comprobante" : "foto";
         return problem(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
                 "Solicitud no válida", "El archivo supera el tamaño máximo permitido.", request,
                 List.of(new FieldError(field, "El archivo supera el tamaño máximo permitido.")));

@@ -79,6 +79,11 @@ storage:
     target-optimized-size-bytes: 10485760
     max-image-pixels-to-optimize: 16000000
 
+  pagos:
+    root: ./target/test-payment-storage
+    max-file-size-bytes: 5242880
+    max-dimension: 1920
+
 notification:
   scheduler:
     cron: "0 0 8 * * *"

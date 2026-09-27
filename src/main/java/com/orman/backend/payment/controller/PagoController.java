@@ -23,10 +23,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
@@ -38,10 +40,12 @@ public class PagoController {
 
     private final PagoService pagoService;
 
-    @PostMapping("/cuotas/{codcuo}/pagos")
-    public ResponseEntity<PagoResponse> create(@PathVariable Integer codcuo, @Valid @RequestBody PagoRequest request,
+    @PostMapping(value = "/cuotas/{codcuo}/pagos", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PagoResponse> create(@PathVariable Integer codcuo,
+                                               @Valid @RequestPart("pago") PagoRequest request,
+                                               @RequestPart(value = "comprobante", required = false) MultipartFile comprobante,
                                                Authentication authentication) {
-        PagoResponse response = pagoService.create(codcuo, request, authentication);
+        PagoResponse response = pagoService.create(codcuo, request, comprobante, authentication);
         URI location = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/v1/pagos/{codpag}")
                 .buildAndExpand(response.codpag()).toUri();
         return ResponseEntity.created(location).body(response);
@@ -59,7 +63,7 @@ public class PagoController {
                                            @Pattern(regexp = "PENDIENTE_REVISION|CONFIRMADO|RECHAZADO|ANULADO",
                                                    message = "El estado del Pago no es válido.") String estado,
                                            @RequestParam(required = false)
-                                           @Pattern(regexp = "EFECTIVO|TRANSFERENCIA|QR",
+                                           @Pattern(regexp = "EFECTIVO|QR",
                                                    message = "El método de Pago no es válido.") String metodo,
                                            @PageableDefault(page = 0, size = 20, sort = "fechaRegistro",
                                                    direction = Sort.Direction.DESC) Pageable pageable,

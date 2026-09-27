@@ -1,36 +1,41 @@
 package com.orman.backend.payment.service.impl;
 
+import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
+import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
-import com.orman.backend.payment.event.PagoConfirmadoEvent;
-import com.orman.backend.payment.event.PagoRechazadoEvent;
-import com.orman.backend.payment.entity.CuentaPagoEntity;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.OrigenRegistroPago;
+import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.entity.PagoEstado;
-import com.orman.backend.payment.mapper.PagoMapper;
+import com.orman.backend.payment.entity.QrCobroEntity;
+import com.orman.backend.payment.event.ComprobanteRecibidoEvent;
+import com.orman.backend.payment.event.PagoConfirmadoEvent;
+import com.orman.backend.payment.event.PagoRechazadoEvent;
 import com.orman.backend.payment.mapper.PagoComprobanteMapper;
-import com.orman.backend.payment.mapper.ReciboMapper;
+import com.orman.backend.payment.mapper.PagoMapper;
 import com.orman.backend.payment.repository.PagoComprobanteRepository;
 import com.orman.backend.payment.repository.PagoRepository;
-import com.orman.backend.payment.repository.ReciboRepository;
 import com.orman.backend.payment.service.PagoService;
+import com.orman.backend.payment.service.PaymentImageStorageService;
 import com.orman.backend.payment.service.PaymentOwnershipService;
+import com.orman.backend.payment.service.QrCobroService;
+import com.orman.backend.payment.service.StoredPaymentImage;
 import com.orman.backend.property.service.PropertyOwnershipService;
-import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -38,31 +43,35 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 public class PagoServiceImpl implements PagoService {
 
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
+
     private final PagoRepository pagoRepository;
     private final CuotaRepository cuotaRepository;
     private final PagoComprobanteRepository pagoComprobanteRepository;
-    private final ReciboRepository reciboRepository;
     private final PagoMapper pagoMapper;
     private final PagoComprobanteMapper pagoComprobanteMapper;
-    private final ReciboMapper reciboMapper;
     private final PaymentOwnershipService paymentOwnershipService;
     private final PropertyOwnershipService propertyOwnershipService;
+    private final QrCobroService qrCobroService;
+    private final PaymentImageStorageService imageStorageService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UsuarioRepository usuarioRepository;
     private final Clock clock;
 
     @Override
     @Transactional
-    public PagoResponse create(Integer codcuo, PagoRequest request, Authentication authentication) {
+    public PagoResponse create(Integer codcuo, PagoRequest request, MultipartFile comprobante,
+                               Authentication authentication) {
         RegistrationContext context = registrationContext(codcuo, authentication);
         CuotaEntity cuota = context.cuota();
         validateCuotaCanReceivePayment(cuota);
@@ -70,20 +79,25 @@ public class PagoServiceImpl implements PagoService {
         if (pagoRepository.findByIdempotencyKey(request.idempotencyKey()).isPresent()) {
             throw new ConflictException("La clave de idempotencia ya fue utilizada.");
         }
-        validateOriginMethod(context.origenRegistro(), request.metodo(), request.comprobante());
-        CuentaPagoEntity cuentaPago = validateCuentaPago(request, cuota);
+
+        LocalDateTime nowLaPaz = nowLaPaz();
+        LocalDateTime fechaPago = resolveFechaPago(request.metodo(), request.fechaPago(), nowLaPaz);
+        validateOriginMethod(context.origenRegistro(), request.metodo(), comprobante);
+        QrCobroEntity qrCobro = resolveQr(request.metodo(), cuota, nowLaPaz, fechaPago);
         validateAvailableAmount(cuota, request.monto());
+
         try {
-            PagoEntity pago = pagoRepository.saveAndFlush(pagoMapper.toEntity(request, cuota, cuentaPago,
-                    context.origenRegistro(), context.actor(), now()));
-            if (request.comprobante() != null) {
-                pagoComprobanteRepository.saveAndFlush(pagoComprobanteMapper.toEntity(request.comprobante(), pago));
+            PagoEntity pago = pagoRepository.saveAndFlush(pagoMapper.toEntity(request, cuota, qrCobro,
+                    context.origenRegistro(), context.actor(), fechaPago, nowUtc()));
+            if (comprobante != null && !comprobante.isEmpty()) {
+                StoredPaymentImage stored = imageStorageService.storeProof(comprobante, pago.getCodpag());
+                PagoComprobanteEntity entity = pagoComprobanteMapper.toEntity(stored, pago, nowUtc());
+                pagoComprobanteRepository.saveAndFlush(entity);
             }
             if (context.origenRegistro() == OrigenRegistroPago.PROPIETARIA) {
                 confirmFinancially(pago, cuota, context.actor(), false);
             } else {
-                applicationEventPublisher.publishEvent(new com.orman.backend.payment.event.ComprobanteRecibidoEvent(
-                        pago.getCodpag()));
+                applicationEventPublisher.publishEvent(new ComprobanteRecibidoEvent(pago.getCodpag()));
             }
             return pagoMapper.toResponse(pago);
         } catch (DataIntegrityViolationException exception) {
@@ -133,7 +147,7 @@ public class PagoServiceImpl implements PagoService {
         PagoEntity pago = paymentOwnershipService.findOwnedPagoForUpdate(codpag, authentication);
         validatePending(pago, "rechazar");
         pago.setEstado(PagoEstado.RECHAZADO);
-        pago.setFechaRevision(now());
+        pago.setFechaRevision(nowUtc());
         pago.setRevisadoPor(currentUser(authentication));
         pago.setMotivoRechazo(request.motivo().trim());
         pago.setMotivoAnulacion(null);
@@ -144,35 +158,69 @@ public class PagoServiceImpl implements PagoService {
     @Override
     @Transactional
     public PagoResponse annul(Integer codpag, PagoMotivoRequest request, Authentication authentication) {
+        PagoEntity initialPago = paymentOwnershipService.findOwnedPago(codpag, authentication);
+        CuotaEntity cuota = paymentOwnershipService.findOwnedCuotaForUpdate(
+                initialPago.getCuota().getCodcuo(), authentication);
         PagoEntity pago = paymentOwnershipService.findOwnedPagoForUpdate(codpag, authentication);
-        validatePending(pago, "anular");
-        pago.setEstado(PagoEstado.ANULADO);
-        pago.setFechaRevision(now());
-        pago.setRevisadoPor(currentUser(authentication));
-        pago.setMotivoRechazo(null);
-        pago.setMotivoAnulacion(request.motivo().trim());
+        boolean confirmedPayment = pago.getEstado() == PagoEstado.CONFIRMADO;
+
+        if (confirmedPayment) {
+            validateConfirmedPaymentCanBeAnnulled(pago, cuota);
+        } else {
+            validatePending(pago, "anular");
+        }
+
+        markAnnulled(pago, request, currentUser(authentication));
+        if (confirmedPayment) {
+            pagoRepository.saveAndFlush(pago);
+            BigDecimal confirmed = pagoRepository.sumConfirmedMontoByCuota(cuota.getCodcuo());
+            cuota.setEstado(estadoCuota(cuota.getMonto(), confirmed));
+            cuotaRepository.saveAndFlush(cuota);
+        }
         return pagoMapper.toResponse(pago);
     }
 
-    private CuentaPagoEntity validateCuentaPago(PagoRequest request, CuotaEntity cuota) {
-        if (request.metodo() == MetodoPago.EFECTIVO) {
-            if (request.codcta() != null) {
-                throw new BusinessRuleException("Los Pagos en efectivo no deben indicar una CuentaPago.");
-            }
+    private void validateConfirmedPaymentCanBeAnnulled(PagoEntity pago, CuotaEntity cuota) {
+        if (pago.getEstado() != PagoEstado.CONFIRMADO) {
+            throw new BusinessRuleException(
+                    "Solo se puede anular un Pago pendiente de revisión o un Pago confirmado registrado por la Propietaria.");
+        }
+        if (pago.getOrigenRegistro() != OrigenRegistroPago.PROPIETARIA
+                || (pago.getMetodo() != MetodoPago.EFECTIVO && pago.getMetodo() != MetodoPago.QR)) {
+            throw new BusinessRuleException(
+                    "Solo pueden anularse pagos confirmados registrados por la propietaria.");
+        }
+
+        ContratoEstado contratoEstado = cuota.getContrato().getEstado();
+        if (contratoEstado == ContratoEstado.FINALIZADO) {
+            throw new BusinessRuleException("No se puede anular un pago de un contrato finalizado.");
+        }
+        if (contratoEstado == ContratoEstado.RESCINDIDO) {
+            throw new BusinessRuleException("No se puede anular un pago de un contrato rescindido.");
+        }
+        if (contratoEstado != ContratoEstado.PROGRAMADO && contratoEstado != ContratoEstado.VIGENTE) {
+            throw new BusinessRuleException("Solo se pueden anular pagos de contratos programados o vigentes.");
+        }
+        if (cuota.getEstado() == CuotaEstado.ANULADA) {
+            throw new BusinessRuleException("No se puede anular un pago de una cuota anulada.");
+        }
+    }
+
+    private void markAnnulled(PagoEntity pago, PagoMotivoRequest request, Usuario revisor) {
+        pago.setEstado(PagoEstado.ANULADO);
+        pago.setFechaRevision(nowUtc());
+        pago.setRevisadoPor(revisor);
+        pago.setMotivoRechazo(null);
+        pago.setMotivoAnulacion(request.motivo().trim());
+    }
+
+    private QrCobroEntity resolveQr(MetodoPago metodo, CuotaEntity cuota,
+                                    LocalDateTime nowLaPaz, LocalDateTime fechaPago) {
+        if (metodo == MetodoPago.EFECTIVO) {
             return null;
         }
-        if (request.codcta() == null) {
-            throw new BusinessRuleException("Transferencia y QR requieren una CuentaPago activa.");
-        }
-        CuentaPagoEntity cuentaPago = paymentOwnershipService.findCuentaPago(request.codcta());
-        Integer propietariaCuota = cuota.getContrato().getUnidad().getPropiedad().getPropietaria().getCodper();
-        if (!propietariaCuota.equals(cuentaPago.getPropietaria().getCodper())) {
-            throw new AccessDeniedException("La CuentaPago no corresponde a la Propiedad de la Cuota.");
-        }
-        if (cuentaPago.getEstado() != 1) {
-            throw new BusinessRuleException("La CuentaPago seleccionada no está activa.");
-        }
-        return cuentaPago;
+        Integer ownerId = cuota.getContrato().getUnidad().getPropiedad().getPropietaria().getCodper();
+        return qrCobroService.resolveForPayment(ownerId, nowLaPaz.toLocalDate(), fechaPago.toLocalDate());
     }
 
     private void validateAvailableAmount(CuotaEntity cuota, BigDecimal monto) {
@@ -188,15 +236,18 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
-    private void validateOriginMethod(OrigenRegistroPago origen, MetodoPago metodo,
-                                      com.orman.backend.payment.dto.request.PagoComprobanteRequest comprobante) {
+    private void validateOriginMethod(OrigenRegistroPago origen, MetodoPago metodo, MultipartFile comprobante) {
+        boolean hasComprobante = comprobante != null && !comprobante.isEmpty();
         if (origen == OrigenRegistroPago.INQUILINO) {
-            if (metodo == MetodoPago.EFECTIVO) {
-                throw new BusinessRuleException("El Inquilino no puede presentar Pagos en efectivo.");
+            if (metodo != MetodoPago.QR) {
+                throw new BusinessRuleException("El Inquilino solo puede presentar Pagos mediante QR.");
             }
-            if (comprobante == null) {
+            if (!hasComprobante) {
                 throw new BusinessRuleException("El comprobante es obligatorio para un Pago presentado por el Inquilino.");
             }
+        }
+        if (origen == OrigenRegistroPago.PROPIETARIA && metodo == MetodoPago.EFECTIVO && hasComprobante) {
+            throw new BusinessRuleException("Los Pagos en efectivo no admiten comprobante.");
         }
     }
 
@@ -206,16 +257,22 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
+    private LocalDateTime resolveFechaPago(MetodoPago metodo, LocalDateTime requested, LocalDateTime nowLaPaz) {
+        if (metodo == MetodoPago.EFECTIVO) {
+            return nowLaPaz;
+        }
+        if (requested == null) {
+            throw new BusinessRuleException("Los pagos QR requieren fechaPago.");
+        }
+        if (requested.isAfter(nowLaPaz)) {
+            throw new BusinessRuleException("La fechaPago de QR no puede estar en el futuro.");
+        }
+        return requested;
+    }
+
     private void validatePending(PagoEntity pago, String action) {
         if (pago.getEstado() != PagoEstado.PENDIENTE_REVISION) {
             throw new BusinessRuleException("Solo se puede " + action + " un Pago pendiente de revisión.");
-        }
-    }
-
-    private void validateCuentaForConfirmation(PagoEntity pago) {
-        if (pago.getMetodo() != MetodoPago.EFECTIVO
-                && (pago.getCuentaPago() == null || pago.getCuentaPago().getEstado() != 1)) {
-            throw new BusinessRuleException("Transferencia y QR requieren una CuentaPago activa.");
         }
     }
 
@@ -229,7 +286,6 @@ public class PagoServiceImpl implements PagoService {
     private void confirmFinancially(PagoEntity pago, CuotaEntity cuota, Usuario revisor,
                                     boolean validatePresentedPayment) {
         validateCuotaCanReceivePayment(cuota);
-        validateCuentaForConfirmation(pago);
         if (validatePresentedPayment) {
             validateComprobanteForConfirmation(pago);
         }
@@ -239,17 +295,13 @@ public class PagoServiceImpl implements PagoService {
             throw new BusinessRuleException("El Pago supera el saldo pendiente de la Cuota.");
         }
         pago.setEstado(PagoEstado.CONFIRMADO);
-        pago.setFechaRevision(now());
+        pago.setFechaRevision(nowUtc());
         pago.setRevisadoPor(revisor);
         pago.setMotivoRechazo(null);
         pago.setMotivoAnulacion(null);
         cuota.setEstado(estadoCuota(cuota.getMonto(), confirmedAfter));
         cuotaRepository.saveAndFlush(cuota);
         pagoRepository.saveAndFlush(pago);
-        if (reciboRepository.existsByPagoCodpag(pago.getCodpag())) {
-            throw new ConflictException("El Pago ya tiene un Recibo generado.");
-        }
-        reciboRepository.saveAndFlush(reciboMapper.toEntity(pago, now()));
         applicationEventPublisher.publishEvent(new PagoConfirmadoEvent(pago.getCodpag()));
     }
 
@@ -260,10 +312,7 @@ public class PagoServiceImpl implements PagoService {
                     actor, OrigenRegistroPago.PROPIETARIA);
         }
         if (hasRole(authentication, "ROLE_INQUILINO")) {
-            CuotaEntity cuota = paymentOwnershipService.findCuota(codcuo);
-            if (!actor.getPersona().getCodper().equals(cuota.getContrato().getInquilino().getCodper())) {
-                throw new AccessDeniedException("La Cuota no pertenece al Inquilino autenticado.");
-            }
+            CuotaEntity cuota = paymentOwnershipService.findAccessibleCuota(codcuo, authentication);
             return new RegistrationContext(cuota, actor, OrigenRegistroPago.INQUILINO);
         }
         throw new AccessDeniedException("No tiene autorización para registrar Pagos.");
@@ -278,14 +327,25 @@ public class PagoServiceImpl implements PagoService {
     }
 
     private boolean hasRole(Authentication authentication, String role) {
-        return authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
+        return authentication != null
+                && authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 
-    private LocalDateTime now() {
+    private LocalDateTime nowUtc() {
         return LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
     }
 
+    private LocalDateTime nowLaPaz() {
+        return LocalDateTime.ofInstant(clock.instant(), BUSINESS_ZONE);
+    }
+
     private CuotaEstado estadoCuota(BigDecimal montoCuota, BigDecimal montoConfirmado) {
+        if (montoConfirmado.signum() < 0 || montoConfirmado.compareTo(montoCuota) > 0) {
+            throw new BusinessRuleException("El total confirmado supera el monto de la Cuota.");
+        }
+        if (montoConfirmado.signum() == 0) {
+            return CuotaEstado.PENDIENTE;
+        }
         return montoConfirmado.compareTo(montoCuota) == 0 ? CuotaEstado.PAGADA : CuotaEstado.PARCIAL;
     }
 

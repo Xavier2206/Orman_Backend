@@ -568,6 +568,36 @@ class ContractModuleIntegrationTest {
         var all = cuotaService.listGlobal(CuotaListCriteria.from(null, null, null, null, null, null,
                 null, "0", "100"), owner.authentication());
         assertThat(all.content()).hasSize(8);
+        assertThat(all.content()).extracting(row -> row.codcuo())
+                .containsExactlyElementsOf(defaultPage.content().stream().map(row -> row.codcuo()).toList());
+
+        String ownQuotaId = partiallyPaid.getCodcuo().toString();
+        var ownQuota = cuotaService.listGlobal(CuotaListCriteria.from(null, ownQuotaId, null, null, null,
+                null, null, null, "0", "100"), owner.authentication());
+        assertThat(ownQuota.content()).extracting(row -> row.codcuo()).containsExactly(partiallyPaid.getCodcuo());
+        assertThat(ownQuota.totalElements()).isEqualTo(1);
+
+        var ownQuotaWithCompatibleFilter = cuotaService.listGlobal(CuotaListCriteria.from(null, ownQuotaId,
+                null, "PARCIAL", null, null, null, null, "0", "100"), owner.authentication());
+        assertThat(ownQuotaWithCompatibleFilter.content()).extracting(row -> row.codcuo())
+                .containsExactly(partiallyPaid.getCodcuo());
+
+        var ownQuotaWithIncompatibleFilter = cuotaService.listGlobal(CuotaListCriteria.from(null, ownQuotaId,
+                null, "PENDIENTE", null, null, null, null, "0", "100"), owner.authentication());
+        assertThat(ownQuotaWithIncompatibleFilter.content()).isEmpty();
+        assertThat(ownQuotaWithIncompatibleFilter.totalElements()).isZero();
+
+        Integer otherQuotaId = cuotas(otherContract).getFirst().getCodcuo();
+        var otherQuota = cuotaService.listGlobal(CuotaListCriteria.from(null, otherQuotaId.toString(), null,
+                null, null, null, null, null, "0", "100"), owner.authentication());
+        assertThat(otherQuota.content()).isEmpty();
+        assertThat(otherQuota.totalElements()).isZero();
+
+        var missingQuota = cuotaService.listGlobal(CuotaListCriteria.from(null, String.valueOf(Integer.MAX_VALUE), null,
+                null, null, null, null, null, "0", "100"), owner.authentication());
+        assertThat(missingQuota.content()).isEmpty();
+        assertThat(missingQuota.totalElements()).isZero();
+
         var firstItem = all.content().stream().filter(row -> row.codcuo().equals(partiallyPaid.getCodcuo()))
                 .findFirst().orElseThrow();
         assertThat(firstItem.codcon()).isEqualTo(firstContract.codcon());

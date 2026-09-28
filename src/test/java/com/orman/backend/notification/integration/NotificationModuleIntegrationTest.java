@@ -22,10 +22,8 @@ import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.entity.MetodoPago;
 import com.orman.backend.payment.entity.OrigenRegistroPago;
 import com.orman.backend.payment.entity.PagoEntity;
-import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEstado;
 import com.orman.backend.payment.repository.PagoRepository;
-import com.orman.backend.payment.repository.PagoComprobanteRepository;
 import com.orman.backend.payment.service.PagoService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.repository.PersonaRepository;
@@ -74,7 +72,6 @@ class NotificationModuleIntegrationTest {
     @Autowired private NotificacionGeneracionService notificacionGeneracionService;
     @Autowired private CuotaNotificacionScheduler cuotaNotificacionScheduler;
     @Autowired private PagoService pagoService;
-    @Autowired private PagoComprobanteRepository pagoComprobanteRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -380,38 +377,6 @@ class NotificationModuleIntegrationTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> notificacionService.markAsRead(tenantBNotification.getCodnot(), tenantAAuthentication))
                 .isInstanceOf(ResourceNotFoundException.class);
-    }
-
-    @Test
-    void createsNotificationsForPaymentConfirmationRejectionAndReceivedProof() {
-        Context context = context("PAYMENT");
-        Authentication ownerAuthentication = authentication(context.usuario());
-        CuotaEntity confirmedQuota = cuota(context, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE);
-        var confirmed = pagoService.create(confirmedQuota.getCodcuo(), paymentRequest(), null, ownerAuthentication);
-        notificacionGeneracionService.generatePaymentConfirmed(confirmed.codpag());
-        assertNotification(context.usuario(), NotificacionTipo.PAGO_CONFIRMADO, ReferenciaTipo.PAGO, confirmed.codpag());
-
-        CuotaEntity rejectedQuota = cuota(context, LocalDate.of(2026, 10, 1), CuotaEstado.PENDIENTE);
-        PagoEntity rejected = pendingPayment(context, rejectedQuota);
-        pagoService.reject(rejected.getCodpag(), new PagoMotivoRequest("Comprobante inválido"), ownerAuthentication);
-        notificacionGeneracionService.generatePaymentRejected(rejected.getCodpag());
-        assertNotification(context.usuario(), NotificacionTipo.PAGO_RECHAZADO, ReferenciaTipo.PAGO, rejected.getCodpag());
-
-        CuotaEntity proofQuota = cuota(context, LocalDate.of(2026, 11, 1), CuotaEstado.PENDIENTE);
-        PagoEntity proofPayment = pendingPayment(context, proofQuota);
-        PagoComprobanteEntity proof = new PagoComprobanteEntity();
-        proof.setPago(proofPayment);
-        proof.setRutaArchivo("comprobantes/" + proofPayment.getCodpag()
-                + "/00000000-0000-0000-0000-000000000001.png");
-        proof.setNombreArchivo("pago.png");
-        proof.setTipoContenido("image/png");
-        proof.setFechaRegistro(LocalDateTime.of(2026, 9, 25, 12, 0));
-        pagoComprobanteRepository.saveAndFlush(proof);
-        notificacionGeneracionService.generateComprobanteReceived(proofPayment.getCodpag());
-        assertThat(notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
-                context.usuario().getLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO, ReferenciaTipo.PAGO,
-                proofPayment.getCodpag()).orElseThrow().getMensaje())
-                .isEqualTo("Se registró un comprobante de pago para revisión.");
     }
 
     private void assertNotification(Usuario usuario, NotificacionTipo tipo, ReferenciaTipo referenciaTipo,

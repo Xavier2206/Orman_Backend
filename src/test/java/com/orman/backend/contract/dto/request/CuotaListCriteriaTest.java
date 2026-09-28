@@ -16,6 +16,7 @@ class CuotaListCriteriaTest {
                 "2", "4", "true", null, null);
 
         assertThat(criteria.codperInquilino()).isEqualTo(9);
+        assertThat(criteria.codcuo()).isNull();
         assertThat(criteria.periodo()).isEqualTo(LocalDate.of(2026, 9, 1));
         assertThat(criteria.estado()).isEqualTo(CuotaEstado.PARCIAL);
         assertThat(criteria.vencimiento()).isEqualTo(CuotaListCriteria.Vencimiento.PROXIMAS);
@@ -24,6 +25,18 @@ class CuotaListCriteriaTest {
         assertThat(criteria.conPagoPendienteRevision()).isTrue();
         assertThat(criteria.page()).isZero();
         assertThat(criteria.size()).isEqualTo(20);
+    }
+
+    @Test
+    void parsesOptionalQuotaIdAsPositiveInteger() {
+        CuotaListCriteria criteria = CuotaListCriteria.from(null, "1894", null, null, null,
+                null, null, null, null, null);
+
+        assertThat(criteria.codcuo()).isEqualTo(1894);
+        assertInvalid("codcuo", () -> CuotaListCriteria.from(null, "0", null, null, null,
+                null, null, null, null, null));
+        assertInvalid("codcuo", () -> CuotaListCriteria.from(null, "abc", null, null, null,
+                null, null, null, null, null));
     }
 
     @Test

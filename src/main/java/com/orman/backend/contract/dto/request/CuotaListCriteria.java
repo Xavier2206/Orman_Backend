@@ -8,6 +8,7 @@ import java.util.Locale;
 
 public record CuotaListCriteria(
         Integer codperInquilino,
+        Integer codcuo,
         LocalDate periodo,
         CuotaEstado estado,
         Vencimiento vencimiento,
@@ -24,8 +25,16 @@ public record CuotaListCriteria(
     public static CuotaListCriteria from(String codperInquilino, String periodo, String estado,
                                          String vencimiento, String codprop, String coduni,
                                          String conPagoPendienteRevision, String page, String size) {
+        return from(codperInquilino, null, periodo, estado, vencimiento, codprop, coduni,
+                conPagoPendienteRevision, page, size);
+    }
+
+    public static CuotaListCriteria from(String codperInquilino, String codcuo, String periodo, String estado,
+                                         String vencimiento, String codprop, String coduni,
+                                         String conPagoPendienteRevision, String page, String size) {
         return new CuotaListCriteria(
                 parsePositiveId("codperInquilino", codperInquilino),
+                parsePositiveId("codcuo", codcuo),
                 parsePeriodo(periodo),
                 parseEstado(estado),
                 parseVencimiento(vencimiento),

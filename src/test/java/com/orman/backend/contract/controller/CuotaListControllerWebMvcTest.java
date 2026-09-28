@@ -41,6 +41,7 @@ class CuotaListControllerWebMvcTest {
 
         mockMvc.perform(get("/api/v1/cuotas")
                         .param("codperInquilino", "10")
+                        .param("codcuo", "1894")
                         .param("periodo", "2026-09-01")
                         .param("estado", "PARCIAL")
                         .param("vencimiento", "VENCIDAS")
@@ -60,7 +61,8 @@ class CuotaListControllerWebMvcTest {
                 .andExpect(jsonPath("$.size").value(20));
 
         verify(cuotaService).listGlobal(org.mockito.ArgumentMatchers.argThat(criteria ->
-                criteria.codperInquilino() == 10 && criteria.periodo().equals(LocalDate.of(2026, 9, 1))
+                criteria.codperInquilino() == 10 && criteria.codcuo() == 1894
+                        && criteria.periodo().equals(LocalDate.of(2026, 9, 1))
                         && criteria.estado().name().equals("PARCIAL")
                         && criteria.vencimiento() == CuotaListCriteria.Vencimiento.VENCIDAS
                         && criteria.codprop() == 2 && criteria.coduni() == 4
@@ -78,6 +80,11 @@ class CuotaListControllerWebMvcTest {
         mockMvc.perform(get("/api/v1/cuotas").param("size", "101"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+
+        mockMvc.perform(get("/api/v1/cuotas").param("codcuo", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("codcuo"));
 
         verifyNoInteractions(cuotaService);
     }

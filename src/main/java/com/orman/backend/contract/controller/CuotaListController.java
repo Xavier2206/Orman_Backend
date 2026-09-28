@@ -23,6 +23,7 @@ public class CuotaListController {
     @GetMapping
     public PageResponse<CuotaListItemResponse> list(
             @RequestParam(required = false) String codperInquilino,
+            @RequestParam(required = false) String codcuo,
             @RequestParam(required = false) String periodo,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String vencimiento,
@@ -32,7 +33,7 @@ public class CuotaListController {
             @RequestParam(required = false) String page,
             @RequestParam(required = false) String size,
             Authentication authentication) {
-        CuotaListCriteria criteria = CuotaListCriteria.from(codperInquilino, periodo, estado, vencimiento,
+        CuotaListCriteria criteria = CuotaListCriteria.from(codperInquilino, codcuo, periodo, estado, vencimiento,
                 codprop, coduni, conPagoPendienteRevision, page, size);
         return cuotaService.listGlobal(criteria, authentication);
     }

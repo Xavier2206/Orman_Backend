@@ -46,7 +46,8 @@ class CuotaListRepositoryImplTest {
         assertThat(sql).hasSize(2);
         assertThat(sql.getFirst()).contains("GROUP BY p.codcuo", "FILTER (WHERE p.estado = 'CONFIRMADO')",
                 "FILTER (WHERE p.estado = 'PENDIENTE_REVISION')", "ORDER BY CASE",
-                "LIMIT :limit OFFSET :offset");
+                "LIMIT :limit OFFSET :offset", "pr.codper_propietaria = :codperPropietaria",
+                ":hasCodcuo = false OR q.codcuo = :codcuo");
         assertThat(sql.getFirst().indexOf("ORDER BY CASE"))
                 .isLessThan(sql.getFirst().indexOf("LIMIT :limit OFFSET :offset"));
         verify(entityManager, times(2)).createNativeQuery(anyString());

@@ -36,6 +36,7 @@ public class CuotaListRepositoryImpl implements CuotaListRepository {
                   JOIN unidades u ON u.coduni = c.coduni
                   JOIN propiedades pr ON pr.codprop = u.codprop
                  WHERE pr.codper_propietaria = :codperPropietaria
+                   AND (:hasCodcuo = false OR q.codcuo = :codcuo)
                    AND (:hasCodperInquilino = false OR c.codper_inquilino = :codperInquilino)
                    AND (:hasPeriodo = false OR q.periodo = :periodo)
                    AND (:estado = '' OR q.estado = :estado)
@@ -117,6 +118,8 @@ public class CuotaListRepositoryImpl implements CuotaListRepository {
     private static void bindFilters(Query query, Integer codperPropietaria, CuotaListCriteria criteria,
                                     LocalDate hoy, LocalDate fechaLimite) {
         query.setParameter("codperPropietaria", codperPropietaria);
+        query.setParameter("hasCodcuo", criteria.codcuo() != null);
+        query.setParameter("codcuo", criteria.codcuo() == null ? -1 : criteria.codcuo());
         query.setParameter("hasCodperInquilino", criteria.codperInquilino() != null);
         query.setParameter("codperInquilino", criteria.codperInquilino() == null ? -1 : criteria.codperInquilino());
         query.setParameter("hasPeriodo", criteria.periodo() != null);

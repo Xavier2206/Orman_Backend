@@ -12,6 +12,7 @@ import com.orman.backend.notification.entity.ReferenciaTipo;
 import com.orman.backend.notification.mapper.NotificacionMapper;
 import com.orman.backend.notification.repository.NotificacionRepository;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
+import com.orman.backend.payment.entity.OrigenRegistroPago;
 import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.repository.PagoRepository;
 import com.orman.backend.property.service.PropertyOwnershipService;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -51,23 +53,23 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     private final PropertyOwnershipService propertyOwnershipService;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generatePaymentConfirmed(Integer codpag) {
         PagoEntity pago = findPago(codpag);
-        createIfAbsent(ownerUser(pago.getCuota()), NotificacionTipo.PAGO_CONFIRMADO, ReferenciaTipo.PAGO, codpag,
+        createPaymentDecisionNotification(pago, NotificacionTipo.PAGO_CONFIRMADO, codpag,
                 "Pago confirmado", "El pago de la cuota fue confirmado.");
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generatePaymentRejected(Integer codpag) {
         PagoEntity pago = findPago(codpag);
-        createIfAbsent(ownerUser(pago.getCuota()), NotificacionTipo.PAGO_RECHAZADO, ReferenciaTipo.PAGO, codpag,
+        createPaymentDecisionNotification(pago, NotificacionTipo.PAGO_RECHAZADO, codpag,
                 "Pago rechazado", "El comprobante enviado fue rechazado.");
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generateComprobanteReceived(Integer codpag) {
         PagoEntity pago = findPago(codpag);
         createIfAbsent(ownerUser(pago.getCuota()), NotificacionTipo.COMPROBANTE_RECIBIDO, ReferenciaTipo.PAGO, codpag,
@@ -194,6 +196,23 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
                         notificacionMapper.toEntity(destinatario, tipo, titulo, mensaje, referenciaTipo, referenciaId)));
     }
 
+    private void createPaymentDecisionNotification(PagoEntity pago, NotificacionTipo tipo, Integer codpag,
+                                                   String titulo, String mensaje) {
+        Usuario destinatario;
+        if (pago.getOrigenRegistro() == OrigenRegistroPago.INQUILINO) {
+            Optional<Usuario> activeTenant = findActiveTenantUser(pago.getCuota().getContrato().getInquilino());
+            if (activeTenant.isEmpty()) {
+                logSkippedPaymentNotification(codpag);
+                return;
+            }
+            destinatario = activeTenant.get();
+        } else {
+            // Preserve the existing notification for payments entered directly by the owner.
+            destinatario = ownerUser(pago.getCuota());
+        }
+        createIfAbsent(destinatario, tipo, ReferenciaTipo.PAGO, codpag, titulo, mensaje);
+    }
+
     private CuotaEntity findCuota(Integer codcuo) {
         return cuotaRepository.findByCodcuo(codcuo)
                 .orElseThrow(() -> new ResourceNotFoundException("Cuota no encontrada."));
@@ -233,5 +252,9 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     private boolean isActiveTenantUser(Persona inquilino, Usuario usuario) {
         return ACTIVE.equals(usuario.getEstado()) && ACTIVE.equals(inquilino.getEstado())
                 && Character.valueOf('I').equals(inquilino.getTipoPersona());
+    }
+
+    private void logSkippedPaymentNotification(Integer codpag) {
+        LOGGER.warn("Se omite aviso de pago {}: el inquilino no tiene un usuario activo valido.", codpag);
     }
 }

@@ -9,6 +9,7 @@ import com.orman.backend.notification.dto.response.NotificacionResponse;
 import com.orman.backend.notification.entity.NotificacionEntity;
 import com.orman.backend.notification.entity.NotificacionTipo;
 import com.orman.backend.notification.entity.ReferenciaTipo;
+import com.orman.backend.notification.event.NotificacionDisponibleEvent;
 import com.orman.backend.notification.mapper.NotificacionMapper;
 import com.orman.backend.notification.repository.NotificacionRepository;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
@@ -27,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -51,6 +53,7 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     private final PagoRepository pagoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PropertyOwnershipService propertyOwnershipService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -146,14 +149,21 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
                         destinatario.getLogin(), tipo, ReferenciaTipo.CUOTA, codcuo)
                 .orElse(null);
         if (notificacion == null) {
-            return notificacionRepository.saveAndFlush(notificacionMapper.toEntity(destinatario, tipo, titulo, mensaje,
-                    ReferenciaTipo.CUOTA, codcuo));
+            NotificacionEntity creada = notificacionRepository.saveAndFlush(notificacionMapper.toEntity(
+                    destinatario, tipo, titulo, mensaje, ReferenciaTipo.CUOTA, codcuo));
+            publishAvailable(creada);
+            return creada;
         }
 
+        boolean reabierta = notificacion.getFechaLectura() != null;
         notificacion.setTitulo(titulo);
         notificacion.setMensaje(mensaje);
         notificacion.setFechaLectura(null);
-        return notificacionRepository.saveAndFlush(notificacion);
+        NotificacionEntity actualizada = notificacionRepository.saveAndFlush(notificacion);
+        if (reabierta) {
+            publishAvailable(actualizada);
+        }
+        return actualizada;
     }
 
     private String manualPaymentMessage(CuotaEntity cuota, BigDecimal montoConfirmado, BigDecimal saldo) {
@@ -190,10 +200,21 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     private NotificacionEntity createIfAbsent(Usuario destinatario, NotificacionTipo tipo,
                                               ReferenciaTipo referenciaTipo, Integer referenciaId,
                                               String titulo, String mensaje) {
-        return notificacionRepository.findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
-                destinatario.getLogin(), tipo, referenciaTipo, referenciaId)
-                .orElseGet(() -> notificacionRepository.saveAndFlush(
-                        notificacionMapper.toEntity(destinatario, tipo, titulo, mensaje, referenciaTipo, referenciaId)));
+        Optional<NotificacionEntity> existente = notificacionRepository
+                .findByDestinatarioLoginAndTipoAndReferenciaTipoAndReferenciaId(
+                        destinatario.getLogin(), tipo, referenciaTipo, referenciaId);
+        if (existente.isPresent()) {
+            return existente.get();
+        }
+        NotificacionEntity creada = notificacionRepository.saveAndFlush(
+                notificacionMapper.toEntity(destinatario, tipo, titulo, mensaje, referenciaTipo, referenciaId));
+        publishAvailable(creada);
+        return creada;
+    }
+
+    private void publishAvailable(NotificacionEntity notificacion) {
+        applicationEventPublisher.publishEvent(new NotificacionDisponibleEvent(
+                notificacion.getCodnot(), notificacion.getDestinatario().getLogin(), notificacion.getTipo()));
     }
 
     private void createPaymentDecisionNotification(PagoEntity pago, NotificacionTipo tipo, Integer codpag,

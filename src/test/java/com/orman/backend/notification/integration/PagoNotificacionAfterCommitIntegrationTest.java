@@ -9,7 +9,10 @@ import com.orman.backend.contract.repository.ContratoRepository;
 import com.orman.backend.contract.repository.CuotaRepository;
 import com.orman.backend.notification.entity.NotificacionTipo;
 import com.orman.backend.notification.entity.ReferenciaTipo;
+import com.orman.backend.notification.dto.response.NotificacionResponse;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
+import com.orman.backend.notification.service.NotificacionService;
+import com.orman.backend.notification.websocket.NotificacionDisponiblePayload;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
@@ -45,13 +48,25 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @SpringBootTest
 class PagoNotificacionAfterCommitIntegrationTest {
@@ -69,9 +84,11 @@ class PagoNotificacionAfterCommitIntegrationTest {
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private QrCobroRepository qrCobroRepository;
     @Autowired private NotificacionGeneracionService notificacionGeneracionService;
+    @Autowired private NotificacionService notificacionService;
     @Autowired private PagoService pagoService;
     @Autowired private PagoComprobanteRepository pagoComprobanteRepository;
     @Autowired private PaymentImageStorageService imageStorageService;
+    @MockitoBean private SimpMessagingTemplate messagingTemplate;
 
     @Test
     void persistsReceivedProofNotificationForOwnerAfterPaymentCommit() throws Exception {
@@ -85,11 +102,16 @@ class PagoNotificacionAfterCommitIntegrationTest {
             assertThat(pagoComprobanteRepository.existsByPagoCodpag(payment.get().codpag())).isTrue();
             assertPersistedNotification(fixture.ownerLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
                     payment.get().codpag());
+            assertWebSocketEvent(fixture.ownerLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
+                    ReferenciaTipo.PAGO, payment.get().codpag());
+            verifyNoMoreInteractions(messagingTemplate);
             assertNotificationAbsent(fixture.tenantLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
                     payment.get().codpag());
 
             commit(() -> notificacionGeneracionService.generateComprobanteReceived(payment.get().codpag()));
             assertNotificationCount(NotificacionTipo.COMPROBANTE_RECIBIDO, payment.get().codpag(), 1);
+            verify(messagingTemplate, times(1)).convertAndSendToUser(ArgumentMatchers.eq(fixture.ownerLogin()),
+                    ArgumentMatchers.eq("/queue/notificaciones"), ArgumentMatchers.any());
         } finally {
             cleanup(fixture);
         }
@@ -101,10 +123,14 @@ class PagoNotificacionAfterCommitIntegrationTest {
         AtomicReference<PagoResponse> payment = new AtomicReference<>();
         try {
             commit(() -> payment.set(registerTenantQrPayment(fixture)));
+            reset(messagingTemplate);
             commit(() -> pagoService.confirm(payment.get().codpag(), fixture.ownerAuthentication()));
 
             assertPersistedNotification(fixture.tenantLogin(), NotificacionTipo.PAGO_CONFIRMADO,
                     payment.get().codpag());
+            assertWebSocketEvent(fixture.tenantLogin(), NotificacionTipo.PAGO_CONFIRMADO,
+                    ReferenciaTipo.PAGO, payment.get().codpag());
+            verifyNoMoreInteractions(messagingTemplate);
             assertNotificationAbsent(fixture.ownerLogin(), NotificacionTipo.PAGO_CONFIRMADO,
                     payment.get().codpag());
         } finally {
@@ -118,11 +144,15 @@ class PagoNotificacionAfterCommitIntegrationTest {
         AtomicReference<PagoResponse> payment = new AtomicReference<>();
         try {
             commit(() -> payment.set(registerTenantQrPayment(fixture)));
+            reset(messagingTemplate);
             commit(() -> pagoService.reject(payment.get().codpag(), new PagoMotivoRequest("Comprobante de prueba"),
                     fixture.ownerAuthentication()));
 
             assertPersistedNotification(fixture.tenantLogin(), NotificacionTipo.PAGO_RECHAZADO,
                     payment.get().codpag());
+            assertWebSocketEvent(fixture.tenantLogin(), NotificacionTipo.PAGO_RECHAZADO,
+                    ReferenciaTipo.PAGO, payment.get().codpag());
+            verifyNoMoreInteractions(messagingTemplate);
             assertNotificationAbsent(fixture.ownerLogin(), NotificacionTipo.PAGO_RECHAZADO,
                     payment.get().codpag());
         } finally {
@@ -136,6 +166,7 @@ class PagoNotificacionAfterCommitIntegrationTest {
         AtomicReference<PagoResponse> payment = new AtomicReference<>();
         try {
             commit(() -> payment.set(registerTenantQrPayment(fixture)));
+            reset(messagingTemplate);
             commit(() -> {
                 Usuario tenant = usuarioRepository.findById(fixture.tenantLogin()).orElseThrow();
                 tenant.setEstado((short) 0);
@@ -147,6 +178,7 @@ class PagoNotificacionAfterCommitIntegrationTest {
                     payment.get().codpag());
             assertNotificationAbsent(fixture.ownerLogin(), NotificacionTipo.PAGO_CONFIRMADO,
                     payment.get().codpag());
+            verifyNoInteractions(messagingTemplate);
         } finally {
             cleanup(fixture);
         }
@@ -158,6 +190,7 @@ class PagoNotificacionAfterCommitIntegrationTest {
         AtomicReference<PagoResponse> payment = new AtomicReference<>();
         try {
             commit(() -> payment.set(registerTenantQrPayment(fixture)));
+            reset(messagingTemplate);
             commit(() -> {
                 Persona tenant = personaRepository.findById(fixture.tenantPersonId()).orElseThrow();
                 tenant.setEstado((short) 0);
@@ -170,6 +203,7 @@ class PagoNotificacionAfterCommitIntegrationTest {
                     payment.get().codpag());
             assertNotificationAbsent(fixture.ownerLogin(), NotificacionTipo.PAGO_RECHAZADO,
                     payment.get().codpag());
+            verifyNoInteractions(messagingTemplate);
         } finally {
             cleanup(fixture);
         }
@@ -188,8 +222,110 @@ class PagoNotificacionAfterCommitIntegrationTest {
             assertThat(payment.get().estado()).isEqualTo("CONFIRMADO");
             assertPersistedNotification(fixture.ownerLogin(), NotificacionTipo.PAGO_CONFIRMADO,
                     payment.get().codpag());
+            assertWebSocketEvent(fixture.ownerLogin(), NotificacionTipo.PAGO_CONFIRMADO,
+                    ReferenciaTipo.PAGO, payment.get().codpag());
             assertNotificationAbsent(fixture.tenantLogin(), NotificacionTipo.PAGO_CONFIRMADO,
                     payment.get().codpag());
+        } finally {
+            cleanup(fixture);
+        }
+    }
+
+    @Test
+    void eventIsDeliveredOnlyAfterNotificationCommitAndNotAfterRollback() throws Exception {
+        Fixture fixture = createFixture();
+        AtomicReference<PagoResponse> payment = new AtomicReference<>();
+        try {
+            doAnswer(invocation -> {
+                NotificacionDisponiblePayload payload = (NotificacionDisponiblePayload) invocation.getArgument(2);
+                Integer count = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM notificaciones WHERE codnot = ?", Integer.class, payload.codnot());
+                assertThat(count).isEqualTo(1);
+                return null;
+            }).when(messagingTemplate).convertAndSendToUser(ArgumentMatchers.anyString(),
+                    ArgumentMatchers.anyString(), ArgumentMatchers.any());
+
+            transactionTemplate.execute(status -> {
+                payment.set(registerTenantQrPayment(fixture));
+                verifyNoInteractions(messagingTemplate);
+                return null;
+            });
+            assertPersistedNotification(fixture.ownerLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
+                    payment.get().codpag());
+            assertWebSocketEvent(fixture.ownerLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
+                    ReferenciaTipo.PAGO, payment.get().codpag());
+
+            reset(messagingTemplate);
+            assertThatThrownBy(() -> transactionTemplate.execute(status -> {
+                notificacionGeneracionService.generateOverdueQuota(fixture.codcuo());
+                throw new IllegalStateException("rollback de prueba");
+            })).isInstanceOf(IllegalStateException.class).hasMessage("rollback de prueba");
+            verifyNoInteractions(messagingTemplate);
+            assertQuotaNotificationCount(fixture.tenantLogin(), fixture.codcuo(), 0);
+        } finally {
+            cleanup(fixture);
+        }
+    }
+
+    @Test
+    void manualReminderCreationAndReopeningSendOncePerUnreadTransition() {
+        Fixture fixture = createFixture();
+        AtomicReference<NotificacionResponse> response = new AtomicReference<>();
+        try {
+            commit(() -> response.set(notificacionGeneracionService.notifyPendingPayment(
+                    fixture.codcuo(), fixture.ownerAuthentication())));
+            assertQuotaWebSocketEvent(fixture.tenantLogin(), response.get().codnot(), response.get().tipo());
+
+            commit(() -> notificacionService.markAsRead(response.get().codnot(), fixture.tenantAuthentication()));
+            reset(messagingTemplate);
+            commit(() -> response.set(notificacionGeneracionService.notifyPendingPayment(
+                    fixture.codcuo(), fixture.ownerAuthentication())));
+            assertQuotaWebSocketEvent(fixture.tenantLogin(), response.get().codnot(), response.get().tipo());
+
+            reset(messagingTemplate);
+            commit(() -> notificacionGeneracionService.notifyPendingPayment(
+                    fixture.codcuo(), fixture.ownerAuthentication()));
+            verifyNoInteractions(messagingTemplate);
+        } finally {
+            cleanup(fixture);
+        }
+    }
+
+    @Test
+    void upcomingAndOverdueQuotaCreationNotifyTheTenantPrivately() {
+        Fixture fixture = createFixture();
+        try {
+            commit(() -> notificacionGeneracionService.generateUpcomingQuota(fixture.codcuo(),
+                    LocalDate.now(LA_PAZ)));
+            assertWebSocketEvent(fixture.tenantLogin(), NotificacionTipo.CUOTA_PROXIMA_VENCER,
+                    ReferenciaTipo.CUOTA, fixture.codcuo());
+            verifyNoMoreInteractions(messagingTemplate);
+
+            reset(messagingTemplate);
+            commit(() -> notificacionGeneracionService.generateOverdueQuota(fixture.codcuo()));
+            assertWebSocketEvent(fixture.tenantLogin(), NotificacionTipo.CUOTA_VENCIDA,
+                    ReferenciaTipo.CUOTA, fixture.codcuo());
+            verifyNoMoreInteractions(messagingTemplate);
+        } finally {
+            cleanup(fixture);
+        }
+    }
+
+    @Test
+    void websocketTransportFailureDoesNotUndoPersistedNotification() throws Exception {
+        Fixture fixture = createFixture();
+        AtomicReference<PagoResponse> payment = new AtomicReference<>();
+        try {
+            doThrow(new IllegalStateException("transport unavailable")).when(messagingTemplate)
+                    .convertAndSendToUser(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
+                            ArgumentMatchers.any());
+
+            commit(() -> payment.set(registerTenantQrPayment(fixture)));
+
+            assertPersistedNotification(fixture.ownerLogin(), NotificacionTipo.COMPROBANTE_RECIBIDO,
+                    payment.get().codpag());
+            verify(messagingTemplate).convertAndSendToUser(ArgumentMatchers.eq(fixture.ownerLogin()),
+                    ArgumentMatchers.eq("/queue/notificaciones"), ArgumentMatchers.any());
         } finally {
             cleanup(fixture);
         }
@@ -337,6 +473,38 @@ class PagoNotificacionAfterCommitIntegrationTest {
                 WHERE tipo = ? AND referencia_tipo = ? AND referencia_id = ?
                 """, Integer.class, tipo.name(), ReferenciaTipo.PAGO.name(), codpag);
         assertThat(count).isEqualTo(expected);
+    }
+
+    private void assertQuotaNotificationCount(String login, Integer codcuo, int expected) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM notificaciones
+                WHERE login_destinatario = ? AND referencia_tipo = 'CUOTA' AND referencia_id = ?
+                """, Integer.class, login, codcuo);
+        assertThat(count).isEqualTo(expected);
+    }
+
+    private void assertWebSocketEvent(String login, NotificacionTipo tipo, ReferenciaTipo referenceType,
+                                      Integer referenceId) {
+        Long codnot = jdbcTemplate.queryForObject("""
+                SELECT codnot FROM notificaciones
+                WHERE login_destinatario = ? AND tipo = ? AND referencia_tipo = ? AND referencia_id = ?
+                """, Long.class, login, tipo.name(), referenceType.name(), referenceId);
+        ArgumentCaptor<NotificacionDisponiblePayload> payload = ArgumentCaptor.forClass(
+                NotificacionDisponiblePayload.class);
+        verify(messagingTemplate).convertAndSendToUser(ArgumentMatchers.eq(login),
+                ArgumentMatchers.eq("/queue/notificaciones"), payload.capture());
+        assertThat(payload.getValue()).isEqualTo(new NotificacionDisponiblePayload(codnot, tipo));
+        verifyNoMoreInteractions(messagingTemplate);
+    }
+
+    private void assertQuotaWebSocketEvent(String login, Long codnot, String typeName) {
+        ArgumentCaptor<NotificacionDisponiblePayload> payload = ArgumentCaptor.forClass(
+                NotificacionDisponiblePayload.class);
+        verify(messagingTemplate).convertAndSendToUser(ArgumentMatchers.eq(login),
+                ArgumentMatchers.eq("/queue/notificaciones"), payload.capture());
+        assertThat(payload.getValue()).isEqualTo(new NotificacionDisponiblePayload(codnot,
+                NotificacionTipo.valueOf(typeName)));
+        verifyNoMoreInteractions(messagingTemplate);
     }
 
     private void commit(Runnable operation) {

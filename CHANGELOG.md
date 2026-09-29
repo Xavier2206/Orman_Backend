@@ -4,6 +4,15 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+### Agregado
+
+- WebSocket/STOMP privado en `/ws` con JWT en `CONNECT` y destino
+  `/user/queue/notificaciones`. Los avisos se emiten después del commit que
+  crea o reabre la notificación persistida; fallos del transporte no revierten
+  pagos ni notificaciones.
+- Revalidación de expiración, sesión y rol al suscribirse y en cada entrega a
+  conexiones existentes. Sin SockJS, Firebase, FCM ni migraciones.
+
 ### Corregido
 
 - `POST /api/v1/cuotas/{codcuo}/notificar` ahora valida el saldo confirmado y

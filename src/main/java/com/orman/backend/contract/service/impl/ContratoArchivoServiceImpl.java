@@ -90,9 +90,8 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
             String nombreAlmacenado = UUID.randomUUID() + ".pdf";
             String rutaRef = "contratos/" + codcon + "/" + nombreAlmacenado;
             storedKey = rutaRef;
-            try (InputStream input = Files.newInputStream(processed)) {
-                fileStorageService.put(storedKey, input, tamanoFinal, PDF_CONTENT_TYPE);
-            }
+            byte[] content = Files.readAllBytes(processed);
+            fileStorageService.put(storedKey, content, PDF_CONTENT_TYPE);
             ContratoArchivoEntity entity = contratoArchivoMapper.toEntity(contrato, nombreOriginal,
                     nombreAlmacenado, rutaRef, tamanoOriginal, tamanoFinal,
                     OrmanTimeConfig.businessNow(clock), authenticatedLogin(authentication), orden);

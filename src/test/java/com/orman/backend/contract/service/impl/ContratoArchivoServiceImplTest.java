@@ -2,6 +2,7 @@ package com.orman.backend.contract.service.impl;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
 import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.config.ContratoArchivoProperties;
 import com.orman.backend.contract.entity.ContratoArchivoEntity;
@@ -12,6 +13,7 @@ import com.orman.backend.contract.repository.ContratoArchivoRepository;
 import com.orman.backend.contract.service.ContractOwnershipService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -43,9 +45,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +62,7 @@ class ContratoArchivoServiceImplTest {
     @TempDir Path storage;
     @Mock ContratoArchivoRepository repository;
     @Mock ContractOwnershipService ownershipService;
+    @Mock FileStorageService byteStorage;
 
     private final List<ContratoArchivoEntity> records = new ArrayList<>();
     private final AtomicInteger nextId = new AtomicInteger(1);
@@ -127,6 +133,51 @@ class ContratoArchivoServiceImplTest {
         try (var input = download.getInputStream()) {
             assertThat(input.readAllBytes()).containsExactly(pdf);
         }
+    }
+
+    @Test
+    void storesProcessedPdfUsingRepeatableBytesAndCleansTemporaryFiles() throws Exception {
+        byte[] pdf = pdf("PDF procesado para R2");
+        List<StoredPdf> uploads = new ArrayList<>();
+        doAnswer(invocation -> {
+            uploads.add(new StoredPdf(invocation.getArgument(0),
+                    ((byte[]) invocation.getArgument(1)).clone(), invocation.getArgument(2)));
+            return null;
+        }).when(byteStorage).put(anyString(), any(byte[].class), anyString());
+        ContratoArchivoServiceImpl byteService = serviceUsing(byteStorage);
+
+        var response = byteService.create(42, upload("contrato.pdf", "application/pdf", pdf), 0, authentication);
+
+        assertThat(uploads).hasSize(1);
+        StoredPdf uploaded = uploads.getFirst();
+        assertThat(uploaded.content).containsExactly(pdf);
+        assertThat(uploaded.contentType).isEqualTo("application/pdf");
+        assertThat(uploaded.key).matches("contratos/42/[0-9a-f-]{36}\\.pdf");
+        assertThat(response.tamanoOriginal()).isEqualTo((long) pdf.length);
+        assertThat(response.tamanoFinal()).isEqualTo((long) uploaded.content.length);
+        verify(byteStorage).put(uploaded.key, uploaded.content, "application/pdf");
+        verify(byteStorage, never()).put(anyString(), any(InputStream.class), anyLong(), anyString());
+        assertTemporaryFilesCleaned();
+    }
+
+    @Test
+    void removesStoredPdfIfDatabaseSaveFailsAfterUpload() throws Exception {
+        byte[] pdf = pdf("PDF con fallo de persistencia");
+        List<String> uploadedKeys = new ArrayList<>();
+        doAnswer(invocation -> {
+            uploadedKeys.add(invocation.getArgument(0));
+            return null;
+        }).when(byteStorage).put(anyString(), any(byte[].class), anyString());
+        doThrow(new IllegalStateException("database failure")).when(repository)
+                .saveAndFlush(any(ContratoArchivoEntity.class));
+        ContratoArchivoServiceImpl byteService = serviceUsing(byteStorage);
+
+        assertThatThrownBy(() -> byteService.create(42, upload("contrato.pdf", "application/pdf", pdf), 0,
+                authentication)).isInstanceOf(IllegalStateException.class).hasMessage("database failure");
+
+        assertThat(uploadedKeys).hasSize(1);
+        verify(byteStorage).delete(uploadedKeys.getFirst());
+        assertTemporaryFilesCleaned();
     }
 
     @Test
@@ -219,6 +270,11 @@ class ContratoArchivoServiceImplTest {
         return new ContratoArchivoProperties(storage.toString(), maxBytes, 10 * MB, 16_000_000);
     }
 
+    private ContratoArchivoServiceImpl serviceUsing(FileStorageService fileStorageService) {
+        return new ContratoArchivoServiceImpl(repository, new ContratoArchivoMapper(), ownershipService,
+                properties, processor, fixedClock(), fileStorageService);
+    }
+
     private Clock fixedClock() {
         return Clock.fixed(Instant.parse("2026-09-30T12:00:00Z"), OrmanTimeConfig.ORMAN_ZONE);
     }
@@ -251,6 +307,17 @@ class ContratoArchivoServiceImplTest {
         try (var files = Files.list(contractDirectory)) {
             return files.toList();
         }
+    }
+
+    private void assertTemporaryFilesCleaned() throws IOException {
+        try (var files = Files.list(storage)) {
+            assertThat(files.map(path -> path.getFileName().toString())
+                    .filter(name -> name.startsWith(".contrato-upload-") || name.startsWith(".contrato-processed-"))
+                    .toList()).isEmpty();
+        }
+    }
+
+    private record StoredPdf(String key, byte[] content, String contentType) {
     }
 
     private ContratoArchivoEntity record(Integer codarc) {

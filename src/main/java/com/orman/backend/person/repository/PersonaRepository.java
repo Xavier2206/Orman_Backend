@@ -20,6 +20,8 @@ public interface PersonaRepository extends JpaRepository<Persona, Integer> {
 
     boolean existsByCiAndCodperNot(String ci, Integer codper);
 
+    boolean existsByCodperAndCreadaPorLogin(Integer codper, String creadaPorLogin);
+
     @Query("""
             select (count(c) > 0) from ContratoEntity c
             where c.inquilino.codper = :codper
@@ -62,4 +64,47 @@ public interface PersonaRepository extends JpaRepository<Persona, Integer> {
             """)
     Page<Persona> search(@Param("q") String q, @Param("tipoPersona") Character tipoPersona,
                          @Param("estado") Short estado, Pageable pageable);
+
+    @Query(value = """
+            select p from Persona p
+            where (p.codper = :ownerCodper
+                   or p.creadaPorLogin = :ownerLogin
+                   or exists (
+                       select c.codcon from ContratoEntity c
+                       where c.inquilino = p
+                         and c.inquilino.tipoPersona = 'I'
+                         and c.unidad.propiedad.propietaria.codper = :ownerCodper
+                   ))
+              and (:q is null
+                   or lower(p.nombre) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(coalesce(p.ap, '')) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(coalesce(p.am, '')) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(p.ci) like lower(concat('%', cast(:q as string), '%')))
+              and (:tipoPersona is null or p.tipoPersona = :tipoPersona)
+              and (:estado is null or p.estado = :estado)
+            """,
+            countQuery = """
+            select count(p) from Persona p
+            where (p.codper = :ownerCodper
+                   or p.creadaPorLogin = :ownerLogin
+                   or exists (
+                       select c.codcon from ContratoEntity c
+                       where c.inquilino = p
+                         and c.inquilino.tipoPersona = 'I'
+                         and c.unidad.propiedad.propietaria.codper = :ownerCodper
+                   ))
+              and (:q is null
+                   or lower(p.nombre) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(coalesce(p.ap, '')) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(coalesce(p.am, '')) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(p.ci) like lower(concat('%', cast(:q as string), '%')))
+              and (:tipoPersona is null or p.tipoPersona = :tipoPersona)
+              and (:estado is null or p.estado = :estado)
+            """)
+    Page<Persona> searchManageableByOwner(@Param("q") String q,
+                                           @Param("tipoPersona") Character tipoPersona,
+                                           @Param("estado") Short estado,
+                                           @Param("ownerLogin") String ownerLogin,
+                                           @Param("ownerCodper") Integer ownerCodper,
+                                           Pageable pageable);
 }

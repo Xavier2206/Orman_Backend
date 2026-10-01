@@ -6,6 +6,7 @@ import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.service.SessionService;
 import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.authorization.service.AuthorizationService;
+import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.role.repository.RolUsuRepository;
 import com.orman.backend.person.dto.PersonaUsuarioResponse;
 import com.orman.backend.person.dto.PersonaUsuarioRow;
@@ -35,6 +36,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -272,7 +275,9 @@ class PersonaServiceImplTest {
     @Test
     void returnsEnrichedResponsesForMutatingOperations() {
         Persona persona = persona(20, (short) 1);
-        Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                new AuthenticatedUser("owner.login", java.util.UUID.randomUUID()), null,
+                List.of(new SimpleGrantedAuthority("ROLE_PROPIETARIO")));
         CreatePersonaRequest createRequest = createRequest("CI-020");
         UpdatePersonaRequest updateRequest = updateRequest("CI-020");
         when(personaRepository.existsByCi("CI-020")).thenReturn(false);
@@ -300,6 +305,27 @@ class PersonaServiceImplTest {
         assertThat(deactivated.acciones().puedeDesactivar()).isFalse();
         assertThat(activated.acciones().puedeActivar()).isFalse();
         assertThat(activated.acciones().puedeDesactivar()).isTrue();
+    }
+
+    @Test
+    void persistsAuthenticatedCreatorAndReturnsCreatorCapabilities() {
+        CreatePersonaRequest request = createRequest("CI-CREATOR");
+        Persona persona = persona(21, (short) 1);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                new AuthenticatedUser("owner.login", java.util.UUID.randomUUID()), null,
+                List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_PROPIETARIO")));
+        when(personaRepository.existsByCi("CI-CREATOR")).thenReturn(false);
+        when(personaMapper.toEntity(request)).thenReturn(persona);
+        when(personaRepository.saveAndFlush(persona)).thenReturn(persona);
+        when(authorizationService.isOwner(authentication)).thenReturn(true);
+        when(authorizationService.canManagePerson(authentication, 21)).thenReturn(true);
+
+        PersonaResponse created = service.create(request, authentication);
+
+        assertThat(persona.getCreadaPorLogin()).isEqualTo("owner.login");
+        assertThat(created.acciones().puedeEditar()).isTrue();
+        assertThat(created.acciones().puedeEliminar()).isTrue();
+        assertThat(created.acciones().puedeCrearUsuario()).isTrue();
     }
 
     private CreatePersonaRequest createRequest(String ci) {

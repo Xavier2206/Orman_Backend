@@ -31,7 +31,16 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     @Override
     public boolean canManageUser(Authentication authentication, String login) {
-        return isOwner(authentication);
+        if (login == null || !isOwner(authentication)) {
+            return false;
+        }
+        Optional<String> actorLogin = authenticatedLogin(authentication);
+        if (actorLogin.filter(login::equals).isPresent()) {
+            return true;
+        }
+        return usuarioRepository.findByLoginWithPersona(login)
+                .map(usuario -> canManagePerson(authentication, usuario.getPersona().getCodper()))
+                .orElse(false);
     }
 
     @Override
@@ -44,6 +53,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                 .map(usuario -> {
                     Integer ownerCodper = usuario.getPersona().getCodper();
                     return ownerCodper.equals(codper)
+                            || personaRepository.existsByCodperAndCreadaPorLogin(codper, usuario.getLogin())
                             || personaRepository.existsTenantLinkedToOwner(codper, ownerCodper);
                 })
                 .orElse(false);

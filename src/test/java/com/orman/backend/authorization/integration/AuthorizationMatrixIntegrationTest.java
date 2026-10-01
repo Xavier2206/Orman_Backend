@@ -23,8 +23,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,6 +56,7 @@ class AuthorizationMatrixIntegrationTest {
     @Autowired private RolUsuRepository rolUsuRepository;
     @Autowired private SesionUsuarioRepository sesionUsuarioRepository;
     @Autowired private AuthService authService;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     private Rol ownerRole;
     private Rol tenantRole;
@@ -178,6 +181,93 @@ class AuthorizationMatrixIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void creatorOwnsPersonaLifecycleUsersRolesAndPhotosWithoutClientSpoofing() throws Exception {
+        Fixture secondOwner = createFixture("M112-OWN-CREATOR-B", "m112.creator.b", "creator-b-device");
+        rolUsuService.assign(secondOwner.login(), ownerRole.getCodr());
+        secondOwner = secondOwner.withLogin(login(secondOwner.login(), "creator-b-login"));
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/personas").headers(bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(personJsonWithCreator("M112-CREATOR-A", secondOwner.login())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.acciones.puedeEditar").value(true))
+                .andExpect(jsonPath("$.acciones.puedeEliminar").value(true))
+                .andExpect(jsonPath("$.acciones.puedeCrearUsuario").value(true))
+                .andReturn();
+        int codper = codperFromLocation(createResult);
+        assertThat(jdbcTemplate.queryForObject("SELECT creada_por_login FROM personas WHERE codper = ?",
+                String.class, codper)).isEqualTo(owner.login());
+        assertThat(createResult.getResponse().getContentAsString()).doesNotContain("creada_por_login");
+
+        mockMvc.perform(get("/api/v1/personas/{codper}", codper).headers(bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acciones.puedeEditar").value(true))
+                .andExpect(jsonPath("$.acciones.puedeEliminar").value(true))
+                .andExpect(jsonPath("$.acciones.puedeCrearUsuario").value(true));
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", codper).headers(bearer(owner)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/api/v1/personas/{codper}", codper).headers(bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(personUpdateJsonWithCreator("M112-CREATOR-A", "1", secondOwner.login())))
+                .andExpect(status().isOk());
+        assertThat(jdbcTemplate.queryForObject("SELECT creada_por_login FROM personas WHERE codper = ?",
+                String.class, codper)).isEqualTo(owner.login());
+
+        mockMvc.perform(patch("/api/v1/personas/{codper}/desactivar", codper).headers(bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value(0));
+        mockMvc.perform(patch("/api/v1/personas/{codper}/activar", codper).headers(bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value(1));
+
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", codper).file(validPhoto())
+                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", codper).headers(bearer(owner)))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_JPEG));
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", codper).file(validPhoto())
+                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", codper).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", codper).headers(bearer(owner)))
+                .andExpect(status().isNotFound());
+
+        String userLogin = "m112.created.tenant";
+        mockMvc.perform(post("/api/v1/usuarios").headers(bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson(userLogin, codper)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/v1/personas/{codper}", codper).headers(bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acciones.puedeCrearUsuario").value(false));
+        mockMvc.perform(post("/api/v1/usuarios/{login}/roles/{codr}", userLogin, tenantRole.getCodr())
+                        .headers(bearer(owner)))
+                .andExpect(status().isCreated());
+
+        expectForbidden(get("/api/v1/personas/{codper}", codper), secondOwner);
+        expectForbidden(put("/api/v1/personas/{codper}", codper).contentType(MediaType.APPLICATION_JSON)
+                .content(personUpdateJson("M112-CREATOR-A", "1")), secondOwner);
+        expectForbidden(delete("/api/v1/personas/{codper}", codper), secondOwner);
+        expectForbidden(patch("/api/v1/personas/{codper}/desactivar", codper), secondOwner);
+        expectForbidden(patch("/api/v1/personas/{codper}/activar", codper), secondOwner);
+        expectForbidden(get("/api/v1/personas/{codper}/foto", codper), secondOwner);
+        expectForbidden(multipart("/api/v1/personas/{codper}/foto", codper).file(validPhoto())
+                .with(request -> { request.setMethod("PUT"); return request; }), secondOwner);
+        expectForbidden(delete("/api/v1/personas/{codper}/foto", codper), secondOwner);
+        expectForbidden(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
+                .content(userJson("m112.spoofed.user", codper)), secondOwner);
+        expectForbidden(post("/api/v1/usuarios/{login}/roles/{codr}", userLogin, ownerRole.getCodr()), secondOwner);
+        expectForbidden(delete("/api/v1/usuarios/{login}/roles/{codr}", userLogin, tenantRole.getCodr()), secondOwner);
+
+        MvcResult deleteResult = mockMvc.perform(post("/api/v1/personas").headers(bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(personJson("M112-CREATOR-DELETE")))
+                .andExpect(status().isCreated()).andReturn();
+        int deletableCodper = codperFromLocation(deleteResult);
+        expectForbidden(delete("/api/v1/personas/{codper}", deletableCodper), secondOwner);
+        mockMvc.perform(delete("/api/v1/personas/{codper}", deletableCodper).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+    }
+
     private org.springframework.mock.web.MockMultipartFile validPhoto() throws Exception {
         var image = new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_RGB);
         var bytes = new java.io.ByteArrayOutputStream();
@@ -246,14 +336,21 @@ class AuthorizationMatrixIntegrationTest {
 
     @Test
     void allowsOwnerToRemoveOneOfTwoOwners() throws Exception {
-        Fixture secondOwner = createFixture("M112-OWN2", "m112.owner2", "owner2-device");
-        rolUsuService.assign(secondOwner.login(), ownerRole.getCodr());
+        MvcResult personResult = mockMvc.perform(post("/api/v1/personas").headers(bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(personJson("M112-OWN2")))
+                .andExpect(status().isCreated()).andReturn();
+        int secondOwnerCodper = codperFromLocation(personResult);
+        String secondOwnerLogin = "m112.owner2";
+        mockMvc.perform(post("/api/v1/usuarios").headers(bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson(secondOwnerLogin, secondOwnerCodper)))
+                .andExpect(status().isCreated());
+        rolUsuService.assign(secondOwnerLogin, ownerRole.getCodr());
         assertThat(rolUsuRepository.countActiveOwners()).isEqualTo(2);
 
-        mockMvc.perform(patch("/api/v1/usuarios/{login}/desactivar", secondOwner.login())
+        mockMvc.perform(patch("/api/v1/usuarios/{login}/desactivar", secondOwnerLogin)
                         .headers(bearer(owner)))
                 .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/v1/usuarios/{login}/roles/{codr}", secondOwner.login(), ownerRole.getCodr())
+        mockMvc.perform(delete("/api/v1/usuarios/{login}/roles/{codr}", secondOwnerLogin, ownerRole.getCodr())
                         .headers(bearer(owner)))
                 .andExpect(status().isNoContent());
 
@@ -325,9 +422,28 @@ class AuthorizationMatrixIntegrationTest {
                 + "\"correo\":\"persona.matriz@example.test\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
     }
 
+    private String personJsonWithCreator(String ci, String creatorLogin) {
+        return personJson(ci).replace("\"tipoPersona\":\"A\"", "\"tipoPersona\":\"I\"")
+                .replace("}", ",\"creada_por_login\":\"" + creatorLogin + "\"}");
+    }
+
     private String personUpdateJson(String ci, String state) {
         return "{\"ci\":\"" + ci + "\",\"nombre\":\"Persona actualizada\",\"genero\":\"F\","
                 + "\"estado\":\"" + state + "\",\"correo\":\"persona.matriz@example.test\",\"telefono\":\"70000000\",\"tipoPersona\":\"A\"}";
+    }
+
+    private String personUpdateJsonWithCreator(String ci, String state, String creatorLogin) {
+        return personUpdateJson(ci, state).replace("}", ",\"creada_por_login\":\"" + creatorLogin + "\"}");
+    }
+
+    private String userJson(String login, int codper) {
+        return "{\"login\":\"" + login + "\",\"password\":\"" + PASSWORD
+                + "\",\"estado\":1,\"codper\":" + codper + "}";
+    }
+
+    private int codperFromLocation(MvcResult result) {
+        String location = result.getResponse().getHeader("Location");
+        return Integer.parseInt(location.substring(location.lastIndexOf('/') + 1));
     }
 
     private String passwordJson() {

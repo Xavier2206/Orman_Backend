@@ -24,9 +24,11 @@ import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.person.service.PersonaPhotoService;
 import com.orman.backend.role.repository.RolUsuRepository;
 import com.orman.backend.user.repository.UsuarioRepository;
+import com.orman.backend.auth.model.AuthenticatedUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.function.Function;
@@ -35,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +72,13 @@ public class PersonaServiceImpl implements PersonaService {
             throw new ConflictException("El CI ya está registrado.");
         }
         try {
-            Persona persona = personaRepository.saveAndFlush(personaMapper.toEntity(request));
+            Persona persona = personaMapper.toEntity(request);
+            if (authentication != null) {
+                String login = authenticatedLogin(authentication)
+                        .orElseThrow(() -> new AccessDeniedException("No se pudo validar el Usuario autenticado."));
+                persona.assignCreator(login);
+            }
+            persona = personaRepository.saveAndFlush(persona);
             entityManager.refresh(persona);
             return toResponse(persona, authentication);
         } catch (DataIntegrityViolationException exception) {
@@ -109,7 +118,21 @@ public class PersonaServiceImpl implements PersonaService {
     @Transactional(readOnly = true)
     public PageResponse<PersonaResponse> list(PersonaSearchCriteria criteria, Pageable pageable,
                                                Authentication authentication) {
-        Page<Persona> page = personaRepository.search(criteria.q(), criteria.tipoPersona(), criteria.estado(), pageable);
+        Page<Persona> page;
+        if (authentication == null) {
+            page = personaRepository.search(criteria.q(), criteria.tipoPersona(), criteria.estado(), pageable);
+        } else {
+            if (!authorizationService.isOwner(authentication)) {
+                throw new AccessDeniedException("No tiene permiso para listar Personas.");
+            }
+            String ownerLogin = authenticatedLogin(authentication)
+                    .orElseThrow(() -> new AccessDeniedException("No se pudo validar el Usuario autenticado."));
+            Integer ownerCodper = usuarioRepository.findByLoginWithPersona(ownerLogin)
+                    .map(usuario -> usuario.getPersona().getCodper())
+                    .orElseThrow(() -> new AccessDeniedException("No se pudo validar el Usuario autenticado."));
+            page = personaRepository.searchManageableByOwner(criteria.q(), criteria.tipoPersona(), criteria.estado(),
+                    ownerLogin, ownerCodper, pageable);
+        }
         return new PageResponse<>(toResponses(page.getContent(), authentication), page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(), page.isFirst(), page.isLast());
     }
@@ -232,6 +255,14 @@ public class PersonaServiceImpl implements PersonaService {
         if (foto != null && (foto.length() > 255 || !EXTERNAL_PHOTO_URL.matcher(foto).matches())) {
             throw new InvalidPersonaPhotoException("La foto externa debe ser una URL HTTP o HTTPS válida.");
         }
+    }
+
+    private Optional<String> authenticatedLogin(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof AuthenticatedUser authenticatedUser)) {
+            return Optional.empty();
+        }
+        return Optional.of(authenticatedUser.login());
     }
 
     private Persona find(Integer codper) {

@@ -38,7 +38,7 @@ public class UsuarioController {
     private final AuthorizationService authorizationService;
 
     @PostMapping
-    @PreAuthorize("hasRole('PROPIETARIO')")
+    @PreAuthorize("@authorizationService.canManagePerson(authentication, #request.codper)")
     public ResponseEntity<UsuarioResponse> create(@Valid @RequestBody CreateUsuarioRequest request) {
         UsuarioResponse response = usuarioService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{login}")

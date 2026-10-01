@@ -4,6 +4,18 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+### Corregido
+
+- Ownership de Personas: V25 registra `creada_por_login` nullable con FK restrictiva, sin backfill histórico. La creación toma el login del principal autenticado; `canManagePerson` y el listado aplican persona propia, creador o inquilino contractual.
+- `POST /usuarios` y la asignación/eliminación de roles limitan el objetivo a Personas que el propietario autenticado puede gestionar. `canManageUser` resuelve `usuario -> persona -> ownership` y conserva el acceso a la cuenta propia.
+- Las rutas de Persona, fotografías y acciones reutilizan el predicado común. No se modificó Angular, almacenamiento local/R2 ni datos externos.
+
+### Verificación
+
+- `$env:ORMAN_STORAGE_PROVIDER = "local"; .\\mvnw.cmd clean test`: 482 pruebas, 0 fallos, 0 errores y 0 omitidas; V25 validada contra PostgreSQL local.
+- `.\\mvnw.cmd clean package -DskipTests`: `BUILD SUCCESS`.
+- `git diff --check`: sin errores.
+
 ### Agregado
 
 - Fase 1 de registro push Android: V21 agrega `dispositivos_push` y los

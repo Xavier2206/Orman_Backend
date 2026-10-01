@@ -32,15 +32,15 @@ class PersonaPersistenceIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayAppliesEightVersionsAndCreatesPersonasUsuariosRolesAndRolUsu() {
+    void flywayAppliesAllVersionsAndCreatesCurrentTables() {
         List<String> tables = jdbcTemplate.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
                 String.class);
 
         assertThat(tables).containsExactly("contrato_archivos", "contratos", "cuotas", "dispositivos_push", "flyway_schema_history", "menus", "mepro", "notificaciones", "pago_comprobantes", "pagos", "personas", "procesos", "propiedades", "qr_cobro", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '20', '21') AND success = true",
-                Integer.class)).isEqualTo(20);
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE version::integer BETWEEN 1 AND 25 AND success = true",
+                Integer.class)).isEqualTo(25);
     }
 
     @Test
@@ -53,21 +53,43 @@ class PersonaPersistenceIntegrationTest {
                 """);
 
         assertThat(columns).extracting(column -> column.get("column_name"))
-                .containsExactly("codper", "ci", "nombre", "ap", "am", "genero", "estado", "correo", "telefono", "tipo_persona", "foto", "fecha_registro");
+                .containsExactly("codper", "ci", "nombre", "ap", "am", "genero", "estado", "correo", "telefono", "tipo_persona", "foto", "fecha_registro", "creada_por_login");
         assertThat(columns).extracting(column -> column.get("data_type"))
-                .containsExactly("integer", "character varying", "character varying", "character varying", "character varying", "character", "smallint", "character varying", "character varying", "character", "character varying", "timestamp without time zone");
+                .containsExactly("integer", "character varying", "character varying", "character varying", "character varying", "character", "smallint", "character varying", "character varying", "character", "character varying", "timestamp without time zone", "character varying");
         assertThat(columns).extracting(column -> column.get("character_maximum_length"))
-                .containsExactly(null, 20, 60, 40, 40, 1, null, 100, 20, 1, 255, null);
+                .containsExactly(null, 20, 60, 40, 40, 1, null, 100, 20, 1, 255, null, 30);
         assertThat(columns).extracting(column -> column.get("is_nullable"))
-                .containsExactly("NO", "NO", "NO", "YES", "YES", "NO", "NO", "NO", "NO", "NO", "YES", "NO");
+                .containsExactly("NO", "NO", "NO", "YES", "YES", "NO", "NO", "NO", "NO", "NO", "YES", "NO", "YES");
         assertThat(jdbcTemplate.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'personas' AND column_name = 'estado'", String.class))
                 .isEqualTo("1");
         assertThat(jdbcTemplate.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'personas' AND column_name = 'fecha_registro'", String.class))
                 .contains("CURRENT_TIMESTAMP");
         assertThat(jdbcTemplate.queryForList("SELECT conname FROM pg_constraint WHERE conrelid = 'personas'::regclass ORDER BY conname", String.class))
-                .containsExactlyInAnyOrder("pk_personas", "uk_personas_ci", "ck_personas_genero", "ck_personas_estado", "ck_personas_tipo_persona");
+                .containsExactlyInAnyOrder("pk_personas", "uk_personas_ci", "ck_personas_genero", "ck_personas_estado", "ck_personas_tipo_persona", "fk_personas_creada_por_usuario");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT confdeltype FROM pg_constraint WHERE conname = 'fk_personas_creada_por_usuario'", String.class))
+                .isEqualTo("r");
         assertThat(jdbcTemplate.queryForList("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'personas' ORDER BY indexname", String.class))
-                .containsExactly("pk_personas", "uk_personas_ci");
+                .containsExactly("idx_personas_creada_por_login", "pk_personas", "uk_personas_ci");
+    }
+
+    @Test
+    void leavesHistoricalCreatorNullAndCreatorAssignmentIsImmutableInEntity() {
+        String ci = "HIST-OWNER-01";
+        insertValid(ci, 'F', (short) 1, 'A');
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT creada_por_login FROM personas WHERE ci = ?", String.class, ci))
+                .isNull();
+
+        Persona persona = personaRepository.findAll().stream()
+                .filter(candidate -> ci.equals(candidate.getCi())).findFirst().orElseThrow();
+        persona.assignCreator("owner.historical");
+        assertThat(persona.getCreadaPorLogin()).isEqualTo("owner.historical");
+        assertThatThrownBy(() -> persona.assignCreator("other.owner"))
+                .isInstanceOf(IllegalStateException.class);
+        entityManager.flush();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT creada_por_login FROM personas WHERE ci = ?", String.class, ci)).isNull();
     }
 
     @Test

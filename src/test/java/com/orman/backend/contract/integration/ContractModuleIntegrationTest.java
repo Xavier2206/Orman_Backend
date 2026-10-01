@@ -22,6 +22,9 @@ import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.entity.PagoEstado;
 import com.orman.backend.payment.repository.PagoRepository;
 import com.orman.backend.person.entity.Persona;
+import com.orman.backend.person.dto.CreatePersonaRequest;
+import com.orman.backend.person.dto.PersonaSearchCriteria;
+import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.property.entity.PropiedadEntity;
 import com.orman.backend.property.entity.UnidadEntity;
@@ -61,6 +64,7 @@ class ContractModuleIntegrationTest {
     private static final LocalDate MES_ACTUAL = LocalDate.now(ZoneId.of("America/La_Paz")).withDayOfMonth(1);
 
     @Autowired private PersonaRepository personaRepository;
+    @Autowired private PersonaService personaService;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PropiedadRepository propiedadRepository;
     @Autowired private UnidadRepository unidadRepository;
@@ -151,6 +155,38 @@ class ContractModuleIntegrationTest {
                 .containsExactlyInAnyOrder(propertyACurrent.codcon(), propertyAFuture.codcon());
         assertThat(contratoService.list(null, codpropA, null, null, page(), propertyB.authentication()).content())
                 .isEmpty();
+    }
+
+    @Test
+    void scopesPersonaPagesToSelfCreatedPeopleAndContractTenants() {
+        Context owner = context("PERSONLISTA", (short) 1, (short) 1, (short) 1);
+        Context otherOwner = context("PERSONLISTB", (short) 1, (short) 1, (short) 1);
+        var createdByOwner = personaService.create(new CreatePersonaRequest("PERSONLIST-CREATED-A", "Creada por A",
+                null, null, "F", "1", "persona.list.a@example.test", "70000000", "A", null),
+                owner.authentication());
+        create(owner, MES_ACTUAL, MES_ACTUAL.plusMonths(1));
+
+        var firstPage = personaService.list(PersonaSearchCriteria.from(null, null, null), PageRequest.of(0, 2),
+                owner.authentication());
+        var secondPage = personaService.list(PersonaSearchCriteria.from(null, null, null), PageRequest.of(1, 2),
+                owner.authentication());
+        var allOwnerVisibleIds = java.util.stream.Stream.concat(firstPage.content().stream(), secondPage.content().stream())
+                .map(com.orman.backend.person.dto.PersonaResponse::codper).toList();
+
+        assertThat(firstPage.totalElements()).isEqualTo(3);
+        assertThat(firstPage.totalPages()).isEqualTo(2);
+        assertThat(firstPage.size()).isEqualTo(2);
+        assertThat(secondPage.page()).isEqualTo(1);
+        assertThat(allOwnerVisibleIds).contains(owner.usuario().getPersona().getCodper(), createdByOwner.codper(),
+                owner.inquilino().getCodper());
+        assertThat(allOwnerVisibleIds).doesNotContain(otherOwner.usuario().getPersona().getCodper(),
+                otherOwner.inquilino().getCodper());
+
+        var filtered = personaService.list(PersonaSearchCriteria.from("PERSONLIST-CREATED-A", "A", "1"),
+                PageRequest.of(0, 10), owner.authentication());
+        assertThat(filtered.content()).extracting(com.orman.backend.person.dto.PersonaResponse::codper)
+                .containsExactly(createdByOwner.codper());
+        assertThat(filtered.totalElements()).isEqualTo(1);
     }
 
     @Test

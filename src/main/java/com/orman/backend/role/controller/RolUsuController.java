@@ -25,6 +25,7 @@ public class RolUsuController {
     private final RolUsuService rolUsuService;
 
     @PostMapping("/usuarios/{login}/roles/{codr}")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public ResponseEntity<RolUsuResponse> assign(@PathVariable String login, @PathVariable Integer codr) {
         RolUsuResponse response = rolUsuService.assign(login, codr);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
@@ -32,12 +33,14 @@ public class RolUsuController {
     }
 
     @DeleteMapping("/usuarios/{login}/roles/{codr}")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public ResponseEntity<Void> remove(@PathVariable String login, @PathVariable Integer codr) {
         rolUsuService.remove(login, codr);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/usuarios/{login}/roles")
+    @PreAuthorize("@authorizationService.canManageUser(authentication, #login)")
     public List<RolUsuResponse> listByUsuario(@PathVariable String login) {
         return rolUsuService.listByUsuario(login);
     }

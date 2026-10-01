@@ -98,6 +98,8 @@ class AuthorizationIntegrationTest {
         AuthResult login = login(usuario.login(), "device-dynamic");
         String accessToken = login.response().accessToken();
         Rol propietario = activeRole("PROPIETARIO");
+        UsuarioResponse otroPropietario = createUsuario("AUTHZ-111-B2", "authz.roles.other.owner");
+        rolUsuService.assign(otroPropietario.login(), propietario.getCodr());
         expectOwnerDenied(accessToken);
         rolUsuService.assign(usuario.login(), propietario.getCodr());
         expectOwnerAllowed(accessToken);

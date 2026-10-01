@@ -33,16 +33,29 @@ class AuthorizationServiceImplTest {
     void ownerCanManageSelfAndLinkedTenantButNotUnrelatedPerson() {
         Authentication owner = authentication("owner", "ROLE_PROPIETARIO");
         Usuario usuario = new Usuario();
+        usuario.setLogin("owner");
         Persona persona = new Persona();
         ReflectionTestUtils.setField(persona, "codper", 7);
         usuario.setPersona(persona);
         when(usuarioRepository.findByLoginWithPersona("owner")).thenReturn(Optional.of(usuario));
         when(personaRepository.existsTenantLinkedToOwner(10, 7)).thenReturn(true);
+        Persona manageablePersona = new Persona();
+        ReflectionTestUtils.setField(manageablePersona, "codper", 10);
+        Usuario manageableUser = new Usuario();
+        manageableUser.setLogin("managed.tenant");
+        manageableUser.setPersona(manageablePersona);
+        when(usuarioRepository.findByLoginWithPersona("managed.tenant")).thenReturn(Optional.of(manageableUser));
+        when(personaRepository.existsByCodperAndCreadaPorLogin(
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.eq("owner")))
+                .thenAnswer(invocation -> Integer.valueOf(11).equals(invocation.getArgument(0)));
 
         assertThat(service.isOwner(owner)).isTrue();
-        assertThat(service.canManageUser(owner, "another.owner")).isTrue();
+        assertThat(service.canManageUser(owner, "owner")).isTrue();
+        assertThat(service.canManageUser(owner, "managed.tenant")).isTrue();
+        assertThat(service.canManageUser(owner, "another.owner")).isFalse();
         assertThat(service.canManagePerson(owner, 7)).isTrue();
         assertThat(service.canManagePerson(owner, 10)).isTrue();
+        assertThat(service.canManagePerson(owner, 11)).isTrue();
         assertThat(service.canManagePerson(owner, 99)).isFalse();
         assertThat(service.isSelfOrOwner(owner, "another.user")).isTrue();
         verify(personaRepository).existsTenantLinkedToOwner(99, 7);

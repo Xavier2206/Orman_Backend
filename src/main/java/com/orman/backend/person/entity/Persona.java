@@ -70,6 +70,19 @@ public class Persona {
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
 
+    @Column(name = "creada_por_login", length = 30, updatable = false)
+    private String creadaPorLogin;
+
+    public void assignCreator(String login) {
+        if (creadaPorLogin != null) {
+            throw new IllegalStateException("El creador de Persona es inmutable.");
+        }
+        if (login == null || login.isBlank()) {
+            throw new IllegalArgumentException("El login creador es obligatorio.");
+        }
+        creadaPorLogin = login;
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {

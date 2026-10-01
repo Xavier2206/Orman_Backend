@@ -99,9 +99,8 @@ public class PaymentImageStorageService {
 
             String physicalName = UUID.randomUUID() + "." + image.extension();
             storedKey = directoryName + "/" + parentId + "/" + physicalName;
-            try (InputStream input = Files.newInputStream(processed)) {
-                fileStorageService.put(storedKey, input, Files.size(processed), image.contentType());
-            }
+            byte[] content = Files.readAllBytes(processed);
+            fileStorageService.put(storedKey, content, image.contentType());
             registerRollbackCleanup(storedKey);
             return new StoredPaymentImage(storedKey,
                     originalName, image.contentType());

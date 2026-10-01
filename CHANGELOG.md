@@ -6,12 +6,15 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ### Corregido
 
+- El almacenamiento de imágenes de cobro y comprobantes entrega al proveedor R2 los bytes normalizados, para que el cuerpo de `PutObject` se pueda leer más de una vez.
 - Ownership de Personas: V25 registra `creada_por_login` nullable con FK restrictiva, sin backfill histórico. La creación toma el login del principal autenticado; `canManagePerson` y el listado aplican persona propia, creador o inquilino contractual.
 - `POST /usuarios` y la asignación/eliminación de roles limitan el objetivo a Personas que el propietario autenticado puede gestionar. `canManageUser` resuelve `usuario -> persona -> ownership` y conserva el acceso a la cuenta propia.
 - Las rutas de Persona, fotografías y acciones reutilizan el predicado común. No se modificó Angular, almacenamiento local/R2 ni datos externos.
 
 ### Verificación
 
+- `$env:ORMAN_STORAGE_PROVIDER = "local"; $env:DB_NAME = "orman_qr_fix_test_20261001"; .\\mvnw.cmd clean test`: 484 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL local desechable aplicó V1–V25; V25 quedó con checksum `1674304977` y Hibernate inició con `ddl-auto=validate`. Las 9 pruebas enfocadas de almacenamiento pasan.
+- `.\\mvnw.cmd clean package -DskipTests`: `BUILD SUCCESS`.
 - `$env:ORMAN_STORAGE_PROVIDER = "local"; .\\mvnw.cmd clean test`: 482 pruebas, 0 fallos, 0 errores y 0 omitidas; V25 validada contra PostgreSQL local.
 - `.\\mvnw.cmd clean package -DskipTests`: `BUILD SUCCESS`.
 - `git diff --check`: sin errores.

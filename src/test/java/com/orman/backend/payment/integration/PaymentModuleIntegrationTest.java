@@ -15,6 +15,7 @@ import com.orman.backend.payment.dto.request.QrCobroRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
 import com.orman.backend.payment.dto.response.QrCobroResponse;
 import com.orman.backend.payment.entity.MetodoPago;
+import com.orman.backend.payment.entity.PagoEntity;
 import com.orman.backend.payment.repository.PagoComprobanteRepository;
 import com.orman.backend.payment.repository.PagoRepository;
 import com.orman.backend.payment.service.PagoService;
@@ -49,6 +50,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -81,9 +83,17 @@ class PaymentModuleIntegrationTest {
     @Autowired private PagoComprobanteService comprobanteService;
     @Autowired private QrCobroService qrCobroService;
     @Autowired private Clock clock;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     private String rolledBackProofPath;
     private Integer rolledBackProofPaymentId;
+
+    @Test
+    void postgresSessionsUseTheBolivianZoneForTimestampDefaults() {
+        String databaseZone = jdbcTemplate.queryForObject("SELECT current_setting('TimeZone')", String.class);
+
+        assertThat(databaseZone).isEqualTo("America/La_Paz");
+    }
 
     @Test
     void ownerCashUsesLaPazTimeConfirmsAndUpdatesPartialBalance() {
@@ -94,9 +104,12 @@ class PaymentModuleIntegrationTest {
         assertThat(payment.estado()).isEqualTo("CONFIRMADO");
         assertThat(payment.origenRegistro()).isEqualTo("PROPIETARIA");
         assertThat(payment.codqr()).isNull();
-        assertThat(payment.fechaPago()).isEqualTo(nowLaPaz());
-        assertThat(payment.fechaRegistro()).isEqualTo(nowUtc());
-        assertThat(payment.fechaRevision()).isEqualTo(nowUtc());
+        assertThat(payment.fechaPago()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
+        assertThat(payment.fechaRegistro()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
+        assertThat(payment.fechaRevision()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
+        PagoEntity storedPayment = pagoRepository.findById(payment.codpag()).orElseThrow();
+        assertThat(storedPayment.getFechaRegistro()).isEqualTo(LocalDateTime.of(2026, 9, 25, 12, 20));
+        assertThat(storedPayment.getFechaRevision()).isEqualTo(LocalDateTime.of(2026, 9, 25, 12, 20));
         assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PARCIAL);
         assertThat(comprobanteRepository.existsByPagoCodpag(payment.codpag())).isFalse();
     }
@@ -111,13 +124,13 @@ class PaymentModuleIntegrationTest {
                 request("400.00", MetodoPago.QR, occurredAt), null, context.ownerAuth());
 
         assertThat(pastPayment.codqr()).isEqualTo(qr.codqr());
-        assertThat(pastPayment.fechaPago()).isEqualTo(occurredAt);
+        assertThat(pastPayment.fechaPago()).isEqualTo(occurredAt.atZone(LA_PAZ).toOffsetDateTime());
         assertThat(pastPayment.estado()).isEqualTo("CONFIRMADO");
         assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PARCIAL);
 
         PagoResponse currentPayment = pagoService.create(context.quota().getCodcuo(),
                 request("600.00", MetodoPago.QR, nowLaPaz()), null, context.ownerAuth());
-        assertThat(currentPayment.fechaPago()).isEqualTo(nowLaPaz());
+        assertThat(currentPayment.fechaPago()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
         assertThat(currentPayment.estado()).isEqualTo("CONFIRMADO");
         assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
         assertThat(comprobanteRepository.existsByPagoCodpag(pastPayment.codpag())).isFalse();
@@ -141,6 +154,7 @@ class PaymentModuleIntegrationTest {
         assertThat(pending.codqr()).isEqualTo(qr.codqr());
         assertThat(comprobanteRepository.existsByPagoCodpag(pending.codpag())).isTrue();
         var storedProof = comprobanteRepository.findByPagoCodpag(pending.codpag()).orElseThrow();
+        assertThat(storedProof.getFechaRegistro()).isEqualTo(nowLaPaz());
         rolledBackProofPath = storedProof.getRutaArchivo();
         rolledBackProofPaymentId = pending.codpag();
         assertThat(comprobanteService.getMetadata(pending.codpag(), context.tenantAuth()).tipoContenido())
@@ -190,7 +204,7 @@ class PaymentModuleIntegrationTest {
         assertThat(annulled.motivoAnulacion()).isEqualTo("Se registró por error.");
         assertThat(annulled.motivoRechazo()).isNull();
         assertThat(annulled.revisadoPor()).isEqualTo(context.owner().getLogin());
-        assertThat(annulled.fechaRevision()).isEqualTo(nowUtc());
+        assertThat(annulled.fechaRevision()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
         assertThat(pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo()))
                 .isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
@@ -629,7 +643,7 @@ class PaymentModuleIntegrationTest {
         @Bean
         @Primary
         Clock paymentIntegrationTestClock() {
-            return Clock.fixed(Instant.parse("2026-09-25T18:00:00Z"), ZoneOffset.UTC);
+            return Clock.fixed(Instant.parse("2026-09-25T16:20:00Z"), ZoneOffset.UTC);
         }
     }
 }

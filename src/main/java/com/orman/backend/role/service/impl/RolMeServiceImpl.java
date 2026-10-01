@@ -28,7 +28,8 @@ public class RolMeServiceImpl implements RolMeService {
     private final RolMeRepository rolMeRepository;
 
     @Override @Transactional public RolMeResponse assign(Integer codr, Integer codm) {
-        Rol rol = findRol(codr); Menu menu = findMenu(codm); assertActivo(rol.getEstado(), "Rol"); assertActivo(menu.getEstado(), "Menú");
+        Rol rol = findRol(codr); Menu menu = findMenu(codm);
+        if (!"PROPIETARIO".equals(rol.getNombre()) && !"INQUILINO".equals(rol.getNombre())) throw new BusinessRuleException("El Rol no pertenece al catálogo permitido."); assertActivo(rol.getEstado(), "Rol"); assertActivo(menu.getEstado(), "Menú");
         RolMeId id = new RolMeId(codr, codm);
         if (rolMeRepository.existsById(id)) throw duplicate();
         try { return toResponse(rolMeRepository.saveAndFlush(new RolMe(rol, menu))); }

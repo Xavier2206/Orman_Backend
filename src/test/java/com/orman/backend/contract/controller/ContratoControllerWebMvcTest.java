@@ -117,7 +117,7 @@ class ContratoControllerWebMvcTest {
     void listReturnsEnrichedContractResponseFields() throws Exception {
         ContratoResponse enriched = new ContratoResponse(15, 8, 4, LocalDate.of(2026, 9, 1), LocalDate.of(2027, 9, 1),
                 new BigDecimal("2500.00"), "BOB", new BigDecimal("2500.00"), "VIGENTE",
-                java.time.LocalDateTime.of(2026, 9, 1, 12, 0), null, null,
+                java.time.OffsetDateTime.of(2026, 9, 1, 12, 0, 0, 0, java.time.ZoneOffset.ofHours(-4)), null, null,
                 new com.orman.backend.contract.dto.response.ContratoInquilinoResponse(4, "Carlos Mendoza", "4892014 SC"),
                 new com.orman.backend.contract.dto.response.ContratoUnidadResponse(8, "Dpto. 2A", "Residencial", "Depto 2", 2),
                 new com.orman.backend.contract.dto.response.ContratoPropiedadResponse(3, "Edificio Central"),
@@ -150,6 +150,6 @@ class ContratoControllerWebMvcTest {
     private ContratoResponse response(Integer codcon) {
         return new ContratoResponse(codcon, 8, 4, LocalDate.of(2026, 9, 1), LocalDate.of(2027, 9, 1),
                 new BigDecimal("2500.00"), "BOB", new BigDecimal("2500.00"), "VIGENTE",
-                java.time.LocalDateTime.of(2026, 9, 1, 12, 0), null, null);
+                java.time.OffsetDateTime.of(2026, 9, 1, 12, 0, 0, 0, java.time.ZoneOffset.ofHours(-4)), null, null);
     }
 }

@@ -6,6 +6,14 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ### Agregado
 
+- Fase 1 de registro push Android: V21 agrega `dispositivos_push` y los
+  endpoints MOBILE autenticados para registrar/reasociar y desactivar una
+  instalación. Las revocaciones de sesión desactivan destinos después del
+  commit. No se incorporan Firebase Admin, credenciales, envío FCM ni cambios
+  Flutter/Angular.
+- Validación FCM Fase 1: pruebas enfocadas de Push/Auth pasan; `.\mvnw.cmd clean test`
+  ejecuta 467 pruebas con 0 fallos, 0 errores y 0 omitidas. V21 aplica en
+  PostgreSQL 17.6 y Hibernate mantiene `ddl-auto=validate`.
 - WebSocket/STOMP privado en `/ws` con JWT en `CONNECT` y destino
   `/user/queue/notificaciones`. Los avisos se emiten después del commit que
   crea o reabre la notificación persistida; fallos del transporte no revierten

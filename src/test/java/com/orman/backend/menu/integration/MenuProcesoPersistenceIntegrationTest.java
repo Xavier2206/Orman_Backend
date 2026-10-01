@@ -15,7 +15,6 @@ import com.orman.backend.person.service.PersonaService;
 import com.orman.backend.process.entity.Proceso;
 import com.orman.backend.process.repository.ProcesoRepository;
 import com.orman.backend.process.service.ProcesoService;
-import com.orman.backend.role.dto.request.CreateRolRequest;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.entity.Rol;
 import com.orman.backend.role.entity.RolMe;
@@ -66,9 +65,14 @@ class MenuProcesoPersistenceIntegrationTest {
     @Autowired private RolMeService rolMeService;
     @Autowired private MeProService meProService;
 
+    private RolResponse fixedRole() {
+        return rolRepository.findAll().stream().filter(role -> "INQUILINO".equals(role.getNombre()))
+                .findFirst().map(role -> rolService.get(role.getCodr())).orElseThrow();
+    }
+
     @Test
     void administrativeServicesPersistRelationsAndKeepPrincipalEntitiesWhenRemoved() {
-        RolResponse rol = rolService.create(new CreateRolRequest("ROL-ADMIN-REL", null));
+        RolResponse rol = fixedRole();
         var menu = menuService.create(new CreateMenuRequest("MENU-ADMIN-REL", "users", null));
         var proceso = procesoService.create(new CreateProcesoRequest("PROCESO-ADMIN-REL", "admin-rel", null));
         assertThat(rolMeService.assign(rol.codr(), menu.codm()).estadoMenu()).isEqualTo((short) 1);
@@ -90,9 +94,9 @@ class MenuProcesoPersistenceIntegrationTest {
         assertThat(tables).contains("menus", "procesos", "rolme", "mepro").doesNotContain("rolpro");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM flyway_schema_history
-                WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20') AND success
-                """, Integer.class)).isEqualTo(19);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("20");
+                WHERE version IN ('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','20','21') AND success
+                """, Integer.class)).isEqualTo(20);
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("23");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '7' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8' AND success", Integer.class))
@@ -134,7 +138,7 @@ class MenuProcesoPersistenceIntegrationTest {
 
     @Test
     void persistsExplicitRelationsAndRejectsDuplicatesOrMissingForeignKeys() {
-        RolResponse rol = rolService.create(new CreateRolRequest("ROL-MENUS", null));
+        RolResponse rol = fixedRole();
         Menu menu = menuRepository.saveAndFlush(new Menu("MENU-RELACION", "menu", null));
         Proceso proceso = procesoRepository.saveAndFlush(new Proceso("PROCESO-RELACION", "proceso-relacion", null));
 
@@ -187,7 +191,7 @@ class MenuProcesoPersistenceIntegrationTest {
 
     @Test
     void rejectsDuplicateAndMissingForeignKeysForRolMe() {
-        RolResponse rol = rolService.create(new CreateRolRequest("ROL-FK", null));
+        RolResponse rol = fixedRole();
         Menu menu = menuRepository.saveAndFlush(new Menu("MENU-FK", null, null));
         rolMeRepository.saveAndFlush(new RolMe(rolEntity(rol.codr()), menu));
         assertThatThrownBy(() -> jdbcTemplate.update("INSERT INTO rolme (codr, codm) VALUES (?, ?)", rol.codr(), menu.getCodm()))
@@ -203,7 +207,7 @@ class MenuProcesoPersistenceIntegrationTest {
 
     @Test
     void rejectsMissingMenuForeignKeyForRolMe() {
-        RolResponse rol = rolService.create(new CreateRolRequest("ROL-MENU-AUSENTE", null));
+        RolResponse rol = fixedRole();
         assertThatThrownBy(() -> jdbcTemplate.update("INSERT INTO rolme (codr, codm) VALUES (?, 999999)", rol.codr()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
@@ -234,7 +238,7 @@ class MenuProcesoPersistenceIntegrationTest {
     @Test
     void traversesApprovedPersistentFlowWithoutRoleProcessRelation() {
         UsuarioResponse usuario = createUsuario("FLOW-CI", "flow.usuario");
-        RolResponse rol = rolService.create(new CreateRolRequest("ROL-FLOW", null));
+        RolResponse rol = fixedRole();
         rolUsuService.assign(usuario.login(), rol.codr());
         Menu menu = menuRepository.saveAndFlush(new Menu("MENU-FLOW", null, null));
         Proceso proceso = procesoRepository.saveAndFlush(new Proceso("PROCESO-FLOW", "flow", null));

@@ -39,82 +39,50 @@ class RolControllerWebMvcTest {
     @MockitoBean private RolService rolService;
 
     @Test
-    void createsRolWithLocation() throws Exception {
-        when(rolService.create(any())).thenReturn(response(1, "ADMINISTRADOR", (short) 1));
-
+    void exposesOnlyFixedRoleQueries() throws Exception {
+        when(rolService.get(1)).thenReturn(response(1, "PROPIETARIO", (short) 1));
+        when(rolService.list(any(), any(), any())).thenReturn(new PageResponse<>(
+                List.of(response(1, "PROPIETARIO", (short) 1), response(2, "INQUILINO", (short) 1)),
+                0, 20, 2, 1, true, true));
+        mockMvc.perform(get(BASE_URL + "/1")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("PROPIETARIO"));
+        mockMvc.perform(get(BASE_URL)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2));
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"ADMINISTRADOR\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost/api/v1/roles/1"))
-                .andExpect(jsonPath("$.codr").value(1))
-                .andExpect(jsonPath("$.nombre").value("ADMINISTRADOR"));
-    }
-
-    @Test
-    void getsListsUpdatesAndChangesEstado() throws Exception {
-        when(rolService.get(1)).thenReturn(response(1, "ADMINISTRADOR", (short) 1));
-        mockMvc.perform(get(BASE_URL + "/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombre").value("ADMINISTRADOR"));
-
-        when(rolService.list(any(), any(), any())).thenReturn(new PageResponse<>(List.of(response(1, "ADMINISTRADOR", (short) 1)),
-                0, 20, 1, 1, true, true));
-        mockMvc.perform(get(BASE_URL))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].codr").value(1));
-
-        when(rolService.update(any(), any())).thenReturn(response(1, "SUPERVISOR", (short) 1));
+                .content("{\"nombre\":\"ADMINISTRADOR\"}"))
+                .andExpect(status().isMethodNotAllowed());
         mockMvc.perform(put(BASE_URL + "/1").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"SUPERVISOR\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombre").value("SUPERVISOR"));
-
-        when(rolService.deactivate(1)).thenReturn(response(1, "SUPERVISOR", (short) 0));
-        when(rolService.activate(1)).thenReturn(response(1, "SUPERVISOR", (short) 1));
-        mockMvc.perform(patch(BASE_URL + "/1/desactivar"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value(0));
-        mockMvc.perform(patch(BASE_URL + "/1/activar"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value(1));
+                .content("{\"nombre\":\"OTRO\"}"))
+                .andExpect(status().isMethodNotAllowed());
+        mockMvc.perform(patch(BASE_URL + "/1/activar")).andExpect(status().isNotFound());
+        mockMvc.perform(patch(BASE_URL + "/1/desactivar")).andExpect(status().isNotFound());
     }
 
     @Test
     void listsWithCombinedFiltersAndReturnsGlobalResumen() throws Exception {
-        when(rolService.list(eq(" admin "), eq((short) 1), any())).thenReturn(new PageResponse<>(
-                List.of(response(1, "ADMINISTRADOR", (short) 1)), 0, 10, 1, 1, true, true));
+        when(rolService.list(eq(" prop "), eq((short) 1), any())).thenReturn(new PageResponse<>(
+                List.of(response(1, "PROPIETARIO", (short) 1)), 0, 10, 1, 1, true, true));
 
-        mockMvc.perform(get(BASE_URL).param("q", " admin ").param("estado", "1")
+        mockMvc.perform(get(BASE_URL).param("q", " prop ").param("estado", "1")
                         .param("page", "0").param("size", "10").param("sort", "nombre,asc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].nombre").value("ADMINISTRADOR"))
+                .andExpect(jsonPath("$.content[0].nombre").value("PROPIETARIO"))
                 .andExpect(jsonPath("$.totalElements").value(1));
 
-        when(rolService.resumen()).thenReturn(new RolResumenResponse(5, 3, 2));
+        when(rolService.resumen()).thenReturn(new RolResumenResponse(2, 2, 0));
         mockMvc.perform(get(BASE_URL + "/resumen"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalRoles").value(5))
-                .andExpect(jsonPath("$.activos").value(3))
-                .andExpect(jsonPath("$.inactivos").value(2));
+                .andExpect(jsonPath("$.totalRoles").value(2))
+                .andExpect(jsonPath("$.activos").value(2))
+                .andExpect(jsonPath("$.inactivos").value(0));
     }
 
     @Test
-    void returnsProblemDetailsForConflictMissingAndInvalidRequests() throws Exception {
-        when(rolService.create(any())).thenThrow(new ConflictException("El nombre del Rol ya está registrado."));
-        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"ADMINISTRADOR\"}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("CONFLICT"));
-
+    void returnsProblemDetailForMissingRoleAndInvalidFilter() throws Exception {
         when(rolService.get(99)).thenThrow(new ResourceNotFoundException("Rol no encontrado."));
-        mockMvc.perform(get(BASE_URL + "/99"))
-                .andExpect(status().isNotFound())
+        mockMvc.perform(get(BASE_URL + "/99")).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
-
-        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"  \"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
-
-        mockMvc.perform(get(BASE_URL).param("estado", "2"))
-                .andExpect(status().isBadRequest())
+        mockMvc.perform(get(BASE_URL).param("estado", "2")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
     }
 

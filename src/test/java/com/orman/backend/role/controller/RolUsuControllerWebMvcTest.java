@@ -1,5 +1,6 @@
 package com.orman.backend.role.controller;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
@@ -41,7 +42,7 @@ class RolUsuControllerWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/api/v1/usuarios/usuario.demo/roles/1"))
                 .andExpect(jsonPath("$.login").value("usuario.demo"))
-                .andExpect(jsonPath("$.nombreRol").value("ADMINISTRADOR"))
+                .andExpect(jsonPath("$.nombreRol").value("INQUILINO"))
                 .andExpect(jsonPath("$.passwd").doesNotExist())
                 .andExpect(jsonPath("$.persona").doesNotExist());
     }
@@ -83,6 +84,7 @@ class RolUsuControllerWebMvcTest {
     }
 
     private RolUsuResponse response() {
-        return new RolUsuResponse("usuario.demo", 1, "ADMINISTRADOR", LocalDateTime.of(2026, 8, 2, 12, 0));
+        return new RolUsuResponse("usuario.demo", 1, "INQUILINO",
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 8, 2, 12, 0)));
     }
 }

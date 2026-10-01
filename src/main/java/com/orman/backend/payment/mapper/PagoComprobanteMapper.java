@@ -1,5 +1,6 @@
 package com.orman.backend.payment.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.payment.dto.response.PagoComprobanteResponse;
 import com.orman.backend.payment.entity.PagoComprobanteEntity;
 import com.orman.backend.payment.entity.PagoEntity;
@@ -22,6 +23,7 @@ public class PagoComprobanteMapper {
 
     public PagoComprobanteResponse toResponse(PagoComprobanteEntity comprobante) {
         return new PagoComprobanteResponse(comprobante.getId(), comprobante.getPago().getCodpag(),
-                comprobante.getNombreArchivo(), comprobante.getTipoContenido(), comprobante.getFechaRegistro());
+                comprobante.getNombreArchivo(), comprobante.getTipoContenido(),
+                OrmanTimeConfig.ormanLocalToOffset(comprobante.getFechaRegistro()));
     }
 }

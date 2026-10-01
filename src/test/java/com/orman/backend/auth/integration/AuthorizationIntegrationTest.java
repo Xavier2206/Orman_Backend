@@ -79,73 +79,40 @@ class AuthorizationIntegrationTest {
         expectAuthorities(accessToken);
 
         Rol propietario = activeRole("PROPIETARIO");
-        Rol administrador = activeRole("ADMINISTRADOR");
         Rol inquilino = activeRole("INQUILINO");
         rolUsuService.assign(usuario.login(), propietario.getCodr());
-        rolUsuService.assign(usuario.login(), administrador.getCodr());
         rolUsuService.assign(usuario.login(), inquilino.getCodr());
 
-        expectAuthorities(accessToken, "ROLE_ADMINISTRADOR", "ROLE_INQUILINO", "ROLE_PROPIETARIO");
+        expectAuthorities(accessToken, "ROLE_INQUILINO", "ROLE_PROPIETARIO");
         assertThat(userAuthorityService.loadAuthorities(usuario.login()))
                 .extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_ADMINISTRADOR", "ROLE_INQUILINO", "ROLE_PROPIETARIO");
+                .containsExactly("ROLE_INQUILINO", "ROLE_PROPIETARIO");
         assertThat(SignedJWT.parse(accessToken).getJWTClaimsSet().getClaims().keySet())
                 .containsExactlyInAnyOrder("sub", "sid", "iss", "iat", "exp");
         assertSessionRemainsActive(login.response().sid());
     }
 
     @Test
-    void reflectsAssignmentAndRoleStateChangesWithSameSessionAndAccessToken() throws Exception {
+    void reflectsOwnerAssignmentAndRemovalWithSameSessionAndAccessToken() throws Exception {
         UsuarioResponse usuario = createUsuario("AUTHZ-111-B", "authz.roles.dynamic");
         AuthResult login = login(usuario.login(), "device-dynamic");
         String accessToken = login.response().accessToken();
-        Rol administrador = activeRole("ADMINISTRADOR");
-
-        expectAdminDenied(accessToken);
-
-        rolUsuService.assign(usuario.login(), administrador.getCodr());
-        expectAdminAllowed(accessToken);
-
-        rolUsuService.remove(usuario.login(), administrador.getCodr());
-        expectAdminDenied(accessToken);
-
-        rolUsuService.assign(usuario.login(), administrador.getCodr());
-        expectAdminAllowed(accessToken);
-
-        rolService.deactivate(administrador.getCodr());
-        rolRepository.flush();
-        assertThat(rolUsuRepository.existsById(new RolUsuId(usuario.login(), administrador.getCodr()))).isTrue();
-        expectAdminDenied(accessToken);
-
-        rolService.activate(administrador.getCodr());
-        rolRepository.flush();
-        expectAdminAllowed(accessToken);
-
-        assertThat(login.response().accessToken()).isEqualTo(accessToken);
+        Rol propietario = activeRole("PROPIETARIO");
+        expectOwnerDenied(accessToken);
+        rolUsuService.assign(usuario.login(), propietario.getCodr());
+        expectOwnerAllowed(accessToken);
+        rolUsuService.remove(usuario.login(), propietario.getCodr());
+        expectOwnerDenied(accessToken);
         assertSessionRemainsActive(login.response().sid());
     }
 
     @Test
-    void ignoresInactiveEmptyAndNormalizedDuplicateRoleNames() throws Exception {
-        UsuarioResponse usuario = createUsuario("AUTHZ-111-C", "authz.roles.edge");
-        AuthResult login = login(usuario.login(), "device-edge");
-
-        Rol firstDuplicate = persistRole("AUTHZ_DUPLICADO_111", (short) 1);
-        Rol secondDuplicate = persistRole(" authz_duplicado_111 ", (short) 1);
-        Rol blank = persistRole("   ", (short) 1);
-        Rol emptyPrefix = persistRole("ROLE_", (short) 1);
-        Rol inactive = persistRole("AUTHZ_INACTIVO_111", (short) 1);
-
-        rolUsuService.assign(usuario.login(), firstDuplicate.getCodr());
-        rolUsuService.assign(usuario.login(), secondDuplicate.getCodr());
-        rolUsuService.assign(usuario.login(), blank.getCodr());
-        rolUsuService.assign(usuario.login(), emptyPrefix.getCodr());
-        rolUsuService.assign(usuario.login(), inactive.getCodr());
-        inactive.setEstado((short) 0);
-        rolRepository.saveAndFlush(inactive);
-
-        expectAuthorities(login.response().accessToken(), "ROLE_AUTHZ_DUPLICADO_111");
-        assertSessionRemainsActive(login.response().sid());
+    void tenantAssignmentNeverGrantsOwnerAuthority() throws Exception {
+        UsuarioResponse usuario = createUsuario("AUTHZ-111-C", "authz.roles.tenant");
+        AuthResult login = login(usuario.login(), "device-tenant");
+        rolUsuService.assign(usuario.login(), activeRole("INQUILINO").getCodr());
+        expectAuthorities(login.response().accessToken(), "ROLE_INQUILINO");
+        expectOwnerDenied(login.response().accessToken());
     }
 
     @Test
@@ -169,6 +136,32 @@ class AuthorizationIntegrationTest {
 
         String accessToken = loginJson.get("accessToken").asText();
         expectOwnerDenied(accessToken);
+    }
+
+    @Test
+    void webOwnerAndTenantLoginAuthenticateDirectlyWithHttpOnlyRefreshCookie() throws Exception {
+        UsuarioResponse owner = createUsuario("AUTHZ-WEB-OWNER", "authz.web.owner");
+        UsuarioResponse tenant = createUsuario("AUTHZ-WEB-TENANT", "authz.web.tenant");
+        rolUsuService.assign(owner.login(), activeRole("PROPIETARIO").getCodr());
+        rolUsuService.assign(tenant.login(), activeRole("INQUILINO").getCodr());
+
+        for (String login : List.of(owner.login(), tenant.login())) {
+            String response = mockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"login\":\"" + login + "\",\"password\":\"" + PASSWORD
+                                    + "\",\"deviceId\":\"browser-" + login
+                                    + "\",\"deviceName\":\"Browser\",\"clientType\":\"WEB\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
+                    .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                    .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                    .andExpect(jsonPath("$.challengeId").doesNotExist())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie()
+                            .httpOnly("orman_refresh", true))
+                    .andReturn().getResponse().getContentAsString();
+            JsonNode body = objectMapper.readTree(response);
+            assertSessionRemainsActive(java.util.UUID.fromString(body.get("sid").asText()));
+        }
     }
 
     private void expectAuthorities(String accessToken, String... authorities) throws Exception {
@@ -201,20 +194,6 @@ class AuthorizationIntegrationTest {
                 "password", "passwd", "hash", "sql", "stacktrace");
     }
 
-    private void expectAdminAllowed(String accessToken) throws Exception {
-        mockMvc.perform(get("/test/authorization/admin")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(content().string("allowed"));
-    }
-
-    private void expectAdminDenied(String accessToken) throws Exception {
-        mockMvc.perform(get("/test/authorization/admin")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
-    }
-
     private UsuarioResponse createUsuario(String ci, String login) {
         PersonaResponse persona = personaService.create(new CreatePersonaRequest(ci, "Persona autorización", null,
                 null, "F", null, "persona.authorization@example.test", "70000000", "A", null));
@@ -226,19 +205,8 @@ class AuthorizationIntegrationTest {
     }
 
     private Rol activeRole(String name) {
-        Rol rol = rolRepository.findAll().stream()
-                .filter(candidate -> name.equals(candidate.getNombre()))
-                .findFirst()
-                .orElseGet(() -> persistRole(name, (short) 1));
-        rol.setEstado((short) 1);
-        return rolRepository.saveAndFlush(rol);
-    }
-
-    private Rol persistRole(String name, short state) {
-        Rol rol = new Rol();
-        rol.setNombre(name);
-        rol.setEstado(state);
-        return rolRepository.saveAndFlush(rol);
+        return rolRepository.findAll().stream().filter(role -> name.equals(role.getNombre()))
+                .findFirst().orElseThrow();
     }
 
     private void assertSessionRemainsActive(java.util.UUID sid) {
@@ -269,10 +237,6 @@ class AuthorizationIntegrationTest {
             return "allowed";
         }
 
-        @PreAuthorize("hasRole('ADMINISTRADOR')")
-        public String adminOnly() {
-            return "allowed";
-        }
     }
 
     @RestController
@@ -297,9 +261,5 @@ class AuthorizationIntegrationTest {
             return service.ownerOnly();
         }
 
-        @GetMapping("/admin")
-        String admin() {
-            return service.adminOnly();
-        }
     }
 }

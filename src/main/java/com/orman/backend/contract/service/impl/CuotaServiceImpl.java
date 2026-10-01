@@ -2,6 +2,7 @@ package com.orman.backend.contract.service.impl;
 
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.ConflictException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.dto.request.CuotaListCriteria;
 import com.orman.backend.contract.dto.response.CuotaListItemResponse;
 import com.orman.backend.contract.dto.response.CuotaResponse;
@@ -15,7 +16,6 @@ import com.orman.backend.contract.service.CuotaService;
 import com.orman.backend.property.service.PropertyOwnershipService;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +33,6 @@ public class CuotaServiceImpl implements CuotaService {
     private final ContractOwnershipService contractOwnershipService;
     private final PropertyOwnershipService propertyOwnershipService;
     private final Clock clock;
-
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
 
     @Override
     @Transactional
@@ -69,7 +67,7 @@ public class CuotaServiceImpl implements CuotaService {
     public PageResponse<CuotaListItemResponse> listGlobal(CuotaListCriteria criteria,
                                                            Authentication authentication) {
         Integer codperPropietaria = propertyOwnershipService.currentPropietaria(authentication).getCodper();
-        LocalDate hoy = LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        LocalDate hoy = OrmanTimeConfig.today(clock);
         LocalDate fechaLimite = hoy.plusDays(7);
         CuotaListPage result = cuotaRepository.searchOwned(codperPropietaria, criteria, hoy, fechaLimite);
         List<CuotaListItemResponse> content = result.content().stream()

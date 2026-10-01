@@ -3,6 +3,7 @@ package com.orman.backend.contract.service.impl;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.request.RescisionContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoResponse;
@@ -28,8 +29,6 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -52,8 +51,6 @@ public class ContratoServiceImpl implements ContratoService {
     private static final short ACTIVO = 1;
     private static final char TIPO_PERSONA_INQUILINO = 'I';
     private static final String MONEDA_BOB = "BOB";
-    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
-
     private final ContratoRepository contratoRepository;
     private final PersonaRepository personaRepository;
     private final ContratoMapper contratoMapper;
@@ -79,7 +76,7 @@ public class ContratoServiceImpl implements ContratoService {
         ContratoEstado estado = request.fechaInicio().isAfter(fechaActual)
                 ? ContratoEstado.PROGRAMADO : ContratoEstado.VIGENTE;
         ContratoEntity saved = contratoRepository.saveAndFlush(contratoMapper.toEntity(request, unidad, inquilino,
-                estado, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)));
+                estado, OrmanTimeConfig.businessNow(clock)));
         assertCurrency(saved.getMoneda());
         cuotaService.generatePending(saved);
         return contratoMapper.toResponse(saved, getCuotasResumen(saved.getCodcon()));
@@ -236,7 +233,7 @@ public class ContratoServiceImpl implements ContratoService {
     }
 
     private LocalDate currentDate() {
-        return LocalDate.now(clock.withZone(ZONA_NEGOCIO));
+        return OrmanTimeConfig.today(clock);
     }
 
     private void assertState(ContratoEntity contrato, ContratoEstado expected, String message) {

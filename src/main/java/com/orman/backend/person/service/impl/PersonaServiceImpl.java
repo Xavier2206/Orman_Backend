@@ -184,17 +184,15 @@ public class PersonaServiceImpl implements PersonaService {
         List<Integer> codpers = personas.stream().map(Persona::getCodper).toList();
         Map<Integer, PersonaUsuarioRow> usuarios = usuarioRepository.findSummariesByPersonaCodperIn(codpers).stream()
                 .collect(Collectors.toMap(PersonaUsuarioRow::codper, Function.identity()));
-        Set<Integer> protectedOwners = Set.copyOf(rolUsuRepository.findPersonCodpersWithActiveOwnerRole(codpers));
         Set<Integer> activeOwners = Set.copyOf(rolUsuRepository.findActiveOwnerPersonCodpers(codpers));
         boolean lastOwnerInPage = !activeOwners.isEmpty() && rolUsuRepository.countActiveOwners() <= 1;
         boolean owner = authorizationService.isOwner(authentication);
-        boolean administrator = authorizationService.isAdministrator(authentication);
 
         return personas.stream().map(persona -> {
             PersonaUsuarioRow usuario = usuarios.get(persona.getCodper());
             PersonaUsuarioResponse usuarioResponse = usuario == null ? null
                     : new PersonaUsuarioResponse(usuario.login(), usuario.estado());
-            boolean canManage = owner || administrator && !protectedOwners.contains(persona.getCodper());
+            boolean canManage = owner;
             boolean active = Short.valueOf((short) 1).equals(persona.getEstado());
             boolean lastOwner = activeOwners.contains(persona.getCodper()) && lastOwnerInPage;
             boolean canChangePassword = usuario != null && authorizationService.isSelfOrOwner(authentication,

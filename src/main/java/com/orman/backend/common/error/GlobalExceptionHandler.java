@@ -7,7 +7,6 @@ import com.orman.backend.common.exception.LastOwnerRequiredException;
 import com.orman.backend.contract.exception.InvalidContratoArchivoException;
 import com.orman.backend.contract.exception.InvalidCuotaListFilterException;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
-import com.orman.backend.auth.exception.OtpDeliveryException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.exception.ExpiredJwtException;
 import com.orman.backend.auth.exception.ExpiredSessionException;
@@ -42,6 +41,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
@@ -56,12 +56,6 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException exception, HttpServletRequest request) {
         return problem(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS,
                 "Credenciales inválidas", "Las credenciales no son válidas.", request, List.of());
-    }
-
-    @ExceptionHandler(OtpDeliveryException.class)
-    ResponseEntity<ProblemDetail> handleOtpDelivery(OtpDeliveryException exception, HttpServletRequest request) {
-        return problem(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.OTP_DELIVERY_FAILED,
-                "Verificación no disponible", "No fue posible enviar el código de verificación.", request, List.of());
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)
@@ -122,6 +116,12 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException exception, HttpServletRequest request) {
         return problem(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
                 "Recurso no encontrado", exception.getMessage(), request, List.of());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ProblemDetail> handleNoResource(NoResourceFoundException exception, HttpServletRequest request) {
+        return problem(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
+                "Recurso no encontrado", "El recurso solicitado no existe.", request, List.of());
     }
 
     @ExceptionHandler(ConflictException.class)

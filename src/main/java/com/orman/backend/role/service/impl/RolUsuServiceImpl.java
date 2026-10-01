@@ -1,5 +1,6 @@
 package com.orman.backend.role.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ConflictException;
@@ -39,6 +40,9 @@ public class RolUsuServiceImpl implements RolUsuService {
     public RolUsuResponse assign(String login, Integer codr) {
         Usuario usuario = findUsuario(login);
         Rol rol = findRol(codr);
+        if (!"PROPIETARIO".equals(rol.getNombre()) && !"INQUILINO".equals(rol.getNombre())) {
+            throw new BusinessRuleException("El Rol no pertenece al catálogo permitido.");
+        }
         if (!isActivo(rol.getEstado())) {
             throw new BusinessRuleException("No se puede asignar un Rol inactivo.");
         }
@@ -105,7 +109,7 @@ public class RolUsuServiceImpl implements RolUsuService {
 
     private RolUsuResponse toResponse(RolUsu rolUsu) {
         return new RolUsuResponse(rolUsu.getUsuario().getLogin(), rolUsu.getRol().getCodr(),
-                rolUsu.getRol().getNombre(), rolUsu.getFechaAsignacion());
+                rolUsu.getRol().getNombre(), OrmanTimeConfig.ormanLocalToOffset(rolUsu.getFechaAsignacion()));
     }
 
     private ConflictException duplicateAssignment() {

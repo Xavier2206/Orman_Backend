@@ -1,5 +1,6 @@
 package com.orman.backend.payment.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
@@ -34,9 +35,11 @@ public class PagoMapper {
     public PagoResponse toResponse(PagoEntity pago) {
         Integer codqr = pago.getQrCobro() == null ? null : pago.getQrCobro().getCodqr();
         return new PagoResponse(pago.getCodpag(), pago.getCuota().getCodcuo(), codqr, pago.getMonto(),
-                pago.getMetodo().name(), pago.getFechaPago(), pago.getFechaRegistro(),
+                pago.getMetodo().name(), OrmanTimeConfig.ormanLocalToOffset(pago.getFechaPago()),
+                OrmanTimeConfig.ormanLocalToOffset(pago.getFechaRegistro()),
                 pago.getEstado().name(), pago.getOrigenRegistro().name(), pago.getRegistradoPor().getLogin(),
-                pago.getRevisadoPor() == null ? null : pago.getRevisadoPor().getLogin(), pago.getFechaRevision(),
+                pago.getRevisadoPor() == null ? null : pago.getRevisadoPor().getLogin(),
+                OrmanTimeConfig.ormanLocalToOffset(pago.getFechaRevision()),
                 pago.getMotivoRechazo(), pago.getMotivoAnulacion());
     }
 }

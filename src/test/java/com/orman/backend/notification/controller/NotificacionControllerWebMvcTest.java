@@ -6,7 +6,8 @@ import com.orman.backend.notification.dto.response.NotificacionResponse;
 import com.orman.backend.notification.dto.response.NotificacionResumenResponse;
 import com.orman.backend.notification.service.NotificacionGeneracionService;
 import com.orman.backend.notification.service.NotificacionService;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,10 +44,14 @@ class NotificacionControllerWebMvcTest {
 
         mockMvc.perform(get("/api/v1/notificaciones").param("tipo", "CUOTA_VENCIDA").param("leida", "false"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].codnot").value(14));
+                .andExpect(jsonPath("$.content[0].codnot").value(14))
+                .andExpect(jsonPath("$.content[0].fechaCreacion").value("2026-09-10T06:00:00-04:00"))
+                .andExpect(jsonPath("$.content[0].fechaLectura").value("2026-09-10T06:01:00-04:00"));
         mockMvc.perform(get("/api/v1/notificaciones/14"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.referenciaTipo").value("CUOTA"));
+                .andExpect(jsonPath("$.referenciaTipo").value("CUOTA"))
+                .andExpect(jsonPath("$.fechaCreacion").value("2026-09-10T06:00:00-04:00"))
+                .andExpect(jsonPath("$.fechaLectura").value("2026-09-10T06:01:00-04:00"));
         mockMvc.perform(get("/api/v1/notificaciones/resumen"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.noLeidas").value(1));
@@ -61,7 +66,8 @@ class NotificacionControllerWebMvcTest {
         when(notificacionGeneracionService.notifyPendingPayment(any(), any())).thenReturn(
                 new NotificacionResponse(15L, "CUOTA_VENCIDA", "Pago pendiente",
                         "Tienes pendiente el pago de Bs 2.500,00 correspondiente a septiembre de 2026.",
-                        "CUOTA", 8, LocalDateTime.of(2026, 9, 10, 10, 0), false, null));
+                        "CUOTA", 8, OffsetDateTime.of(2026, 9, 10, 6, 0, 0, 0, ZoneOffset.ofHours(-4)), false,
+                        null));
 
         mockMvc.perform(get("/api/v1/notificaciones").param("tipo", "INVALIDA"))
                 .andExpect(status().isBadRequest())
@@ -79,6 +85,7 @@ class NotificacionControllerWebMvcTest {
     private NotificacionResponse response(long codnot) {
         return new NotificacionResponse(codnot, "CUOTA_VENCIDA", "Cuota vencida",
                 "La cuota se encuentra vencida.", "CUOTA", 8,
-                LocalDateTime.of(2026, 9, 10, 10, 0), true, LocalDateTime.of(2026, 9, 10, 10, 1));
+                OffsetDateTime.of(2026, 9, 10, 6, 0, 0, 0, ZoneOffset.ofHours(-4)), true,
+                OffsetDateTime.of(2026, 9, 10, 6, 1, 0, 0, ZoneOffset.ofHours(-4)));
     }
 }

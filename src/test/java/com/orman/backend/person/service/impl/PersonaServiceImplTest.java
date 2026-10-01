@@ -1,5 +1,6 @@
 package com.orman.backend.person.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.service.SessionService;
@@ -64,13 +65,13 @@ class PersonaServiceImplTest {
         when(rolUsuRepository.findActiveOwnerPersonCodpers(any())).thenReturn(List.of());
         when(rolUsuRepository.countActiveOwners()).thenReturn(0L);
         when(authorizationService.isOwner(any())).thenReturn(false);
-        when(authorizationService.isAdministrator(any())).thenReturn(false);
         when(personaMapper.toResponse(any(Persona.class), nullable(PersonaUsuarioResponse.class), any()))
                 .thenAnswer(invocation -> {
                     Persona persona = invocation.getArgument(0, Persona.class);
                     return new PersonaResponse(persona.getCodper(), "CI-" + persona.getCodper(), "Nombre", null, null,
                             'F', persona.getEstado(), null, "70000000", 'A', null,
-                            LocalDateTime.of(2026, 1, 1, 0, 0), invocation.getArgument(1), invocation.getArgument(2));
+                            OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)),
+                            invocation.getArgument(1), invocation.getArgument(2));
                 });
     }
 
@@ -284,7 +285,8 @@ class PersonaServiceImplTest {
 
     private PersonaResponse response(Integer codper, short estado) {
         return new PersonaResponse(codper, "CI-" + codper, "Nombre", null, null, 'F', estado, null,
-                "70000000", 'A', null, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                "70000000", 'A', null,
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null,
                 new com.orman.backend.person.dto.PersonaActionsResponse(false, false, false, false, false, false));
     }
 }

@@ -3,6 +3,7 @@ package com.orman.backend.contract.service.impl;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.config.ContratoArchivoProperties;
 import com.orman.backend.contract.dto.response.ContratoArchivoResponse;
 import com.orman.backend.contract.entity.ContratoArchivoEntity;
@@ -21,8 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -46,13 +47,13 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContratoArchivoServiceImpl.class);
     private static final String PDF_CONTENT_TYPE = MediaType.APPLICATION_PDF_VALUE;
-    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/La_Paz");
 
     private final ContratoArchivoRepository contratoArchivoRepository;
     private final ContratoArchivoMapper contratoArchivoMapper;
     private final ContractOwnershipService contractOwnershipService;
     private final ContratoArchivoProperties properties;
     private final ContratoPdfProcessor pdfProcessor;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -95,7 +96,7 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
             String rutaRef = "contratos/" + codcon + "/" + nombreAlmacenado;
             ContratoArchivoEntity entity = contratoArchivoMapper.toEntity(contrato, nombreOriginal,
                     nombreAlmacenado, rutaRef, tamanoOriginal, tamanoFinal,
-                    LocalDateTime.now(ZONA_NEGOCIO), authenticatedLogin(authentication), orden);
+                    OrmanTimeConfig.businessNow(clock), authenticatedLogin(authentication), orden);
             try {
                 ContratoArchivoEntity saved = contratoArchivoRepository.saveAndFlush(entity);
                 deleteStoredFileOnRollback(stored);

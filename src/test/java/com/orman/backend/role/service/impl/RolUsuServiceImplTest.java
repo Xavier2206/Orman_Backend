@@ -43,7 +43,7 @@ class RolUsuServiceImplTest {
     @Test
     void assignsActiveRolAndReturnsOnlyAssignmentFields() {
         Usuario usuario = usuario("usuario.demo");
-        Rol rol = rol(3, "ADMINISTRADOR", (short) 1);
+        Rol rol = rol(3, "INQUILINO", (short) 1);
         RolUsu assignment = assignment(usuario, rol);
         when(usuarioRepository.findById("usuario.demo")).thenReturn(Optional.of(usuario));
         when(rolRepository.findById(3)).thenReturn(Optional.of(rol));
@@ -54,7 +54,7 @@ class RolUsuServiceImplTest {
 
         assertThat(response.login()).isEqualTo("usuario.demo");
         assertThat(response.codr()).isEqualTo(3);
-        assertThat(response.nombreRol()).isEqualTo("ADMINISTRADOR");
+        assertThat(response.nombreRol()).isEqualTo("INQUILINO");
         assertThat(response.fechaAsignacion()).isNotNull();
         verify(entityManager).refresh(assignment);
     }
@@ -62,12 +62,12 @@ class RolUsuServiceImplTest {
     @Test
     void rejectsInactiveOrDuplicateAssignmentAndMissingResources() {
         Usuario usuario = usuario("usuario.demo");
-        Rol inactive = rol(3, "OPERADOR", (short) 0);
+        Rol inactive = rol(3, "INQUILINO", (short) 0);
         when(usuarioRepository.findById("usuario.demo")).thenReturn(Optional.of(usuario));
         when(rolRepository.findById(3)).thenReturn(Optional.of(inactive));
         assertThatThrownBy(() -> service.assign("usuario.demo", 3)).isInstanceOf(BusinessRuleException.class);
 
-        Rol active = rol(3, "OPERADOR", (short) 1);
+        Rol active = rol(3, "INQUILINO", (short) 1);
         when(rolRepository.findById(3)).thenReturn(Optional.of(active));
         when(rolUsuRepository.existsById(new RolUsuId("usuario.demo", 3))).thenReturn(true);
         assertThatThrownBy(() -> service.assign("usuario.demo", 3)).isInstanceOf(ConflictException.class);
@@ -77,9 +77,18 @@ class RolUsuServiceImplTest {
     }
 
     @Test
+    void rejectsRoleOutsideFixedCatalogue() {
+        Usuario usuario = usuario("usuario.demo");
+        when(usuarioRepository.findById("usuario.demo")).thenReturn(Optional.of(usuario));
+        when(rolRepository.findById(3)).thenReturn(Optional.of(rol(3, "ELECTRICISTA", (short) 1)));
+        assertThatThrownBy(() -> service.assign("usuario.demo", 3))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
     void removesAndListsAssignments() {
         Usuario usuario = usuario("usuario.demo");
-        Rol rol = rol(3, "ADMINISTRADOR", (short) 1);
+        Rol rol = rol(3, "INQUILINO", (short) 1);
         RolUsu assignment = assignment(usuario, rol);
         RolUsuId id = new RolUsuId("usuario.demo", 3);
         when(usuarioRepository.findById("usuario.demo")).thenReturn(Optional.of(usuario));
@@ -93,7 +102,7 @@ class RolUsuServiceImplTest {
         when(rolUsuRepository.findByIdLoginOrderByFechaAsignacionAsc("usuario.demo"))
                 .thenReturn(List.of(assignment));
         assertThat(service.listByUsuario("usuario.demo")).extracting(RolUsuResponse::nombreRol)
-                .containsExactly("ADMINISTRADOR");
+                .containsExactly("INQUILINO");
     }
 
     private Usuario usuario(String login) {

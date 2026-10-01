@@ -9,7 +9,8 @@ import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
 import com.orman.backend.payment.service.PagoService;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,9 +111,10 @@ class PagoControllerWebMvcTest {
 
     @Test
     void annulsPaymentAndReturnsUpdatedPaymentResponse() throws Exception {
-        LocalDateTime revision = LocalDateTime.of(2026, 9, 25, 18, 0);
+        OffsetDateTime revision = OffsetDateTime.of(2026, 9, 25, 14, 0, 0, 0, ZoneOffset.ofHours(-4));
         PagoResponse annulled = new PagoResponse(12, 8, null, new BigDecimal("350.00"), "EFECTIVO",
-                LocalDateTime.of(2026, 9, 25, 17, 0), revision, "ANULADO", "PROPIETARIA", "carmen", "carmen",
+                OffsetDateTime.of(2026, 9, 25, 17, 0, 0, 0, ZoneOffset.ofHours(-4)), revision,
+                "ANULADO", "PROPIETARIA", "carmen", "carmen",
                 revision, null, "Se registró por error.");
         when(pagoService.annul(eq(12), any(PagoMotivoRequest.class), any())).thenReturn(annulled);
 
@@ -124,7 +126,7 @@ class PagoControllerWebMvcTest {
                 .andExpect(jsonPath("$.estado").value("ANULADO"))
                 .andExpect(jsonPath("$.motivoAnulacion").value("Se registró por error."))
                 .andExpect(jsonPath("$.revisadoPor").value("carmen"))
-                .andExpect(jsonPath("$.fechaRevision").value("2026-09-25T18:00:00"));
+                .andExpect(jsonPath("$.fechaRevision").value("2026-09-25T14:00:00-04:00"));
 
         verify(pagoService).annul(eq(12), eq(new PagoMotivoRequest("Se registró por error.")), any());
     }
@@ -176,8 +178,9 @@ class PagoControllerWebMvcTest {
 
     private PagoResponse response(Integer codpag) {
         return new PagoResponse(codpag, 8, null, new BigDecimal("350.00"), "EFECTIVO",
-                LocalDateTime.of(2026, 9, 10, 10, 0), LocalDateTime.of(2026, 9, 10, 10, 1),
+                OffsetDateTime.of(2026, 9, 10, 10, 0, 0, 0, ZoneOffset.ofHours(-4)),
+                OffsetDateTime.of(2026, 9, 10, 6, 1, 0, 0, ZoneOffset.ofHours(-4)),
                 "CONFIRMADO", "PROPIETARIA", "carmen", "carmen",
-                LocalDateTime.of(2026, 9, 10, 10, 1), null, null);
+                OffsetDateTime.of(2026, 9, 10, 6, 1, 0, 0, ZoneOffset.ofHours(-4)), null, null);
     }
 }

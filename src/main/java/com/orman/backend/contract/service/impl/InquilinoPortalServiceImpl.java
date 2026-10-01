@@ -3,6 +3,7 @@ package com.orman.backend.contract.service.impl;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.dto.response.InquilinoContratoResponse;
 import com.orman.backend.contract.dto.response.InquilinoCuotaResponse;
 import com.orman.backend.contract.entity.ContratoEntity;
@@ -16,7 +17,6 @@ import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InquilinoPortalServiceImpl implements InquilinoPortalService {
 
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
     private static final int UPCOMING_DAYS = 7;
 
     private final ContratoRepository contratoRepository;
@@ -123,6 +122,6 @@ public class InquilinoPortalServiceImpl implements InquilinoPortalService {
     }
 
     private LocalDate today() {
-        return LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        return OrmanTimeConfig.today(clock);
     }
 }

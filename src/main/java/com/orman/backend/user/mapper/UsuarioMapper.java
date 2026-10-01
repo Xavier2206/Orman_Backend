@@ -1,5 +1,6 @@
 package com.orman.backend.user.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.user.dto.CreateUsuarioRequest;
 import com.orman.backend.user.dto.UpdateUsuarioRequest;
@@ -24,7 +25,8 @@ public class UsuarioMapper {
 
     public UsuarioResponse toResponse(Usuario usuario) {
         return new UsuarioResponse(usuario.getLogin(), usuario.getEstado(), usuario.getPersona().getCodper(),
-                usuario.getFechaCreacion(), usuario.getUltimoAcceso(), usuario.getPersona().getNombre(),
+                OrmanTimeConfig.ormanLocalToOffset(usuario.getFechaCreacion()),
+                OrmanTimeConfig.ormanLocalToOffset(usuario.getUltimoAcceso()), usuario.getPersona().getNombre(),
                 usuario.getPersona().getAp(), usuario.getPersona().getAm());
     }
 }

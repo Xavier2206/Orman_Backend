@@ -1,6 +1,7 @@
 package com.orman.backend.contract.mapper;
 
 import com.orman.backend.contract.dto.request.ContratoRequest;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.entity.ContratoEntity;
 import com.orman.backend.contract.entity.ContratoEstado;
 import com.orman.backend.contract.entity.CuotaEntity;
@@ -9,6 +10,11 @@ import com.orman.backend.person.entity.Persona;
 import com.orman.backend.property.entity.UnidadEntity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -31,6 +37,8 @@ class ContratoMapperTest {
         assertThat(contrato.getEstado()).isEqualTo(ContratoEstado.VIGENTE);
         assertThat(contrato.getMoneda()).isEqualTo("BOB");
         assertThat(contratoMapper.toResponse(contrato).coduni()).isEqualTo(9);
+        assertThat(contratoMapper.toResponse(contrato).fechaRegistro()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 1, 12, 0, 0, 0, ZoneOffset.ofHours(-4)));
 
         CuotaEntity cuota = cuotaMapper.toPendingEntity(contrato, LocalDate.of(2026, 9, 1));
         ReflectionTestUtils.setField(cuota, "codcuo", 30);
@@ -100,6 +108,19 @@ class ContratoMapperTest {
         assertThat(response.cuotas().cuotasPagadas()).isEqualTo(8);
         assertThat(response.cuotas().cuotasPendientes()).isEqualTo(4);
         assertThat(response.cuotas().saldoPendiente()).isEqualByComparingTo("6000.00");
+    }
+
+    @Test
+    void persistsNewContractRegistrationUsingBoliviaWallTime() {
+        LocalDateTime registeredAt = OrmanTimeConfig.businessNow(
+                Clock.fixed(Instant.parse("2026-09-30T16:20:00Z"), ZoneOffset.UTC));
+
+        ContratoEntity contrato = contratoMapper.toEntity(request(), unidad(9), persona(4),
+                ContratoEstado.VIGENTE, registeredAt);
+
+        assertThat(contrato.getFechaRegistro()).isEqualTo(LocalDateTime.of(2026, 9, 30, 12, 20));
+        assertThat(contratoMapper.toResponse(contrato).fechaRegistro()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 30, 12, 20, 0, 0, ZoneOffset.ofHours(-4)));
     }
 
     private ContratoRequest request() {

@@ -1,6 +1,7 @@
 package com.orman.backend.person.mapper;
 
 import com.orman.backend.person.dto.CreatePersonaRequest;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.entity.Persona;
@@ -37,7 +38,7 @@ public class PersonaMapper {
                 persona.getTelefono(),
                 persona.getTipoPersona(),
                 persona.getFoto(),
-                persona.getFechaRegistro(), null,
+                OrmanTimeConfig.ormanLocalToOffset(persona.getFechaRegistro()), null,
                 new PersonaActionsResponse(false, false, false, false, false, false));
     }
 

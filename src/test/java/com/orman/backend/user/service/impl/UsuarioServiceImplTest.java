@@ -1,5 +1,6 @@
 package com.orman.backend.user.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.auth.service.SessionService;
@@ -109,7 +110,8 @@ class UsuarioServiceImplTest {
     void searchesUsuariosRemotelyAndNormalizesQuery() {
         Usuario usuario = usuario("xavier.login", persona(7), (short) 1);
         UsuarioResponse response = new UsuarioResponse("xavier.login", (short) 1, 7,
-                LocalDateTime.of(2026, 1, 1, 0, 0), null, "Xavier", "Ortega", null);
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null,
+                "Xavier", "Ortega", null);
         PageRequest pageable = PageRequest.of(0, 5);
         when(usuarioRepository.search("xavier", pageable)).thenReturn(new PageImpl<>(List.of(usuario), pageable, 1));
         when(usuarioMapper.toResponse(usuario)).thenReturn(response);
@@ -191,6 +193,7 @@ class UsuarioServiceImplTest {
     }
 
     private UsuarioResponse response(String login, short estado, Integer codper) {
-        return new UsuarioResponse(login, estado, codper, LocalDateTime.of(2026, 1, 1, 0, 0), null);
+        return new UsuarioResponse(login, estado, codper,
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null);
     }
 }

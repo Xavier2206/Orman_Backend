@@ -38,7 +38,7 @@ public class UsuarioController {
     private final AuthorizationService authorizationService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public ResponseEntity<UsuarioResponse> create(@Valid @RequestBody CreateUsuarioRequest request) {
         UsuarioResponse response = usuarioService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{login}")
@@ -53,7 +53,7 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PageResponse<UsuarioResponse> list(
             @RequestParam(required = false) String q,
             @PageableDefault(page = 0, size = 20, sort = "login", direction = Sort.Direction.ASC) Pageable pageable,

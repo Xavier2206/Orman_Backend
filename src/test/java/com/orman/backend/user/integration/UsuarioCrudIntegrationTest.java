@@ -44,6 +44,7 @@ class UsuarioCrudIntegrationTest {
         Usuario persisted = usuarioRepository.findById("usuario.integracion").orElseThrow();
         assertThat(created.estado()).isEqualTo((short) 1);
         assertThat(created.fechaCreacion()).isNotNull();
+        assertThat(created.fechaCreacion().getOffset().getId()).isEqualTo("-04:00");
         assertThat(persisted.getPasswd()).isNotEqualTo("clave-ficticia");
         assertThat(passwordEncoder.matches("clave-ficticia", persisted.getPasswd())).isTrue();
         assertThat(passwordEncoder.matches("otra-clave", persisted.getPasswd())).isFalse();
@@ -62,9 +63,9 @@ class UsuarioCrudIntegrationTest {
         assertThat(UsuarioResponse.class.getRecordComponents()).extracting(component -> component.getName())
                 .doesNotContain("passwd", "password", "hash");
         assertThat(jdbcTemplate.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class))
-                .containsExactly("contrato_archivos", "contratos", "cuotas", "flyway_schema_history", "menus", "mepro", "notificaciones", "otp_challenges", "pago_comprobantes", "pagos", "personas", "procesos", "propiedades", "qr_cobro", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
-        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '20') AND success", Integer.class))
-                .isEqualTo(19);
+                .containsExactly("contrato_archivos", "contratos", "cuotas", "dispositivos_push", "flyway_schema_history", "menus", "mepro", "notificaciones", "pago_comprobantes", "pagos", "personas", "procesos", "propiedades", "qr_cobro", "roles", "rolme", "rolusu", "sesiones_usuario", "unidad_fotos", "unidades", "usuarios");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '20', '21') AND success", Integer.class))
+                .isEqualTo(20);
     }
 
     @Test

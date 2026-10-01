@@ -12,10 +12,6 @@ import org.springframework.data.domain.Pageable;
 
 public interface RolRepository extends JpaRepository<Rol, Integer> {
 
-    boolean existsByNombre(String nombre);
-
-    boolean existsByNombreAndCodrNot(String nombre, Integer codr);
-
     long countByEstado(Short estado);
 
     @Query(value = """

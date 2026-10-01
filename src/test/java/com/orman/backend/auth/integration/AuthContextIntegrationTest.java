@@ -76,11 +76,9 @@ class AuthContextIntegrationTest {
         UsuarioResponse other = createUser("CTX-002", "context.otro", null);
         Usuario currentEntity = usuarioRepository.findById(current.login()).orElseThrow();
 
-        Rol roleA = saveRole("A-CONTEXT-NAV", (short) 1);
-        Rol roleB = saveRole("B-CONTEXT-NAV", (short) 1);
-        Rol inactiveRole = saveRole("Z-CONTEXT-ROL-INACTIVO", (short) 0);
-        rolUsuRepository.saveAllAndFlush(List.of(new RolUsu(currentEntity, roleA), new RolUsu(currentEntity, roleB),
-                new RolUsu(currentEntity, inactiveRole)));
+        Rol roleA = activeReservedRole("INQUILINO");
+        Rol roleB = activeReservedRole("PROPIETARIO");
+        rolUsuRepository.saveAllAndFlush(List.of(new RolUsu(currentEntity, roleA), new RolUsu(currentEntity, roleB)));
 
         Menu menuA = menuRepository.saveAndFlush(new Menu("A-CONTEXT-MENU", "users", (short) 1));
         Menu sharedMenu = menuRepository.saveAndFlush(new Menu("B-CONTEXT-COMPARTIDO", "grid", (short) 1));
@@ -103,12 +101,12 @@ class AuthContextIntegrationTest {
                 .andExpect(jsonPath("$.persona.nombre").value("Persona context.actual"))
                 .andExpect(jsonPath("$.persona.foto").value("https://example.test/foto.png"))
                 .andExpect(jsonPath("$.roles.length()").value(2))
-                .andExpect(jsonPath("$.roles[0].nombre").value("A-CONTEXT-NAV"))
+                .andExpect(jsonPath("$.roles[0].nombre").value("INQUILINO"))
                 .andExpect(jsonPath("$.roles[0].menus.length()").value(2))
                 .andExpect(jsonPath("$.roles[0].menus[0].nombre").value("A-CONTEXT-MENU"))
                 .andExpect(jsonPath("$.roles[0].menus[0].procesos[0].enlace").value("context-a-" + current.codper()))
                 .andExpect(jsonPath("$.roles[0].menus[1].codm").value(sharedMenu.getCodm()))
-                .andExpect(jsonPath("$.roles[1].nombre").value("B-CONTEXT-NAV"))
+                .andExpect(jsonPath("$.roles[1].nombre").value("PROPIETARIO"))
                 .andExpect(jsonPath("$.roles[1].menus[0].codm").value(sharedMenu.getCodm()))
                 .andExpect(jsonPath("$.roles[1].menus[1].nombre").value("C-CONTEXT-MENU"))
                 .andExpect(jsonPath("$.roles[1].menus[1].procesos").isEmpty())
@@ -116,7 +114,7 @@ class AuthContextIntegrationTest {
                 .andExpect(jsonPath("$.persona.correo").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(response).doesNotContain("Z-CONTEXT-ROL-INACTIVO", "Z-CONTEXT-MENU-INACTIVO",
+        assertThat(response).doesNotContain("Z-CONTEXT-MENU-INACTIVO",
                 "Z-CONTEXT-PROCESO-INACTIVO", other.login());
 
         rolMeRepository.deleteById(new RolMeId(roleA.getCodr(), menuA.getCodm()));
@@ -132,16 +130,16 @@ class AuthContextIntegrationTest {
     }
 
     @Test
-    void allowsNormalAdministratorAndOwnerToReadTheirOwnContextIncludingNullPhoto() throws Exception {
+    void allowsTenantAndOwnerToReadTheirOwnContextIncludingNullPhoto() throws Exception {
         UsuarioResponse normal = createUser("CTX-003", "context.normal", null);
-        UsuarioResponse administrator = createUser("CTX-004", "context.admin", null);
+        UsuarioResponse secondTenant = createUser("CTX-004", "context.tenant.second", null);
         UsuarioResponse owner = createUser("CTX-005", "context.owner", null);
-        assignRole(normal.login(), saveRole("USUARIO-CONTEXT", (short) 1));
-        assignRole(administrator.login(), activeReservedRole("ADMINISTRADOR"));
+        assignRole(normal.login(), activeReservedRole("INQUILINO"));
+        assignRole(secondTenant.login(), activeReservedRole("INQUILINO"));
         assignRole(owner.login(), activeReservedRole("PROPIETARIO"));
 
         assertContextFor(normal.login(), true);
-        assertContextFor(administrator.login(), false);
+        assertContextFor(secondTenant.login(), false);
         assertContextFor(owner.login(), false);
     }
 
@@ -170,18 +168,9 @@ class AuthContextIntegrationTest {
         return "Bearer " + result.response().accessToken();
     }
 
-    private Rol saveRole(String nombre, short estado) {
-        Rol role = new Rol();
-        role.setNombre(nombre);
-        role.setEstado(estado);
-        return rolRepository.saveAndFlush(role);
-    }
-
     private Rol activeReservedRole(String nombre) {
-        Rol role = rolRepository.findAll().stream().filter(candidate -> nombre.equals(candidate.getNombre()))
-                .findFirst().orElseGet(() -> saveRole(nombre, (short) 1));
-        role.setEstado((short) 1);
-        return rolRepository.saveAndFlush(role);
+        return rolRepository.findAll().stream().filter(role -> nombre.equals(role.getNombre()))
+                .findFirst().orElseThrow();
     }
 
     private void assignRole(String login, Rol role) {

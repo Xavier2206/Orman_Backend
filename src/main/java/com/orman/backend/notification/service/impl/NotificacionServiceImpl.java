@@ -3,6 +3,7 @@ package com.orman.backend.notification.service.impl;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.notification.dto.response.NotificacionResponse;
 import com.orman.backend.notification.dto.response.NotificacionResumenResponse;
 import com.orman.backend.notification.entity.NotificacionEntity;
@@ -10,8 +11,7 @@ import com.orman.backend.notification.entity.NotificacionTipo;
 import com.orman.backend.notification.mapper.NotificacionMapper;
 import com.orman.backend.notification.repository.NotificacionRepository;
 import com.orman.backend.notification.service.NotificacionService;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +28,7 @@ public class NotificacionServiceImpl implements NotificacionService {
 
     private final NotificacionRepository notificacionRepository;
     private final NotificacionMapper notificacionMapper;
+    private final Clock clock;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,7 +59,7 @@ public class NotificacionServiceImpl implements NotificacionService {
         NotificacionEntity notificacion = notificacionRepository.findOwnForUpdate(codnot, authenticatedLogin(authentication))
                 .orElseThrow(() -> new ResourceNotFoundException("Notificación no encontrada."));
         if (notificacion.getFechaLectura() == null) {
-            notificacion.setFechaLectura(LocalDateTime.now(ZoneOffset.UTC));
+            notificacion.setFechaLectura(OrmanTimeConfig.businessNow(clock));
         }
         return notificacionMapper.toResponse(notificacion);
     }

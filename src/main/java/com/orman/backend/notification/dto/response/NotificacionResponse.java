@@ -1,9 +1,9 @@
 package com.orman.backend.notification.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record NotificacionResponse(Long codnot, String tipo, String titulo, String mensaje,
                                    String referenciaTipo, Integer referenciaId,
-                                   LocalDateTime fechaCreacion, boolean leida,
-                                   LocalDateTime fechaLectura) {
+                                   OffsetDateTime fechaCreacion, boolean leida,
+                                   OffsetDateTime fechaLectura) {
 }

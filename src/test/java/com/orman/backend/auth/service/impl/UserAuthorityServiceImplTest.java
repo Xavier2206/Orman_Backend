@@ -23,12 +23,12 @@ class UserAuthorityServiceImplTest {
     @Test
     void normalizesPrefixesDeduplicatesAndSortsAuthorities() {
         when(rolUsuRepository.findActiveRoleNamesByLogin("usuario.demo"))
-                .thenReturn(List.of(" propietario ", "ADMINISTRADOR", "role_inquilino", "PROPIETARIO"));
+                .thenReturn(List.of(" propietario ", "ELECTRICISTA", "role_inquilino", "PROPIETARIO"));
 
         List<GrantedAuthority> authorities = service.loadAuthorities("usuario.demo");
 
         assertThat(authorities).extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_ADMINISTRADOR", "ROLE_INQUILINO", "ROLE_PROPIETARIO");
+                .containsExactly("ROLE_INQUILINO", "ROLE_PROPIETARIO");
     }
 
     @Test
@@ -38,7 +38,7 @@ class UserAuthorityServiceImplTest {
         when(rolUsuRepository.findActiveRoleNamesByLogin("sin.roles")).thenReturn(List.of());
 
         assertThat(service.loadAuthorities("inconsistente")).extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_OPERADOR");
+                .isEmpty();
         assertThat(service.loadAuthorities("sin.roles")).isEmpty();
     }
 

@@ -1,5 +1,7 @@
 package com.orman.backend.auth.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
+import com.orman.backend.auth.event.SesionesRevocadasEvent;
 import com.orman.backend.auth.dto.response.SessionResponse;
 import com.orman.backend.auth.entity.SesionUsuario;
 import com.orman.backend.auth.exception.ExpiredSessionException;
@@ -14,10 +16,10 @@ import com.orman.backend.common.exception.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class SessionServiceImpl implements SessionService {
     private final SesionUsuarioRepository sessionRepository;
     private final SessionMapper sessionMapper;
     private final Clock clock;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -62,7 +65,10 @@ public class SessionServiceImpl implements SessionService {
     public void logout(AuthenticatedUser user) {
         SesionUsuario session = sessionRepository.findOwnedForUpdate(user.sid(), user.login())
                 .orElseThrow(InvalidJwtException::new);
-        session.revoke(nowUtc(), RevocationReason.LOGOUT);
+        if (!session.isRevoked()) {
+            session.revoke(nowUtc(), RevocationReason.LOGOUT);
+            publishRevoked(List.of(session.getSid()));
+        }
     }
 
     @Override
@@ -87,16 +93,31 @@ public class SessionServiceImpl implements SessionService {
     public void revoke(AuthenticatedUser user, UUID sid) {
         SesionUsuario session = sessionRepository.findOwnedForUpdate(sid, user.login())
                 .orElseThrow(() -> new ResourceNotFoundException("Sesión no encontrada."));
-        session.revoke(nowUtc(), RevocationReason.ADMIN_REVOKED);
+        if (!session.isRevoked()) {
+            session.revoke(nowUtc(), RevocationReason.ADMIN_REVOKED);
+            publishRevoked(List.of(session.getSid()));
+        }
     }
 
     @Override
     @Transactional
     public void revokeAll(String login, RevocationReason reason) {
-        sessionRepository.revokeAllActive(login, nowUtc(), reason);
+        LocalDateTime now = nowUtc();
+        List<UUID> revokedSids = sessionRepository.findAllActiveForUpdate(login).stream()
+                .filter(session -> !session.isRevoked())
+                .peek(session -> session.revoke(now, reason))
+                .map(SesionUsuario::getSid)
+                .toList();
+        publishRevoked(revokedSids);
+    }
+
+    private void publishRevoked(List<UUID> sids) {
+        if (!sids.isEmpty()) {
+            eventPublisher.publishEvent(new SesionesRevocadasEvent(sids));
+        }
     }
 
     private LocalDateTime nowUtc() {
-        return LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+        return OrmanTimeConfig.technicalNow(clock);
     }
 }

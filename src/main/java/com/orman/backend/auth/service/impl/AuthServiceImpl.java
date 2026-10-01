@@ -1,10 +1,9 @@
 package com.orman.backend.auth.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
+import com.orman.backend.auth.event.SesionesRevocadasEvent;
 import com.orman.backend.auth.config.JwtProperties;
-import com.orman.backend.auth.config.OtpProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
-import com.orman.backend.auth.dto.request.OtpVerifyRequest;
-import com.orman.backend.auth.dto.request.OtpResendRequest;
 import com.orman.backend.auth.dto.response.LoginResponse;
 import com.orman.backend.auth.entity.SesionUsuario;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
@@ -12,28 +11,19 @@ import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
 import com.orman.backend.auth.model.RevocationReason;
 import com.orman.backend.auth.repository.SesionUsuarioRepository;
-import com.orman.backend.auth.repository.OtpChallengeRepository;
 import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.AuthService;
 import com.orman.backend.auth.service.JwtService;
 import com.orman.backend.auth.service.RefreshTokenService;
-import com.orman.backend.auth.service.OtpChallengeService;
-import com.orman.backend.auth.service.OtpPolicyService;
-import com.orman.backend.auth.service.UserAuthorityService;
-import com.orman.backend.auth.service.OtpMailService;
-import com.orman.backend.auth.exception.OtpDeliveryException;
-import com.orman.backend.auth.model.OtpPurpose;
-import com.orman.backend.auth.model.OtpChallengeStatus;
-import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,16 +42,11 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final JwtProperties jwtProperties;
-    private final UserAuthorityService userAuthorityService;
-    private final OtpPolicyService otpPolicyService;
-    private final OtpChallengeService otpChallengeService;
-    private final OtpChallengeRepository otpChallengeRepository;
-    private final OtpProperties otpProperties;
-    private final OtpMailService otpMailService;
     private final Clock clock;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    @Transactional(noRollbackFor = OtpDeliveryException.class)
+    @Transactional
     public AuthResult login(LoginRequest request) {
         String login = request.login().trim();
         String deviceId = request.deviceId().trim();
@@ -79,64 +64,10 @@ public class AuthServiceImpl implements AuthService {
                 throw new InvalidCredentialsException();
             }
 
-            if (otpPolicyService.requiresOtp(request.clientType(), userAuthorityService.loadAuthorities(login))) {
-                OtpChallengeService.CreatedOtpChallenge challenge = otpChallengeService.createLoginChallenge(login,
-                        request.clientType(), null, null);
-                try {
-                    otpMailService.sendOtp(persona.getCorreo(), challenge.otp(), otpProperties.expirationSeconds());
-                    otpChallengeService.markSent(challenge.challenge().getId());
-                    return new AuthResult(LoginResponse.otpRequired(challenge.challenge().getId(),
-                            otpProperties.expirationSeconds()), null, request.clientType());
-                } catch (OtpDeliveryException exception) {
-                    otpChallengeService.cancel(challenge.challenge().getId());
-                    throw exception;
-                }
-            }
             return authenticate(usuario, persona, deviceId, deviceName, request.clientType());
         } catch (EntityNotFoundException | IllegalArgumentException exception) {
             throw new InvalidCredentialsException();
         }
-    }
-
-    @Override
-    @Transactional(noRollbackFor = BusinessRuleException.class)
-    public AuthResult verifyOtp(OtpVerifyRequest request) {
-        OtpChallengeService.OtpVerificationResult verification = otpChallengeService.verify(request.challengeId(), request.code());
-        if (verification != OtpChallengeService.OtpVerificationResult.VERIFIED) {
-            throw new BusinessRuleException("El código OTP no es válido.");
-        }
-        var challenge = otpChallengeRepository.findById(request.challengeId())
-                .orElseThrow(() -> new BusinessRuleException("El challenge OTP no es válido."));
-        if (challenge.getClientType() != ClientType.WEB) {
-            throw new BusinessRuleException("El contexto OTP no es válido.");
-        }
-        Usuario usuario = usuarioRepository.findByLoginForUpdate(challenge.getLogin())
-                .orElseThrow(() -> new BusinessRuleException("El contexto de autenticación cambió."));
-        Persona persona = usuario.getPersona();
-        if (persona == null || !isActivo(usuario.getEstado()) || !isActivo(persona.getEstado())
-                || !otpPolicyService.requiresOtp(ClientType.WEB, userAuthorityService.loadAuthorities(usuario.getLogin()))) {
-            throw new BusinessRuleException("El contexto de autenticación cambió; inicie sesión nuevamente.");
-        }
-        return authenticate(usuario, persona, request.deviceId().trim(), request.deviceName().trim(), ClientType.WEB);
-    }
-
-    @Override
-    @Transactional(noRollbackFor = OtpDeliveryException.class)
-    public void resendOtp(OtpResendRequest request) {
-        var challenge = otpChallengeRepository.findById(request.challengeId())
-                .orElseThrow(() -> new BusinessRuleException("El challenge OTP no es válido."));
-        if (challenge.getClientType() != ClientType.WEB || challenge.getPurpose() != OtpPurpose.LOGIN) {
-            throw new BusinessRuleException("El contexto OTP no es válido.");
-        }
-        OtpChallengeService.PreparedOtpResend resend = otpChallengeService.prepareResend(request.challengeId());
-        Usuario usuario = usuarioRepository.findByLoginForUpdate(challenge.getLogin())
-                .orElseThrow(() -> new BusinessRuleException("El contexto de autenticación cambió."));
-        Persona persona = usuario.getPersona();
-        if (persona == null || !isActivo(usuario.getEstado()) || !isActivo(persona.getEstado())) {
-            throw new BusinessRuleException("El contexto de autenticación cambió.");
-        }
-        otpMailService.sendOtp(persona.getCorreo(), resend.otp(), otpProperties.expirationSeconds());
-        otpChallengeService.confirmResend(request.challengeId(), resend);
     }
 
     @Override
@@ -151,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidRefreshTokenException();
         }
         if (sesion.isExpiredAt(now)) {
-            sesion.revoke(now, RevocationReason.EXPIRED);
+            revokeSession(sesion, now, RevocationReason.EXPIRED);
             throw new InvalidRefreshTokenException();
         }
 
@@ -167,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (!refreshTokenService.matches(refreshToken, sesion.getRefreshTokenHash())) {
-            sesion.revoke(now, RevocationReason.REFRESH_REUSE);
+            revokeSession(sesion, now, RevocationReason.REFRESH_REUSE);
             throw new InvalidRefreshTokenException();
         }
 
@@ -191,19 +122,31 @@ public class AuthServiceImpl implements AuthService {
                 .ifPresent(previous -> {
                     previous.revoke(now, RevocationReason.REPLACED_BY_NEW_LOGIN);
                     sesionRepository.saveAndFlush(previous);
+                    publishRevoked(previous.getSid());
                 });
         UUID sid = UUID.randomUUID();
         RefreshTokenService.GeneratedRefreshToken refreshToken = refreshTokenService.generate(sid);
         SesionUsuario sesion = new SesionUsuario(sid, usuario, refreshToken.hash(), deviceId, deviceName,
                 clientType, now, now.plusDays(jwtProperties.refreshTokenExpirationDays()));
         sesionRepository.save(sesion);
-        usuario.setUltimoAcceso(now);
+        usuario.setUltimoAcceso(OrmanTimeConfig.businessNow(clock));
         usuarioRepository.save(usuario);
         return result(usuario, persona, sesion, refreshToken.value());
     }
 
     private LocalDateTime nowUtc() {
-        return LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+        return OrmanTimeConfig.technicalNow(clock);
+    }
+
+    private void revokeSession(SesionUsuario session, LocalDateTime now, RevocationReason reason) {
+        if (!session.isRevoked()) {
+            session.revoke(now, reason);
+            publishRevoked(session.getSid());
+        }
+    }
+
+    private void publishRevoked(UUID sid) {
+        eventPublisher.publishEvent(new SesionesRevocadasEvent(java.util.List.of(sid)));
     }
 
     private boolean isActivo(Short estado) {

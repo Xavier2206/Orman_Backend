@@ -1,313 +1,200 @@
-# ORMAN Backend
+# ORMAN
 
-Backend del sistema ORMAN desarrollado con Java y Spring Boot para la gestión de personas, usuarios, roles, propiedades, contratos, pagos, notificaciones y procesos relacionados con la administración inmobiliaria.
+> Trabajo Final · Diplomado en Desarrollo Web y Aplicaciones Móviles · UAJMS 2026<br>
+> Autor: `<Xavier Ortega Mancilla>` · Tutor: `<Nombre del tutor>`
 
-El proyecto expone una API REST utilizada por las aplicaciones cliente y centraliza la lógica de negocio, seguridad, persistencia y acceso a datos del sistema.
+## 1. Descripción
 
-## Tecnologías
+ORMAN es un sistema de gestión inmobiliaria para administrar propietarios, inquilinos, propiedades, unidades, contratos, cuotas, pagos, comprobantes y notificaciones.
 
-* Java 21
-* Spring Boot 4.1.0
-* Maven y Maven Wrapper
-* PostgreSQL
-* Spring Data JPA
-* Hibernate
-* Flyway
-* Bean Validation
-* Spring Security
-* JWT
-* BCrypt
-* Lombok
-* API REST
-* Empaquetado JAR
+Este repositorio contiene únicamente el Backend. Expone la API REST que utilizan el cliente Angular WEB y la aplicación Flutter para Android.
 
-## Arquitectura
+**Sistema desplegado:** `<pendiente / URL pública del Backend>`
 
-El backend utiliza una arquitectura de monolito modular organizada por funcionalidades.
+## 2. Stack tecnológico
 
-La aplicación separa las responsabilidades principales en:
+| Componente | Versión | Función |
+|---|---:|---|
+| Java | 21 | Plataforma de ejecución |
+| Spring Boot | 4.1.0 | Aplicación y dependencias base |
+| Maven / Maven Wrapper | Maven 3.9.16 · Wrapper 3.3.4 | Compilación y ejecución |
+| PostgreSQL | — | Base de datos relacional |
+| Spring Data JPA | — | Acceso a datos |
+| Hibernate | — | ORM y validación del esquema |
+| Flyway | — | Migraciones de base de datos |
+| Spring Security | — | Autenticación y autorización |
+| JWT (Nimbus JOSE JWT) | 10.8 | Tokens de acceso |
+| BCrypt | — | Verificación de contraseñas |
+| Bean Validation | — | Validación de solicitudes |
+| Lombok | — | Reducción de código repetitivo |
+| API REST | — | Comunicación HTTP bajo `/api/v1` |
+| WebSocket / STOMP | — | Notificaciones en tiempo real para WEB |
+| Firebase Admin SDK / Firebase Cloud Messaging | 9.11.0 | Envío de notificaciones push a Android |
 
-* controladores REST;
-* servicios de negocio;
-* repositorios;
-* entidades JPA;
-* DTO de entrada y salida;
-* mappers;
-* validaciones;
-* manejo centralizado de errores;
-* seguridad y autenticación.
+### Seguridad y sesiones
 
-Las entidades de persistencia no se exponen directamente mediante la API.
+El inicio de sesión es directo: usuario y contraseña se verifican con BCrypt, se crea una sesión por dispositivo y se emiten un access token JWT y un refresh token. El refresh token rota al renovarse la sesión.
 
-## Funcionalidades principales
+En WEB, la API entrega el access token y administra el refresh token mediante una cookie `HttpOnly`. CORS permite solicitudes con credenciales; el cliente web debe enviarlas con `withCredentials`. El refresh con cookie cuenta con protección XSRF y utiliza el encabezado `X-XSRF-TOKEN`.
 
-El sistema incluye funcionalidades para:
+En Android, el refresh token se devuelve en el cuerpo de la respuesta para que la aplicación gestione su sesión. Las sesiones autenticadas pueden cerrarse individualmente o en conjunto y revocarse por dispositivo. La API expone `POST /api/v1/auth/logout`, `POST /api/v1/auth/logout-all`, `GET /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{sid}` y `GET /api/v1/auth/context`.
 
-* gestión de personas;
-* gestión de usuarios;
-* administración de roles;
-* asignación de roles a usuarios;
-* autenticación de usuarios;
-* sesiones por dispositivo;
-* autenticación mediante JWT;
-* renovación mediante refresh token;
-* gestión de menús y procesos;
-* administración de propiedades y unidades;
-* registro de fotografías asociadas;
-* gestión de contratos;
-* administración de cuotas;
-* registro de pagos;
-* emisión y gestión de recibos;
-* gestión de cuentas de pago;
-* notificaciones;
-* control de acceso mediante roles.
+### Notificaciones y tiempo real
 
-## API REST
-
-Los endpoints utilizan el prefijo:
+Las notificaciones se persisten y pueden consultarse mediante REST:
 
 ```text
-/api/v1
+GET   /api/v1/notificaciones
+GET   /api/v1/notificaciones/{codnot}
+GET   /api/v1/notificaciones/resumen
+PATCH /api/v1/notificaciones/{codnot}/leer
 ```
 
-El servidor se ejecuta por defecto en:
+Para WEB, el endpoint STOMP es `/ws` y la cola privada es `/user/queue/notificaciones`. Para Android, el backend integra Firebase Cloud Messaging y permite registrar o desactivar una instalación push autenticada:
 
 ```text
-http://localhost:9090
+PUT    /api/v1/mobile/push-installation
+DELETE /api/v1/mobile/push-installation
 ```
 
-Las respuestas HTTP utilizan DTO específicos y los errores se representan utilizando `ProblemDetail`.
+## 3. Requisitos previos
 
-## Requisitos
+- JDK 21.
+- PostgreSQL.
+- Git para clonar el repositorio.
+- No se requiere una instalación global de Maven; el proyecto incluye Maven Wrapper.
 
-Para ejecutar el proyecto se necesita:
+## 4. Instalación local
 
-* JDK 21;
-* PostgreSQL;
-* Maven Wrapper incluido en el proyecto.
+1. Clona el repositorio y entra en su carpeta:
 
-No es necesario tener Maven instalado globalmente.
-
-## Configuración
-
-La aplicación utiliza variables de entorno para la configuración sensible.
-
-Las principales variables son:
-
-```text
-DB_HOST
-DB_PORT
-DB_NAME
-DB_USERNAME
-DB_PASSWORD
-JWT_SECRET
-OTP_HMAC_SECRET
-MAIL_USERNAME
-MAIL_PASSWORD
-ORMAN_FRONTEND_URL
+```bash
+git clone <url-del-repositorio-backend>
+cd <carpeta-del-backend>
 ```
 
-El archivo:
+2. Crea una base de datos PostgreSQL llamada `orman` y prepara las credenciales de conexión.
+3. Copia `.env.example` como `.env` y completa los valores locales descritos en la sección 5. El archivo `.env` es opcional si configuras las mismas variables en el entorno del sistema.
+4. Desde la raíz del proyecto, inicia la aplicación:
 
-```text
-.env.example
-```
-
-sirve como referencia para configurar el entorno local.
-
-El archivo real:
-
-```text
-.env
-```
-
-no forma parte del repositorio y no debe contenerse en Git.
-
-## Configuración de PostgreSQL
-
-La conexión con PostgreSQL utiliza las siguientes variables:
-
-```text
-DB_HOST
-DB_PORT
-DB_NAME
-DB_USERNAME
-DB_PASSWORD
-```
-
-Ejemplo para PowerShell:
-
-```powershell
-$env:DB_HOST = "localhost"
-$env:DB_PORT = "5432"
-$env:DB_NAME = "orman"
-$env:DB_USERNAME = "<usuario>"
-$env:DB_PASSWORD = "<contraseña>"
-```
-
-Los cambios de estructura de la base de datos son administrados mediante Flyway.
-
-Hibernate se utiliza para validar el esquema existente y no para generar automáticamente las tablas.
-
-## Configuración de JWT
-
-`JWT_SECRET` es necesario para la generación y validación de tokens JWT.
-
-Debe configurarse mediante una variable de entorno o mediante un archivo `.env` local que no esté versionado.
-
-Ejemplo en PowerShell:
-
-```powershell
-$env:JWT_SECRET = "<secreto-seguro>"
-```
-
-Para generar un valor aleatorio local puede utilizarse:
-
-```powershell
-$bytes = New-Object byte[] 32
-[System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
-```
-
-El valor generado no debe publicarse ni incluirse en el repositorio.
-
-## Seguridad
-
-El backend implementa mecanismos de seguridad para proteger las operaciones y los datos del sistema.
-
-Entre ellos:
-
-* contraseñas almacenadas mediante BCrypt;
-* autenticación mediante JWT;
-* refresh tokens;
-* sesiones diferenciadas por dispositivo;
-* autorización basada en roles;
-* protección de endpoints;
-* configuración CORS;
-* protección de información sensible;
-* códigos OTP cuando corresponde.
-
-Las contraseñas, tokens, secretos y credenciales no deben almacenarse directamente en el código fuente.
-
-## Ejecución
-
-### Windows
-
-Para ejecutar las pruebas:
-
-```powershell
-.\mvnw.cmd test
-```
-
-Para compilar el proyecto:
-
-```powershell
-.\mvnw.cmd clean package
-```
-
-Para iniciar la aplicación:
+Windows:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-### Linux y macOS
-
-Para ejecutar las pruebas:
-
-```bash
-./mvnw test
-```
-
-Para compilar:
-
-```bash
-./mvnw clean package
-```
-
-Para iniciar la aplicación:
+Linux/macOS:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-## Base de datos
+Flyway valida y aplica las migraciones pendientes al iniciar. El servidor queda disponible en `http://localhost:9090`; el prefijo de la API es `/api/v1`.
 
-PostgreSQL es la base de datos utilizada por el sistema.
-
-Flyway administra las migraciones y mantiene el historial de cambios del esquema.
-
-Las migraciones se encuentran en:
+Para generar el JAR:
 
 ```text
-src/main/resources/db/migration/
+.\mvnw.cmd clean package
+./mvnw clean package
 ```
 
-Al iniciar la aplicación, Flyway valida y aplica automáticamente las migraciones pendientes cuando corresponde.
+## 5. Variables de entorno
 
-## Pruebas
+`application.yml` importa opcionalmente el archivo local `.env`. Las variables del entorno del sistema tienen prioridad. Las variables requeridas para iniciar el backend son las credenciales de PostgreSQL y `JWT_SECRET`.
 
-El proyecto incluye pruebas para validar las diferentes capas y reglas del backend.
+| Variable | Requerida | Valor predeterminado o uso |
+|---|---|---|
+| `DB_HOST` | No | `localhost` |
+| `DB_PORT` | No | `5432` |
+| `DB_NAME` | No | `orman` |
+| `DB_USERNAME` | Sí | Usuario de PostgreSQL |
+| `DB_PASSWORD` | Sí | Contraseña de PostgreSQL |
+| `JWT_SECRET` | Sí | Secreto local para firmar JWT; usar al menos 32 bytes |
+| `JWT_ISSUER` | No | `orman-backend` |
+| `JWT_ACCESS_EXPIRATION_MINUTES` | No | `15` |
+| `JWT_REFRESH_EXPIRATION_DAYS` | No | `30` |
+| `REFRESH_COOKIE_NAME` | No | `orman_refresh` |
+| `REFRESH_COOKIE_SECURE` | No | `false` en configuración local |
+| `REFRESH_COOKIE_SAME_SITE` | No | `Lax` |
+| `ORMAN_FRONTEND_URL` | No | `http://localhost:4200`; origen WEB permitido por CORS |
+| `ORMAN_FIREBASE_ENABLED` | No | `false`; habilita el envío push |
+| `ORMAN_FIREBASE_PROJECT_ID` | Al habilitar Firebase | ID del proyecto; usa `GOOGLE_CLOUD_PROJECT` como alternativa |
+| `GOOGLE_CLOUD_PROJECT` | No | Alternativa para el ID de proyecto Firebase |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Al habilitar Firebase* | Ruta a credenciales de Google para Application Default Credentials |
 
-Para ejecutar la suite:
+Además, `application.yml` define valores predeterminados para límites de carga y almacenamiento (`ORMAN_MULTIPART_MAX_*`, `PERSONA_PHOTO_*`, `PROPERTY_PHOTO_*`, `UNIT_PHOTO_*`, `CONTRACT_DOCUMENT_*`, `PAYMENT_IMAGE_*`) y para los programadores `NOTIFICATION_SCHEDULER_CRON` y `CONTRACT_SCHEDULER_CRON`.
+
+* Si se habilita Firebase, configura `GOOGLE_APPLICATION_CREDENTIALS` con un JSON de cuenta de servicio o proporciona otra fuente válida de Application Default Credentials. El JSON es privado: mantenlo fuera del repositorio, no lo copies a `src/main/resources` y no lo subas a GitHub. Por ejemplo, en PowerShell:
 
 ```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\ORMAN_SECRETS\firebase-service-account.json"
+```
+
+Flyway administra el esquema y Hibernate usa `ddl-auto: validate`. La migración `V22__fijar_catalogo_roles.sql` fija el catálogo funcional en `PROPIETARIO` e `INQUILINO`; la migración `V23__retirar_otp_login.sql` retira la persistencia del mecanismo de segundo factor.
+
+Las reglas funcionales de fechas y horas utilizan la zona `America/La_Paz`, correspondiente a la hora de Bolivia.
+
+## 6. Estructura del repositorio
+
+```text
+.
+├── .mvn/
+│   └── wrapper/
+├── src/
+│   ├── main/
+│   │   ├── java/com/orman/backend/
+│   │   └── resources/
+│   │       ├── application.yml
+│   │       └── db/migration/
+│   └── test/
+├── .env.example
+├── mvnw
+├── mvnw.cmd
+├── pom.xml
+└── README.md
+```
+
+El backend es un monolito modular organizado por funcionalidades. Los módulos separan controladores, servicios, repositorios, entidades, DTO, mappers y validadores, con manejo centralizado de errores y configuración de seguridad. Las entidades JPA no se exponen directamente por la API.
+
+Se conservan los módulos de roles, asignación de roles, menús, procesos y sus asignaciones. Las rutas de almacenamiento de fotos y documentos son configurables y usan `./storage` como base predeterminada.
+
+## 7. Roles y credenciales de prueba
+
+| Rol | Usuario | Contraseña |
+|---|---|---|
+| PROPIETARIO | `<usuario de prueba>` | `<ver documento entregado a la coordinación>` |
+| INQUILINO | `<usuario de prueba>` | `<ver documento entregado a la coordinación>` |
+
+Las credenciales de prueba se entregan por un canal privado. No se incluyen contraseñas ni secretos en este repositorio.
+
+## 8. Pruebas
+
+Windows:
+
+```powershell
+.\mvnw.cmd test
 .\mvnw.cmd clean test
 ```
 
-Las pruebas permiten validar, entre otros aspectos:
+Linux/macOS:
 
-* lógica de negocio;
-* persistencia;
-* contratos HTTP;
-* validaciones;
-* seguridad;
-* restricciones de base de datos;
-* manejo de errores.
-
-## Archivos excluidos del repositorio
-
-Por seguridad y limpieza del proyecto no se incluyen en Git:
-
-```text
-.env
-docs/
-storage/
-target/
-.idea/
-.vscode/
+```bash
+./mvnw test
+./mvnw clean test
 ```
 
-Tampoco se incluyen archivos temporales, logs, credenciales, claves privadas ni documentos almacenados durante la ejecución de la aplicación.
+La suite cubre lógica de negocio, persistencia y restricciones de base de datos, contratos HTTP, validaciones, manejo de errores, autenticación y autorización, JWT, sesiones y renovación, roles, propiedades, contratos, cuotas, pagos y comprobantes. También incluye pruebas de notificaciones REST, WebSocket, FCM, instalaciones push y reglas de zona horaria.
 
-## Estructura general
+## 9. Despliegue
 
-```text
-src/
-├── main/
-│   ├── java/
-│   │   └── com/orman/backend/
-│   └── resources/
-│       ├── application.yml
-│       └── db/
-│           └── migration/
-└── test/
-    ├── java/
-    └── resources/
-```
+Spring Boot puede empaquetarse como un JAR con Maven Wrapper. En el entorno de destino deben configurarse PostgreSQL y las variables necesarias; los secretos y las credenciales de Firebase se administran fuera del JAR.
 
-## Compilación
+Las direcciones públicas se completarán cuando se realice el despliegue:
 
-Para generar el archivo ejecutable:
+- Backend público: `<pendiente / URL>`
+- Frontend web: `<pendiente / URL>`
+- Aplicación móvil: `<pendiente / enlace APK>`
 
-```powershell
-.\mvnw.cmd clean package
-```
+## 10. Licencia
 
-El artefacto generado se almacena en:
-
-```text
-target/
-```
-
-La carpeta `target/` es generada automáticamente y no se incluye en el repositorio.
+Uso académico. Todos los derechos reservados por el autor.

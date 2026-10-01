@@ -2,6 +2,7 @@ package com.orman.backend.contract.service.impl;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.config.ContratoArchivoProperties;
 import com.orman.backend.contract.entity.ContratoArchivoEntity;
 import com.orman.backend.contract.entity.ContratoEntity;
@@ -13,6 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +76,7 @@ class ContratoArchivoServiceImplTest {
         properties = properties(20 * MB);
         processor = new ContratoPdfProcessor(properties);
         service = new ContratoArchivoServiceImpl(repository, new ContratoArchivoMapper(), ownershipService,
-                properties, processor);
+                properties, processor, fixedClock());
 
         lenient().when(ownershipService.findOwnedContrato(42, authentication)).thenReturn(contrato);
         lenient().when(repository.existsByContratoCodconAndOrden(any(), any())).thenAnswer(invocation -> records.stream()
@@ -159,7 +162,7 @@ class ContratoArchivoServiceImplTest {
         byte[] pdf = pdf("Documento grande para el límite");
         ContratoArchivoProperties tinyLimit = properties(pdf.length - 1L);
         ContratoArchivoServiceImpl limited = new ContratoArchivoServiceImpl(repository, new ContratoArchivoMapper(),
-                ownershipService, tinyLimit, new ContratoPdfProcessor(tinyLimit));
+                ownershipService, tinyLimit, new ContratoPdfProcessor(tinyLimit), fixedClock());
 
         assertThatThrownBy(() -> limited.create(42, upload("limite.pdf", "application/pdf", pdf), 0,
                 authentication)).isInstanceOf(InvalidContratoArchivoException.class)
@@ -211,6 +214,10 @@ class ContratoArchivoServiceImplTest {
 
     private ContratoArchivoProperties properties(long maxBytes) {
         return new ContratoArchivoProperties(storage.toString(), maxBytes, 10 * MB, 16_000_000);
+    }
+
+    private Clock fixedClock() {
+        return Clock.fixed(Instant.parse("2026-09-30T12:00:00Z"), OrmanTimeConfig.ORMAN_ZONE);
     }
 
     private MockMultipartFile upload(String filename, String contentType, byte[] bytes) {

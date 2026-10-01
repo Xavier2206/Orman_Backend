@@ -41,7 +41,7 @@ public class PersonaController {
     private final PersonaService personaService;
     private final PersonaPhotoService personaPhotoService;
     @PostMapping
-    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public ResponseEntity<PersonaResponse> create(@Valid @RequestBody CreatePersonaRequest request, Authentication authentication) {
         PersonaResponse response = personaService.create(request, authentication);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{codper}").buildAndExpand(response.codper()).toUri();
@@ -49,7 +49,7 @@ public class PersonaController {
     }
 
     @GetMapping("/resumen")
-    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PersonaResumenResponse resumen() {
         return personaService.resumen();
     }
@@ -60,7 +60,7 @@ public class PersonaController {
         return personaService.get(codper, authentication);
     }
     @GetMapping
-    @PreAuthorize("hasAnyRole('PROPIETARIO', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('PROPIETARIO')")
     public PageResponse<PersonaResponse> list(@RequestParam(required = false) String q,
                                               @RequestParam(required = false) String tipoPersona,
                                               @RequestParam(required = false) String estado,

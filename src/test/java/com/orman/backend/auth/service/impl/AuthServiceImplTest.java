@@ -1,24 +1,16 @@
 package com.orman.backend.auth.service.impl;
 
 import com.orman.backend.auth.config.JwtProperties;
-import com.orman.backend.auth.config.OtpProperties;
 import com.orman.backend.auth.dto.request.LoginRequest;
 import com.orman.backend.auth.entity.SesionUsuario;
-import com.orman.backend.auth.entity.OtpChallenge;
-import com.orman.backend.auth.model.OtpPurpose;
 import com.orman.backend.auth.exception.InvalidCredentialsException;
 import com.orman.backend.auth.exception.InvalidRefreshTokenException;
 import com.orman.backend.auth.model.ClientType;
 import com.orman.backend.auth.model.RevocationReason;
 import com.orman.backend.auth.repository.SesionUsuarioRepository;
-import com.orman.backend.auth.repository.OtpChallengeRepository;
 import com.orman.backend.auth.service.AuthResult;
 import com.orman.backend.auth.service.JwtService;
 import com.orman.backend.auth.service.RefreshTokenService;
-import com.orman.backend.auth.service.UserAuthorityService;
-import com.orman.backend.auth.service.OtpPolicyService;
-import com.orman.backend.auth.service.OtpChallengeService;
-import com.orman.backend.auth.service.OtpMailService;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
@@ -35,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,20 +48,14 @@ class AuthServiceImplTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private RefreshTokenService refreshTokenService;
-    @Mock private UserAuthorityService userAuthorityService;
-    @Mock private OtpPolicyService otpPolicyService;
-    @Mock private OtpChallengeService otpChallengeService;
-    @Mock private OtpChallengeRepository otpChallengeRepository;
-    @Mock private OtpMailService otpMailService;
+    @Mock private ApplicationEventPublisher eventPublisher;
     private AuthServiceImpl service;
 
     @BeforeEach
     void setUp() {
         JwtProperties properties = new JwtProperties("test-only-secret-with-at-least-32-bytes", "issuer", 15, 30);
         service = new AuthServiceImpl(usuarioRepository, sesionRepository, passwordEncoder, jwtService,
-                refreshTokenService, properties, userAuthorityService, otpPolicyService, otpChallengeService,
-                otpChallengeRepository, new OtpProperties("test-only-otp-hmac-secret-at-least-32-bytes", 300, 5, 60, 3),
-                otpMailService, Clock.fixed(NOW, ZoneOffset.UTC));
+                refreshTokenService, properties, Clock.fixed(NOW, ZoneOffset.UTC), eventPublisher);
     }
 
     @Test
@@ -94,7 +81,7 @@ class AuthServiceImplTest {
         assertThat(persisted.getFechaExpiracion()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC).plusDays(30));
         assertThat(result.response().refreshToken()).isEqualTo(result.refreshToken());
         assertThat(result.response().expiresIn()).isEqualTo(900);
-        assertThat(usuario.getUltimoAcceso()).isEqualTo(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        assertThat(usuario.getUltimoAcceso()).isEqualTo(LocalDateTime.of(2026, 8, 3, 8, 30, 45));
     }
 
     @Test
@@ -188,31 +175,37 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void webAdministrativeLoginCreatesOnlyOtpChallengeUntilVerification() {
-        Usuario usuario = usuario("admin.web", (short) 1, persona(7, (short) 1));
-        OtpChallenge challenge = new OtpChallenge(UUID.randomUUID(), "admin.web", ClientType.WEB, OtpPurpose.LOGIN,
-                "A".repeat(64), LocalDateTime.ofInstant(NOW, ZoneOffset.UTC),
-                LocalDateTime.ofInstant(NOW, ZoneOffset.UTC).plusMinutes(5), null, null);
-        when(usuarioRepository.findByLoginForUpdate("admin.web")).thenReturn(Optional.of(usuario));
+    void rejectsInactiveUserOrPersonWithoutCreatingSession() {
+        Usuario inactiveUser = usuario("inactive.user", (short) 0, persona(7, (short) 1));
+        when(usuarioRepository.findByLoginForUpdate("inactive.user")).thenReturn(Optional.of(inactiveUser));
         when(passwordEncoder.matches("clave-ficticia", "bcrypt-hash")).thenReturn(true);
-        java.util.List authorities = java.util.List.of(
-                new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMINISTRADOR"));
-        when(userAuthorityService.loadAuthorities("admin.web")).thenReturn(authorities);
-        when(otpPolicyService.requiresOtp(ClientType.WEB, authorities)).thenReturn(true);
-        when(otpChallengeService.createLoginChallenge("admin.web", ClientType.WEB, null, null))
-                .thenReturn(new OtpChallengeService.CreatedOtpChallenge(challenge, "004812"));
+        assertThatThrownBy(() -> service.login(request("inactive.user", "browser", "Browser", ClientType.WEB)))
+                .isInstanceOf(InvalidCredentialsException.class);
 
-        AuthResult result = service.login(request("admin.web", "browser", "Browser", ClientType.WEB));
-
-        assertThat(result.response().status()).isEqualTo("OTP_REQUIRED");
-        assertThat(result.response().challengeId()).isEqualTo(challenge.getId());
-        assertThat(result.response().accessToken()).isNull();
-        assertThat(result.refreshToken()).isNull();
-        assertThat(usuario.getUltimoAcceso()).isNull();
+        Usuario inactivePerson = usuario("inactive.person", (short) 1, persona(8, (short) 0));
+        when(usuarioRepository.findByLoginForUpdate("inactive.person")).thenReturn(Optional.of(inactivePerson));
+        assertThatThrownBy(() -> service.login(request("inactive.person", "phone", "Phone", ClientType.MOBILE)))
+                .isInstanceOf(InvalidCredentialsException.class);
         verify(sesionRepository, never()).save(org.mockito.ArgumentMatchers.any());
-        verify(otpMailService).sendOtp(org.mockito.ArgumentMatchers.nullable(String.class), org.mockito.ArgumentMatchers.eq("004812"),
-                org.mockito.ArgumentMatchers.eq(300L));
-        verify(otpChallengeService).markSent(challenge.getId());
+    }
+
+    @Test
+    void webOwnerLoginAuthenticatesDirectlyAndCreatesSession() {
+        Usuario usuario = usuario("owner.web", (short) 1, persona(7, (short) 1));
+        when(usuarioRepository.findByLoginForUpdate("owner.web")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("clave-ficticia", "bcrypt-hash")).thenReturn(true);
+        when(refreshTokenService.generate(org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenReturn(new RefreshTokenService.GeneratedRefreshToken(SID + ".secret", "refresh-hash"));
+        when(jwtService.generateAccessToken(anyString(), org.mockito.ArgumentMatchers.any(UUID.class)))
+                .thenReturn("access-token");
+
+        AuthResult result = service.login(request("owner.web", "browser", "Browser", ClientType.WEB));
+
+        assertThat(result.response().status()).isEqualTo("AUTHENTICATED");
+        assertThat(result.response().accessToken()).isEqualTo("access-token");
+        assertThat(result.response().refreshToken()).isNull();
+        assertThat(result.refreshToken()).isEqualTo(SID + ".secret");
+        verify(sesionRepository).save(org.mockito.ArgumentMatchers.any(SesionUsuario.class));
     }
 
     private LoginRequest request(String login, String deviceId, String deviceName, ClientType type) {

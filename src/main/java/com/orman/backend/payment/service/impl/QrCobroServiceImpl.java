@@ -1,5 +1,6 @@
 package com.orman.backend.payment.service.impl;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.payment.dto.request.QrCobroEstadoRequest;
@@ -20,8 +21,6 @@ import com.orman.backend.property.service.PropertyOwnershipService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,8 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class QrCobroServiceImpl implements QrCobroService {
-
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
 
     private final QrCobroRepository qrCobroRepository;
     private final PersonaRepository personaRepository;
@@ -62,7 +59,7 @@ public class QrCobroServiceImpl implements QrCobroService {
         qr.setFechaInicio(request.fechaInicio());
         qr.setFechaFin(request.fechaFin());
         qr.setEstado(QrCobroEstado.ACTIVO);
-        qr.setFechaRegistro(nowUtc());
+        qr.setFechaRegistro(nowLaPaz());
         try {
             return qrCobroMapper.toResponse(qrCobroRepository.saveAndFlush(qr));
         } catch (DataIntegrityViolationException exception) {
@@ -184,10 +181,10 @@ public class QrCobroServiceImpl implements QrCobroService {
     }
 
     private LocalDate today() {
-        return LocalDate.now(clock.withZone(BUSINESS_ZONE));
+        return OrmanTimeConfig.today(clock);
     }
 
-    private LocalDateTime nowUtc() {
-        return LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+    private LocalDateTime nowLaPaz() {
+        return OrmanTimeConfig.businessNow(clock);
     }
 }

@@ -1,5 +1,6 @@
 package com.orman.backend.contract.controller;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.contract.dto.response.ContratoArchivoResponse;
 import com.orman.backend.contract.service.ContratoArchivoContent;
@@ -51,6 +52,7 @@ class ContratoArchivoControllerWebMvcTest {
                 .andExpect(jsonPath("$.nombreArchivo").value("contrato firmado.pdf"))
                 .andExpect(jsonPath("$.tipoContenido").value("application/pdf"))
                 .andExpect(jsonPath("$.tamanoFinal").value(1234))
+                .andExpect(jsonPath("$.fechaSubida").value("2026-09-16T12:00:00-04:00"))
                 .andExpect(jsonPath("$.url").doesNotExist())
                 .andExpect(jsonPath("$.rutaRef").doesNotExist());
 
@@ -100,6 +102,7 @@ class ContratoArchivoControllerWebMvcTest {
 
     private ContratoArchivoResponse response() {
         return new ContratoArchivoResponse(7, 42, "contrato firmado.pdf", "application/pdf", 1450L,
-                1234L, LocalDateTime.of(2026, 9, 16, 12, 0), "owner.test", 0, true);
+                1234L, OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 9, 16, 12, 0)),
+                "owner.test", 0, true);
     }
 }

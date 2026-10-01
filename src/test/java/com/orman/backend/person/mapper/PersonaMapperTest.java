@@ -1,5 +1,6 @@
 package com.orman.backend.person.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
@@ -61,7 +62,8 @@ class PersonaMapperTest {
         PersonaResponse response = mapper.toResponse(persona);
 
         assertThat(response).isEqualTo(new PersonaResponse(10, "CI-003", "Nombre", "Paterno", "Materno",
-                'F', (short) 1, "correo@example.test", "70000000", 'A', "foto", fechaRegistro, null,
+                'F', (short) 1, "correo@example.test", "70000000", 'A', "foto",
+                OrmanTimeConfig.ormanLocalToOffset(fechaRegistro), null,
                 new com.orman.backend.person.dto.PersonaActionsResponse(false, false, false, false, false, false)));
     }
 

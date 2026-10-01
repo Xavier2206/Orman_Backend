@@ -56,10 +56,8 @@ class AuthorizationMatrixIntegrationTest {
     @Autowired private AuthService authService;
 
     private Rol ownerRole;
-    private Rol adminRole;
     private Rol tenantRole;
     private Fixture owner;
-    private Fixture administrator;
     private Fixture tenant;
     private Fixture common;
     private Fixture withoutRoles;
@@ -67,21 +65,17 @@ class AuthorizationMatrixIntegrationTest {
     @BeforeEach
     void setUp() {
         ownerRole = activeRole("PROPIETARIO");
-        adminRole = activeRole("ADMINISTRADOR");
         tenantRole = activeRole("INQUILINO");
         makeExistingOwnersInactiveForTransactionalIsolation();
 
         owner = createFixture("M112-OWN", "m112.owner", "owner-device");
-        administrator = createFixture("M112-ADM", "m112.admin", "admin-device");
         tenant = createFixture("M112-TEN", "m112.tenant", "tenant-device");
         common = createFixture("M112-COM", "m112.common", "common-device");
         withoutRoles = createFixture("M112-NOR", "m112.norole", "norole-device");
         rolUsuService.assign(owner.login(), ownerRole.getCodr());
-        rolUsuService.assign(administrator.login(), adminRole.getCodr());
         rolUsuService.assign(tenant.login(), tenantRole.getCodr());
 
         owner = owner.withLogin(login(owner.login(), "owner-login"));
-        administrator = administrator.withLogin(login(administrator.login(), "admin-login"));
         tenant = tenant.withLogin(login(tenant.login(), "tenant-login"));
         common = common.withLogin(login(common.login(), "common-login"));
         withoutRoles = withoutRoles.withLogin(login(withoutRoles.login(), "norole-login"));
@@ -108,7 +102,7 @@ class AuthorizationMatrixIntegrationTest {
     }
 
     @Test
-    void appliesPersonMatrixAndProtectsOwnerTargetFromAdministrator() throws Exception {
+    void appliesPersonMatrixAndProtectsOwnerTargetFromTenant() throws Exception {
         mockMvc.perform(get("/api/v1/personas").headers(bearer(owner)))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/personas/resumen").headers(bearer(owner)))
@@ -120,26 +114,9 @@ class AuthorizationMatrixIntegrationTest {
         mockMvc.perform(post("/api/v1/personas").headers(bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content(personJson("M112-NEW-O")))
                 .andExpect(status().isCreated());
-        mockMvc.perform(post("/api/v1/personas").headers(bearer(administrator))
-                        .contentType(MediaType.APPLICATION_JSON).content(personJson("M112-NEW-A")))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(get("/api/v1/personas").headers(bearer(administrator)))
-                .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/personas/resumen").headers(bearer(administrator)))
-                .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/personas/{codper}", common.person().codper())
-                        .headers(bearer(administrator)))
-                .andExpect(status().isOk());
-        mockMvc.perform(put("/api/v1/personas/{codper}", common.person().codper())
-                        .headers(bearer(administrator)).contentType(MediaType.APPLICATION_JSON)
-                        .content(personUpdateJson("M112-COM", "1")))
-                .andExpect(status().isOk());
-
-        expectForbidden(get("/api/v1/personas/{codper}", owner.person().codper()), administrator);
-        expectForbidden(put("/api/v1/personas/{codper}", owner.person().codper())
-                .contentType(MediaType.APPLICATION_JSON).content(personUpdateJson("M112-OWN", "1")), administrator);
-        expectForbidden(patch("/api/v1/personas/{codper}/desactivar", owner.person().codper()), administrator);
+        expectForbidden(get("/api/v1/personas/{codper}", owner.person().codper()), tenant);
+        expectForbidden(put("/api/v1/personas/{codper}", common.person().codper())
+                .contentType(MediaType.APPLICATION_JSON).content(personUpdateJson("M112-COM", "1")), tenant);
         expectForbidden(get("/api/v1/personas"), tenant);
         expectForbidden(get("/api/v1/personas/resumen"), tenant);
 
@@ -153,8 +130,6 @@ class AuthorizationMatrixIntegrationTest {
 
     @Test
     void protectsUnitStateActionsWithTheOwnerRoleOnly() throws Exception {
-        expectForbidden(patch("/api/v1/unidades/{coduni}/activar", Integer.MAX_VALUE), administrator);
-        expectForbidden(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE), administrator);
         expectForbidden(patch("/api/v1/unidades/{coduni}/activar", Integer.MAX_VALUE), tenant);
         expectForbidden(patch("/api/v1/unidades/{coduni}/desactivar", Integer.MAX_VALUE), tenant);
 
@@ -179,11 +154,6 @@ class AuthorizationMatrixIntegrationTest {
         mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
                         .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
-                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(administrator)))
-                .andExpect(status().isBadRequest());
-        expectForbidden(multipart("/api/v1/personas/{codper}/foto", owner.person().codper()).file(invalidPhoto)
-                .with(request -> { request.setMethod("PUT"); return request; }), administrator);
         expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
                 .with(request -> { request.setMethod("PUT"); return request; }), tenant);
         expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
@@ -194,52 +164,28 @@ class AuthorizationMatrixIntegrationTest {
 
         mockMvc.perform(get("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(administrator)))
-                .andExpect(status().isNotFound());
-        expectForbidden(get("/api/v1/personas/{codper}/foto", owner.person().codper()), administrator);
         expectForbidden(get("/api/v1/personas/{codper}/foto", common.person().codper()), tenant);
 
         mockMvc.perform(delete("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(administrator)))
-                .andExpect(status().isNotFound());
-        expectForbidden(delete("/api/v1/personas/{codper}/foto", owner.person().codper()), administrator);
         expectForbidden(delete("/api/v1/personas/{codper}/foto", common.person().codper()), withoutRoles);
     }
 
     @Test
-    void appliesUserMatrixAndFiltersOwnersFromAdministratorList() throws Exception {
+    void appliesUserMatrixAndBlocksTenantManagement() throws Exception {
         mockMvc.perform(get("/api/v1/usuarios").headers(bearer(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.login == 'm112.owner')]").isNotEmpty());
 
-        mockMvc.perform(get("/api/v1/usuarios").headers(bearer(administrator)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[?(@.login == 'm112.common')]").isNotEmpty())
-                .andExpect(jsonPath("$.content[?(@.login == 'm112.owner')]").isEmpty());
-        mockMvc.perform(get("/api/v1/usuarios/{login}", common.login()).headers(bearer(administrator)))
-                .andExpect(status().isOk());
-        mockMvc.perform(put("/api/v1/usuarios/{login}", common.login()).headers(bearer(administrator))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"estado\":1}"))
-                .andExpect(status().isOk());
-
-        PersonaResponse newPerson = personaService.create(new CreatePersonaRequest("M112-USR-NEW", "Usuario nuevo",
-                null, null, "F", null, "persona.new@example.test", "70000000", "A", null));
-        mockMvc.perform(post("/api/v1/usuarios").headers(bearer(administrator))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"login\":\"m112.created\",\"password\":\"" + PASSWORD
-                                + "\",\"codper\":" + newPerson.codper() + "}"))
-                .andExpect(status().isCreated());
-
-        expectForbidden(get("/api/v1/usuarios/{login}", owner.login()), administrator);
-        expectForbidden(patch("/api/v1/usuarios/{login}/desactivar", owner.login()), administrator);
+        expectForbidden(get("/api/v1/usuarios/{login}", owner.login()), tenant);
+        expectForbidden(patch("/api/v1/usuarios/{login}/desactivar", common.login()), tenant);
         expectForbidden(get("/api/v1/usuarios"), tenant);
     }
 
     @Test
     void allowsOnlySelfOrOwnerToChangePasswordAndKeepsSessionRevocation() throws Exception {
         expectForbidden(put("/api/v1/usuarios/{login}/password", owner.login())
-                .contentType(MediaType.APPLICATION_JSON).content(passwordJson()), administrator);
+                .contentType(MediaType.APPLICATION_JSON).content(passwordJson()), tenant);
 
         mockMvc.perform(put("/api/v1/usuarios/{login}/password", tenant.login())
                         .headers(bearer(tenant)).contentType(MediaType.APPLICATION_JSON).content(passwordJson()))
@@ -261,80 +207,16 @@ class AuthorizationMatrixIntegrationTest {
     }
 
     @Test
-    void restrictsRolesAndAssignmentsAndReflectsDelegationWithSameJwt() throws Exception {
-        expectForbidden(get("/api/v1/roles"), administrator);
+    void restrictsFixedRolesAndReflectsOwnerDelegationWithSameJwt() throws Exception {
         expectForbidden(get("/api/v1/roles"), tenant);
-        expectForbidden(get("/api/v1/roles/resumen"), administrator);
         expectForbidden(get("/api/v1/roles/resumen"), tenant);
-        expectForbidden(post("/api/v1/usuarios/{login}/roles/{codr}", administrator.login(), ownerRole.getCodr()),
-                administrator);
-
-        mockMvc.perform(post("/api/v1/roles").headers(bearer(owner)).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"OPERADOR_112\",\"estado\":1}"))
-                .andExpect(status().isCreated());
-        Rol commonRole = activeRole("OPERADOR_COMUN_112");
-        mockMvc.perform(get("/api/v1/roles/{codr}", commonRole.getCodr()).headers(bearer(owner)))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/roles").headers(bearer(owner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
         mockMvc.perform(get("/api/v1/roles/resumen").headers(bearer(owner)))
-                .andExpect(status().isOk());
-        mockMvc.perform(put("/api/v1/roles/{codr}", commonRole.getCodr()).headers(bearer(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"OPERADOR_EDITADO_112\"}"))
-                .andExpect(status().isOk());
-        mockMvc.perform(patch("/api/v1/roles/{codr}/desactivar", commonRole.getCodr()).headers(bearer(owner)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(post("/api/v1/usuarios/{login}/roles/{codr}", common.login(), tenantRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isCreated());
-        mockMvc.perform(delete("/api/v1/usuarios/{login}/roles/{codr}", common.login(), tenantRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isNoContent());
-        mockMvc.perform(post("/api/v1/usuarios/{login}/roles/{codr}", common.login(), ownerRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isCreated());
-        mockMvc.perform(delete("/api/v1/usuarios/{login}/roles/{codr}", common.login(), ownerRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isNoContent());
-        expectForbidden(get("/api/v1/usuarios/{login}/roles", tenant.login()), tenant);
-
-        expectForbidden(get("/api/v1/personas"), withoutRoles);
-        mockMvc.perform(post("/api/v1/usuarios/{login}/roles/{codr}", withoutRoles.login(), adminRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isCreated());
-        mockMvc.perform(get("/api/v1/personas").headers(bearer(withoutRoles)))
-                .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/v1/usuarios/{login}/roles/{codr}", withoutRoles.login(), adminRole.getCodr())
-                        .headers(bearer(owner)))
-                .andExpect(status().isNoContent());
-        expectForbidden(get("/api/v1/personas"), withoutRoles);
-
-        assertThat(sesionUsuarioRepository.findById(withoutRoles.auth().response().sid()).orElseThrow().isRevoked())
-                .isFalse();
-    }
-
-    @Test
-    void allowsOnlyOwnerToListMenusAndReadMenuResumen() throws Exception {
-        mockMvc.perform(get("/api/v1/menus").headers(bearer(owner)))
-                .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/menus/resumen").headers(bearer(owner)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalMenus").isNumber())
-                .andExpect(jsonPath("$.activos").isNumber())
-                .andExpect(jsonPath("$.inactivos").isNumber());
-
-        expectForbidden(get("/api/v1/menus"), administrator);
-        expectForbidden(get("/api/v1/menus/resumen"), administrator);
-        expectForbidden(get("/api/v1/menus"), tenant);
-        expectForbidden(get("/api/v1/menus/resumen"), tenant);
-    }
-
-    @Test
-    void protectsRoleAndEveryPathThatWouldRemoveTheLastOwner() throws Exception {
-        mockMvc.perform(put("/api/v1/roles/{codr}", ownerRole.getCodr()).headers(bearer(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"OTRO\"}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("LAST_OWNER_REQUIRED"));
-        expectLastOwner(patch("/api/v1/roles/{codr}/desactivar", ownerRole.getCodr()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalRoles").value(2));
+        mockMvc.perform(post("/api/v1/roles").headers(bearer(owner))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"nombre\":\"OTRO\"}"))
+                .andExpect(status().isMethodNotAllowed());
         expectLastOwner(delete("/api/v1/usuarios/{login}/roles/{codr}", owner.login(), ownerRole.getCodr()));
         expectLastOwner(patch("/api/v1/usuarios/{login}/desactivar", owner.login()));
         expectLastOwner(patch("/api/v1/personas/{codper}/desactivar", owner.person().codper()));

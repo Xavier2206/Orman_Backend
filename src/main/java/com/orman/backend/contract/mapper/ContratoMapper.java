@@ -1,5 +1,6 @@
 package com.orman.backend.contract.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.dto.request.ContratoRequest;
 import com.orman.backend.contract.dto.response.ContratoCuotasResumenResponse;
 import com.orman.backend.contract.dto.response.ContratoInquilinoResponse;
@@ -52,7 +53,8 @@ public class ContratoMapper {
                 contrato.getInquilino() != null ? contrato.getInquilino().getCodper() : null,
                 contrato.getFechaInicio(), contrato.getFechaFin(),
                 contrato.getMontoMensual(), contrato.getMoneda(), contrato.getGarantia(), contrato.getEstado().name(),
-                contrato.getFechaRegistro(), contrato.getFechaRescision(), contrato.getMotivoRescision(),
+                OrmanTimeConfig.ormanLocalToOffset(contrato.getFechaRegistro()),
+                contrato.getFechaRescision(), contrato.getMotivoRescision(),
                 inquilino, unidad, propiedad, cuotasResumen);
     }
 

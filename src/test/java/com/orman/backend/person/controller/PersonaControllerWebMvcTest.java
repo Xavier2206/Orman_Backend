@@ -1,5 +1,6 @@
 package com.orman.backend.person.controller;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
@@ -267,7 +268,8 @@ class PersonaControllerWebMvcTest {
 
     private PersonaResponse response(Integer codper, short estado) {
         return new PersonaResponse(codper, "CI-001", "Nombre válido", null, null, 'F', estado, "persona@example.test",
-                "70000000", 'A', null, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                "70000000", 'A', null,
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null,
                 new com.orman.backend.person.dto.PersonaActionsResponse(false, false, false, false, false, false));
     }
 }

@@ -2,6 +2,7 @@ package com.orman.backend.payment.service.impl;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.dto.PageResponse;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.contract.entity.ContratoEstado;
@@ -35,8 +36,6 @@ import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,8 +51,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class PagoServiceImpl implements PagoService {
-
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
 
     private final PagoRepository pagoRepository;
     private final CuotaRepository cuotaRepository;
@@ -88,10 +85,10 @@ public class PagoServiceImpl implements PagoService {
 
         try {
             PagoEntity pago = pagoRepository.saveAndFlush(pagoMapper.toEntity(request, cuota, qrCobro,
-                    context.origenRegistro(), context.actor(), fechaPago, nowUtc()));
+                    context.origenRegistro(), context.actor(), fechaPago, nowLaPaz));
             if (comprobante != null && !comprobante.isEmpty()) {
                 StoredPaymentImage stored = imageStorageService.storeProof(comprobante, pago.getCodpag());
-                PagoComprobanteEntity entity = pagoComprobanteMapper.toEntity(stored, pago, nowUtc());
+                PagoComprobanteEntity entity = pagoComprobanteMapper.toEntity(stored, pago, nowLaPaz);
                 pagoComprobanteRepository.saveAndFlush(entity);
             }
             if (context.origenRegistro() == OrigenRegistroPago.PROPIETARIA) {
@@ -147,7 +144,7 @@ public class PagoServiceImpl implements PagoService {
         PagoEntity pago = paymentOwnershipService.findOwnedPagoForUpdate(codpag, authentication);
         validatePending(pago, "rechazar");
         pago.setEstado(PagoEstado.RECHAZADO);
-        pago.setFechaRevision(nowUtc());
+        pago.setFechaRevision(nowLaPaz());
         pago.setRevisadoPor(currentUser(authentication));
         pago.setMotivoRechazo(request.motivo().trim());
         pago.setMotivoAnulacion(null);
@@ -208,7 +205,7 @@ public class PagoServiceImpl implements PagoService {
 
     private void markAnnulled(PagoEntity pago, PagoMotivoRequest request, Usuario revisor) {
         pago.setEstado(PagoEstado.ANULADO);
-        pago.setFechaRevision(nowUtc());
+        pago.setFechaRevision(nowLaPaz());
         pago.setRevisadoPor(revisor);
         pago.setMotivoRechazo(null);
         pago.setMotivoAnulacion(request.motivo().trim());
@@ -295,7 +292,7 @@ public class PagoServiceImpl implements PagoService {
             throw new BusinessRuleException("El Pago supera el saldo pendiente de la Cuota.");
         }
         pago.setEstado(PagoEstado.CONFIRMADO);
-        pago.setFechaRevision(nowUtc());
+        pago.setFechaRevision(nowLaPaz());
         pago.setRevisadoPor(revisor);
         pago.setMotivoRechazo(null);
         pago.setMotivoAnulacion(null);
@@ -331,12 +328,8 @@ public class PagoServiceImpl implements PagoService {
                 && authentication.getAuthorities().stream().anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 
-    private LocalDateTime nowUtc() {
-        return LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
-    }
-
     private LocalDateTime nowLaPaz() {
-        return LocalDateTime.ofInstant(clock.instant(), BUSINESS_ZONE);
+        return OrmanTimeConfig.businessNow(clock);
     }
 
     private CuotaEstado estadoCuota(BigDecimal montoCuota, BigDecimal montoConfirmado) {

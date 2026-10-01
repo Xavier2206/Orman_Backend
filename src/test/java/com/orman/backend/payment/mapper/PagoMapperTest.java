@@ -11,6 +11,8 @@ import com.orman.backend.payment.service.StoredPaymentImage;
 import com.orman.backend.user.entity.Usuario;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -40,8 +42,16 @@ class PagoMapperTest {
         assertThat(pago.getFechaPago()).isEqualTo(fechaPago);
         assertThat(pago.getFechaRegistro()).isEqualTo(fechaRegistro);
         assertThat(pago.getOrigenRegistro()).isEqualTo(OrigenRegistroPago.INQUILINO);
+        pago.setFechaRevision(LocalDateTime.of(2026, 9, 10, 12, 25));
+        pago.setRevisadoPor(actor);
         assertThat(pagoMapper.toResponse(pago).registradoPor()).isEqualTo("tenant.mapper");
         assertThat(pagoMapper.toResponse(pago).codqr()).isEqualTo(7);
+        assertThat(pagoMapper.toResponse(pago).fechaPago()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 10, 10, 0, 0, 0, ZoneOffset.ofHours(-4)));
+        assertThat(pagoMapper.toResponse(pago).fechaRegistro()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 10, 10, 1, 0, 0, ZoneOffset.ofHours(-4)));
+        assertThat(pagoMapper.toResponse(pago).fechaRevision()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 10, 12, 25, 0, 0, ZoneOffset.ofHours(-4)));
 
         var image = new StoredPaymentImage("comprobantes/11/uuid.png", "comprobante.png", "image/png");
         PagoComprobanteEntity comprobante = comprobanteMapper.toEntity(image, pago, fechaRegistro);
@@ -49,6 +59,8 @@ class PagoMapperTest {
         var response = comprobanteMapper.toResponse(comprobante);
         assertThat(response.nombreArchivo()).isEqualTo("comprobante.png");
         assertThat(response.tipoContenido()).isEqualTo("image/png");
+        assertThat(response.fechaRegistro()).isEqualTo(OffsetDateTime.of(
+                2026, 9, 10, 10, 1, 0, 0, ZoneOffset.ofHours(-4)));
         assertThat(response.toString()).doesNotContain("comprobantes/11/uuid.png");
     }
 }

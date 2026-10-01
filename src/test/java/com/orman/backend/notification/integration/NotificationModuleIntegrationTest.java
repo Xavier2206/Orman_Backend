@@ -37,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -209,7 +210,8 @@ class NotificationModuleIntegrationTest {
         assertThat(overdue.getCodnot()).isNotEqualTo(upcoming.getCodnot());
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
                 tenant.getLogin(), ReferenciaTipo.CUOTA, quota.getCodcuo())).hasSize(2);
-        assertThat(unchangedUpcoming.getFechaLectura()).isEqualTo(read.fechaLectura());
+        assertThat(unchangedUpcoming.getFechaLectura().atZone(ZoneId.of("America/La_Paz")).toOffsetDateTime())
+                .isEqualTo(read.fechaLectura());
         assertThat(unchangedUpcoming.getFechaCreacion()).isEqualTo(upcoming.getFechaCreacion());
         assertThat(notificacionRepository.findAllByDestinatarioLoginAndReferenciaTipoAndReferenciaId(
                 context.usuario().getLogin(), ReferenciaTipo.CUOTA, quota.getCodcuo())).isEmpty();

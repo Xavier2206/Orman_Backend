@@ -2,6 +2,7 @@ package com.orman.backend.notification.service.impl;
 
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.entity.CuotaEntity;
 import com.orman.backend.contract.entity.CuotaEstado;
 import com.orman.backend.contract.repository.CuotaRepository;
@@ -22,8 +23,8 @@ import com.orman.backend.user.entity.Usuario;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Optional;
@@ -41,7 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificacionGeneracionServiceImpl implements NotificacionGeneracionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificacionGeneracionServiceImpl.class);
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/La_Paz");
     private static final Locale SPANISH_BOLIVIA = Locale.forLanguageTag("es-BO");
     private static final DateTimeFormatter PERIOD_FORMAT = DateTimeFormatter.ofPattern("MMMM 'de' uuuu",
             SPANISH_BOLIVIA);
@@ -54,6 +54,7 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
     private final UsuarioRepository usuarioRepository;
     private final PropertyOwnershipService propertyOwnershipService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final Clock clock;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -134,7 +135,7 @@ public class NotificacionGeneracionServiceImpl implements NotificacionGeneracion
         }
 
         Usuario destinatario = tenantUser(cuota.getContrato().getInquilino());
-        NotificacionTipo tipo = cuota.getFechaVencimiento().isBefore(LocalDate.now(BUSINESS_ZONE))
+        NotificacionTipo tipo = cuota.getFechaVencimiento().isBefore(OrmanTimeConfig.today(clock))
                 ? NotificacionTipo.CUOTA_VENCIDA : NotificacionTipo.CUOTA_PROXIMA_VENCER;
         String titulo = "Pago pendiente";
         String mensaje = manualPaymentMessage(cuota, montoConfirmado, saldo);

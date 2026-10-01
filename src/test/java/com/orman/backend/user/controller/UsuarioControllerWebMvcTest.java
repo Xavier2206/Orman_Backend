@@ -1,5 +1,6 @@
 package com.orman.backend.user.controller;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.authorization.service.AuthorizationService;
 import com.orman.backend.common.error.GlobalExceptionHandler;
@@ -89,7 +90,8 @@ class UsuarioControllerWebMvcTest {
     void forwardsRemoteQueryAndKeepsPagination() throws Exception {
         when(usuarioService.list(eq("Xavier"), any())).thenReturn(new PageResponse<>(
                 List.of(new UsuarioResponse("xavier.login", (short) 1, 7,
-                        LocalDateTime.of(2026, 1, 1, 0, 0), null, "Xavier", "Ortega", null)),
+                        OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null,
+                        "Xavier", "Ortega", null)),
                 0, 5, 1, 1, true, true));
         when(authorizationService.isOwner(any())).thenReturn(true);
 
@@ -160,6 +162,7 @@ class UsuarioControllerWebMvcTest {
     }
 
     private UsuarioResponse response(String login, short estado) {
-        return new UsuarioResponse(login, estado, 7, LocalDateTime.of(2026, 1, 1, 0, 0), null);
+        return new UsuarioResponse(login, estado, 7,
+                OrmanTimeConfig.ormanLocalToOffset(LocalDateTime.of(2026, 1, 1, 0, 0)), null);
     }
 }

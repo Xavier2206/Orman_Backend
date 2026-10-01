@@ -1,5 +1,6 @@
 package com.orman.backend.contract.mapper;
 
+import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.dto.response.ContratoArchivoResponse;
 import com.orman.backend.contract.entity.ContratoArchivoEntity;
 import com.orman.backend.contract.entity.ContratoEntity;
@@ -29,7 +30,8 @@ public class ContratoArchivoMapper {
     public ContratoArchivoResponse toResponse(ContratoArchivoEntity archivo) {
         return new ContratoArchivoResponse(archivo.getId(), archivo.getContrato().getCodcon(),
                 archivo.getNombreArchivo(), archivo.getTipoContenido(), archivo.getTamanoOriginal(),
-                archivo.getTamanoFinal(), archivo.getFechaSubida(), archivo.getSubidoPor(), archivo.getOrden(),
+                archivo.getTamanoFinal(), OrmanTimeConfig.ormanLocalToOffset(archivo.getFechaSubida()),
+                archivo.getSubidoPor(), archivo.getOrden(),
                 archivo.getRutaRef() != null);
     }
 }

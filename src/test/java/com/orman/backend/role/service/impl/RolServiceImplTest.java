@@ -1,16 +1,11 @@
 package com.orman.backend.role.service.impl;
 
-import com.orman.backend.common.exception.ConflictException;
-import com.orman.backend.authorization.service.OwnerProtectionService;
 import com.orman.backend.common.exception.ResourceNotFoundException;
-import com.orman.backend.role.dto.request.CreateRolRequest;
-import com.orman.backend.role.dto.request.UpdateRolRequest;
 import com.orman.backend.role.dto.response.RolResumenResponse;
 import com.orman.backend.role.dto.response.RolResponse;
 import com.orman.backend.role.entity.Rol;
 import com.orman.backend.role.mapper.RolMapper;
 import com.orman.backend.role.repository.RolRepository;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,73 +31,32 @@ class RolServiceImplTest {
 
     @Mock private RolRepository rolRepository;
     @Mock private RolMapper rolMapper;
-    @Mock private EntityManager entityManager;
-    @Mock private OwnerProtectionService ownerProtectionService;
     @InjectMocks private RolServiceImpl service;
 
     @Test
-    void createsRolWithNormalizedNameAndDatabaseDefault() {
-        CreateRolRequest request = new CreateRolRequest(" administrador ", null);
-        Rol rol = rol(1, "ADMINISTRADOR", (short) 1);
-        RolResponse response = new RolResponse(1, "ADMINISTRADOR", (short) 1);
-        when(rolMapper.normalizeNombre(" administrador ")).thenReturn("ADMINISTRADOR");
-        when(rolRepository.existsByNombre("ADMINISTRADOR")).thenReturn(false);
-        when(rolMapper.toEntity(request)).thenReturn(rol);
-        when(rolRepository.saveAndFlush(rol)).thenReturn(rol);
+    void getsFixedRoleAndRejectsUnknownId() {
+        Rol rol = rol(1, "PROPIETARIO", (short) 1);
+        RolResponse response = new RolResponse(1, "PROPIETARIO", (short) 1);
+        when(rolRepository.findById(1)).thenReturn(Optional.of(rol));
         when(rolMapper.toResponse(rol)).thenReturn(response);
-
-        assertThat(service.create(request)).isEqualTo(response);
-        verify(entityManager).refresh(rol);
-    }
-
-    @Test
-    void rejectsDuplicateNombreAndMissingRol() {
-        when(rolMapper.normalizeNombre("ADMINISTRADOR")).thenReturn("ADMINISTRADOR");
-        when(rolRepository.existsByNombre("ADMINISTRADOR")).thenReturn(true);
-        assertThatThrownBy(() -> service.create(new CreateRolRequest("ADMINISTRADOR", null)))
-                .isInstanceOf(ConflictException.class);
-        verify(rolMapper, never()).toEntity(any());
-
         when(rolRepository.findById(99)).thenReturn(Optional.empty());
+        assertThat(service.get(1)).isEqualTo(response);
         assertThatThrownBy(() -> service.get(99)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
-    void updatesListsAndChangesStateIdempotently() {
-        Rol rol = rol(1, "ADMINISTRADOR", (short) 1);
-        RolResponse active = new RolResponse(1, "ADMINISTRADOR", (short) 1);
-        when(rolRepository.findById(1)).thenReturn(Optional.of(rol));
-        when(rolMapper.toResponse(rol)).thenReturn(active);
-        when(rolRepository.saveAndFlush(rol)).thenReturn(rol);
-        when(rolRepository.save(rol)).thenReturn(rol);
-        when(rolMapper.normalizeNombre("SUPERVISOR")).thenReturn("SUPERVISOR");
-        when(rolRepository.existsByNombreAndCodrNot("SUPERVISOR", 1)).thenReturn(false);
-
-        assertThat(service.update(1, new UpdateRolRequest("SUPERVISOR"))).isEqualTo(active);
-        verify(rolMapper).update(rol, new UpdateRolRequest("SUPERVISOR"));
-        assertThat(service.deactivate(1)).isEqualTo(active);
-        assertThat(rol.getEstado()).isZero();
-        assertThat(service.activate(1)).isEqualTo(active);
-        assertThat(rol.getEstado()).isEqualTo((short) 1);
-
-        when(rolRepository.search(null, null, PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "nombre"))))
-                .thenReturn(new PageImpl<>(List.of(rol), PageRequest.of(0, 20), 1));
-        assertThat(service.list(PageRequest.of(0, 20)).content()).containsExactly(active);
-    }
-
-    @Test
     void searchesInDatabaseWithNormalizedQueryAndBuildsGlobalResumen() {
-        Rol rol = rol(1, "ADMINISTRADOR", (short) 1);
-        RolResponse response = new RolResponse(1, "ADMINISTRADOR", (short) 1);
+        Rol rol = rol(1, "INQUILINO", (short) 1);
+        RolResponse response = new RolResponse(1, "INQUILINO", (short) 1);
         PageRequest pageable = PageRequest.of(0, 10, Sort.by("nombre").ascending());
-        when(rolRepository.search("admin", (short) 1, pageable))
+        when(rolRepository.search("inq", (short) 1, pageable))
                 .thenReturn(new PageImpl<>(List.of(rol), pageable, 1));
         when(rolMapper.toResponse(rol)).thenReturn(response);
         when(rolRepository.count()).thenReturn(5L);
         when(rolRepository.countByEstado((short) 1)).thenReturn(3L);
         when(rolRepository.countByEstado((short) 0)).thenReturn(2L);
 
-        assertThat(service.list(" admin ", (short) 1, pageable).content()).containsExactly(response);
+        assertThat(service.list(" inq ", (short) 1, pageable).content()).containsExactly(response);
         assertThat(service.resumen()).isEqualTo(new RolResumenResponse(5, 3, 2));
     }
 

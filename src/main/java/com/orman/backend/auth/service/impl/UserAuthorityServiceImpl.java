@@ -36,9 +36,7 @@ public class UserAuthorityServiceImpl implements UserAuthorityService {
             return null;
         }
         String normalized = roleName.trim().toUpperCase(Locale.ROOT);
-        if (normalized.isEmpty() || ROLE_PREFIX.equals(normalized)) {
-            return null;
-        }
-        return normalized.startsWith(ROLE_PREFIX) ? normalized : ROLE_PREFIX + normalized;
+        String name = normalized.startsWith(ROLE_PREFIX) ? normalized.substring(ROLE_PREFIX.length()) : normalized;
+        return "PROPIETARIO".equals(name) || "INQUILINO".equals(name) ? ROLE_PREFIX + name : null;
     }
 }

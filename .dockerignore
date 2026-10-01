@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+.env
+.env.*
+*firebase*.json
+*service-account*.json
+target
+storage
+*.log
+*.iml
+.DS_Store

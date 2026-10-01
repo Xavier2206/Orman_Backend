@@ -33,8 +33,16 @@ class PersonaMapperTest {
     }
 
     @Test
+    void preservesExternalPhotoUrlOnCreate() {
+        Persona persona = mapper.toEntity(new CreatePersonaRequest("CI-URL", "Nombre", null, null,
+                "F", "1", "correo@example.test", "70000001", "A", "https://example.test/photo.jpg"));
+        assertThat(persona.getFoto()).isEqualTo("https://example.test/photo.jpg");
+    }
+
+    @Test
     void updatesOnlyEditableFieldsAndNormalizesApprovedValues() {
         Persona persona = persona(9, "CI-ANTERIOR", LocalDateTime.of(2026, 1, 1, 10, 0));
+        persona.setFoto("personas/9/00000000-0000-0000-0000-000000000001.jpg");
 
         mapper.update(persona, new UpdatePersonaRequest(" CI-002 ", " Nuevo nombre ", " ", " Materno ",
                 "m", "0", " ", " 70000002 ", "i", " foto "));
@@ -50,7 +58,7 @@ class PersonaMapperTest {
         assertThat(persona.getCorreo()).isNull();
         assertThat(persona.getTelefono()).isEqualTo("70000002");
         assertThat(persona.getTipoPersona()).isEqualTo('I');
-        assertThat(persona.getFoto()).isEqualTo("foto");
+        assertThat(persona.getFoto()).isEqualTo("personas/9/00000000-0000-0000-0000-000000000001.jpg");
     }
 
     @Test

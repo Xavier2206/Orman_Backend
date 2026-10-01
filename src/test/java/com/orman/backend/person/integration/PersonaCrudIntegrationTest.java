@@ -97,11 +97,11 @@ class PersonaCrudIntegrationTest {
 
     private CreatePersonaRequest createRequest(String ci, String estado) {
         return new CreatePersonaRequest(ci, "Nombre ficticio", "Paterno", "Materno", "F", estado,
-                "persona@example.test", "70000000", "A", "foto");
+                "persona@example.test", "70000000", "A", null);
     }
 
     private UpdatePersonaRequest updateRequest(String ci, String estado) {
         return new UpdatePersonaRequest(ci, "Nombre actualizado", " ", "Materno actualizado", "M", estado,
-                "actualizada@example.test", "70000001", "I", "foto-actualizada");
+                "actualizada@example.test", "70000001", "I", null);
     }
 }

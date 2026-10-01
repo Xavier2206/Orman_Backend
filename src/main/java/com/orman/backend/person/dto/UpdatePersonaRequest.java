@@ -16,5 +16,6 @@ public record UpdatePersonaRequest(
         @NotBlank(message = "El correo es obligatorio.") @Email(message = "El correo no tiene un formato válido.") @Size(max = 100, message = "El correo no puede superar 100 caracteres.") String correo,
         @NotBlank(message = "El teléfono es obligatorio.") @Size(max = 20, message = "El teléfono no puede superar 20 caracteres.") String telefono,
         @NotNull(message = "El tipo de persona es obligatorio.") @Pattern(regexp = "(?i)[AI]", message = "El tipo de persona debe ser A o I.") String tipoPersona,
+        @Pattern(regexp = "(?i)^https?://[^\\s]+$", message = "La foto externa debe ser una URL HTTP o HTTPS válida.")
         @Size(max = 255, message = "La foto no puede superar 255 caracteres.") String foto) {
 }

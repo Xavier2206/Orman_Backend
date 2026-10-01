@@ -12,6 +12,8 @@ public interface PersonaPhotoService {
 
     void delete(Integer codper);
 
+    void deleteAfterPersonaRemoval(Integer codper, String reference);
+
     record PersonaPhotoResource(Resource resource, MediaType mediaType) {
     }
 }

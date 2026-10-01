@@ -148,27 +148,41 @@ class AuthorizationMatrixIntegrationTest {
 
     @Test
     void appliesHttpAuthorizationMatrixToPersonaPhotos() throws Exception {
-        var invalidPhoto = new org.springframework.mock.web.MockMultipartFile("foto", "foto.jpg", "image/jpeg",
-                "not-an-image".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Fixture otherOwner = createFixture("M112-OWN-PHOTO", "m112.photo.owner", "photo-device");
+        rolUsuService.assign(otherOwner.login(), ownerRole.getCodr());
+        otherOwner = otherOwner.withLogin(login(otherOwner.login(), "photo-login"));
+        var photo = validPhoto();
 
-        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", owner.person().codper()).file(photo)
                         .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
-                .andExpect(status().isBadRequest());
-        expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
-                .with(request -> { request.setMethod("PUT"); return request; }), tenant);
-        expectForbidden(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
-                .with(request -> { request.setMethod("PUT"); return request; }), withoutRoles);
-        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", common.person().codper()).file(invalidPhoto)
-                        .with(request -> { request.setMethod("PUT"); return request; }))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", owner.person().codper()).headers(bearer(owner)))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_JPEG));
+        mockMvc.perform(multipart("/api/v1/personas/{codper}/foto", owner.person().codper()).file(validPhoto())
+                        .with(request -> { request.setMethod("PUT"); return request; }).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+
+        expectForbidden(get("/api/v1/personas/{codper}/foto", owner.person().codper()), tenant);
+        expectForbidden(get("/api/v1/personas/{codper}/foto", otherOwner.person().codper()), owner);
+        expectForbidden(multipart("/api/v1/personas/{codper}/foto", otherOwner.person().codper()).file(validPhoto())
+                .with(request -> { request.setMethod("PUT"); return request; }), owner);
+        expectForbidden(delete("/api/v1/personas/{codper}/foto", otherOwner.person().codper()), owner);
+        expectForbidden(get("/api/v1/personas/{codper}/foto", common.person().codper()), owner);
+        expectForbidden(get("/api/v1/personas/{codper}/foto", owner.person().codper()), withoutRoles);
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", owner.person().codper()))
                 .andExpect(status().isUnauthorized());
 
-        mockMvc.perform(get("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
+        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", owner.person().codper()).headers(bearer(owner)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/personas/{codper}/foto", owner.person().codper()).headers(bearer(owner)))
                 .andExpect(status().isNotFound());
-        expectForbidden(get("/api/v1/personas/{codper}/foto", common.person().codper()), tenant);
+    }
 
-        mockMvc.perform(delete("/api/v1/personas/{codper}/foto", common.person().codper()).headers(bearer(owner)))
-                .andExpect(status().isNotFound());
-        expectForbidden(delete("/api/v1/personas/{codper}/foto", common.person().codper()), withoutRoles);
+    private org.springframework.mock.web.MockMultipartFile validPhoto() throws Exception {
+        var image = new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var bytes = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "jpg", bytes);
+        return new org.springframework.mock.web.MockMultipartFile("foto", "foto.jpg", "image/jpeg", bytes.toByteArray());
     }
 
     @Test

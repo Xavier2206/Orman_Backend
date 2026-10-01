@@ -20,6 +20,15 @@ public interface PersonaRepository extends JpaRepository<Persona, Integer> {
 
     boolean existsByCiAndCodperNot(String ci, Integer codper);
 
+    @Query("""
+            select (count(c) > 0) from ContratoEntity c
+            where c.inquilino.codper = :codper
+              and c.inquilino.tipoPersona = 'I'
+              and c.unidad.propiedad.propietaria.codper = :ownerCodper
+            """)
+    boolean existsTenantLinkedToOwner(@Param("codper") Integer codper,
+                                      @Param("ownerCodper") Integer ownerCodper);
+
     @Query(value = """
             SELECT
                 COUNT(p.codper) AS "totalPersonas",

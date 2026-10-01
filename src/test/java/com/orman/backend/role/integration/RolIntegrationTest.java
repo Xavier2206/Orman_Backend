@@ -38,7 +38,7 @@ class RolIntegrationTest {
 
     @Test
     void migrationLeavesExactlyTwoActiveRolesAndNoOtpTable() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("23");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("24");
         assertThat(jdbcTemplate.queryForList("SELECT nombre FROM roles ORDER BY nombre", String.class))
                 .containsExactly("INQUILINO", "PROPIETARIO");
         assertThat(jdbcTemplate.queryForList("SELECT estado FROM roles", Short.class))

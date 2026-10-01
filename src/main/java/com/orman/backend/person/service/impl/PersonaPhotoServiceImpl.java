@@ -55,6 +55,7 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
             Files.createDirectories(target.getParent());
             writeJpeg(scaleForProfile(image), target);
         } catch (IOException exception) {
+            deleteQuietly(target);
             throw new InvalidPersonaPhotoException("No fue posible almacenar la fotografía.");
         }
 
@@ -66,7 +67,7 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
             deleteQuietly(target);
             throw exception;
         }
-        deleteAfterCommit(previousReference, codper);
+        registerReplacementLifecycle(target, resolveStoredFile(previousReference, codper));
     }
 
     @Override
@@ -89,12 +90,19 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
     public void delete(Integer codper) {
         Persona persona = find(codper);
         Path file = resolveStoredFile(persona.getFoto(), codper);
-        if (file == null || !Files.isRegularFile(file)) {
+        boolean externalPhoto = persona.getFoto() != null
+                && persona.getFoto().matches("(?i)^https?://[^\\s]+$");
+        if (!externalPhoto && (file == null || !Files.isRegularFile(file))) {
             throw new ResourceNotFoundException("La fotografía de la Persona no existe.");
         }
         persona.setFoto(null);
         personaRepository.saveAndFlush(persona);
         deleteAfterCommit(file);
+    }
+
+    @Override
+    public void deleteAfterPersonaRemoval(Integer codper, String reference) {
+        deleteAfterCommit(resolveStoredFile(reference, codper));
     }
 
     private BufferedImage validateAndRead(MultipartFile foto) {
@@ -199,14 +207,34 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private void deleteAfterCommit(String reference, Integer codper) {
-        Path previous = resolveStoredFile(reference, codper);
-        if (previous != null) {
-            deleteAfterCommit(previous);
+    private void registerReplacementLifecycle(Path target, Path previous) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteQuietly(previous);
+            return;
         }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteQuietly(previous);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    deleteQuietly(target);
+                }
+            }
+        });
     }
 
     private void deleteAfterCommit(Path path) {
+        if (path == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteQuietly(path);
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -216,6 +244,9 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
     }
 
     private void deleteQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
         try {
             Files.deleteIfExists(path);
         } catch (IOException exception) {

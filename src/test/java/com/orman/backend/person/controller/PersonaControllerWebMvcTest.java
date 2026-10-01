@@ -196,6 +196,31 @@ class PersonaControllerWebMvcTest {
     }
 
     @Test
+    void rejectsPhotoReferenceInJsonCreateAndUpdate() throws Exception {
+        String body = json("foto", "personas/7/00000000-0000-0000-0000-000000000001.jpg");
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'foto')]").isNotEmpty());
+        mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'foto')]").isNotEmpty());
+        verify(personaService, never()).create(any(), any());
+        verify(personaService, never()).update(any(), any(), any());
+    }
+
+    @Test
+    void acceptsExplicitExternalPhotoUrlInJson() throws Exception {
+        String body = json("foto", "https://example.test/photo.jpg");
+        when(personaService.create(any(), any())).thenReturn(response(7, (short) 1));
+        when(personaService.update(any(), any(), any())).thenReturn(response(7, (short) 1));
+
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+        mockMvc.perform(put(BASE_URL + "/7").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void rejectsMissingNullEmptyAndBlankEmailOnCreateAndCompleteUpdate() throws Exception {
         String omitted = validCreateJson().replace(",\"correo\":\"persona@example.test\"", "");
         String nullEmail = validCreateJson().replace("\"persona@example.test\"", "null");
@@ -238,11 +263,11 @@ class PersonaControllerWebMvcTest {
                 Arguments.of(json("telefono", ""), "telefono"),
                 Arguments.of(json("telefono", "7".repeat(21)), "telefono"),
                 Arguments.of(json("tipoPersona", "X"), "tipoPersona"),
-                Arguments.of(json("foto", "f".repeat(256)), "foto"));
+                Arguments.of(json("foto", "foto.jpg"), "foto"));
     }
 
     private static String json(String field, String value) {
-        return "{\"ci\":\"" + valueFor(field, "ci", value, "CI-001") + "\",\"nombre\":\""
+        String body = "{\"ci\":\"" + valueFor(field, "ci", value, "CI-001") + "\",\"nombre\":\""
                 + valueFor(field, "nombre", value, "Nombre válido") + "\",\"ap\":\""
                 + valueFor(field, "ap", value, "Paterno") + "\",\"am\":\""
                 + valueFor(field, "am", value, "Materno") + "\",\"genero\":\""
@@ -250,8 +275,8 @@ class PersonaControllerWebMvcTest {
                 + valueFor(field, "estado", value, "1") + "\",\"correo\":\""
                 + valueFor(field, "correo", value, "persona@example.test") + "\",\"telefono\":\""
                 + valueFor(field, "telefono", value, "70000000") + "\",\"tipoPersona\":\""
-                + valueFor(field, "tipoPersona", value, "A") + "\",\"foto\":\""
-                + valueFor(field, "foto", value, "foto") + "\"}";
+                + valueFor(field, "tipoPersona", value, "A") + "\"";
+        return body + (field.equals("foto") ? ",\"foto\":\"" + value + "\"}" : "}");
     }
 
     private static String valueFor(String field, String expectedField, String value, String defaultValue) {

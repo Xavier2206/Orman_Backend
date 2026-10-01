@@ -16,16 +16,19 @@ import com.orman.backend.person.dto.PersonaUsuarioResponse;
 import com.orman.backend.person.dto.PersonaUsuarioRow;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
 import com.orman.backend.person.entity.Persona;
+import com.orman.backend.person.exception.InvalidPersonaPhotoException;
 import com.orman.backend.person.mapper.PersonaMapper;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.person.repository.PersonaResumenProjection;
 import com.orman.backend.person.service.PersonaService;
+import com.orman.backend.person.service.PersonaPhotoService;
 import com.orman.backend.role.repository.RolUsuRepository;
 import com.orman.backend.user.repository.UsuarioRepository;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +43,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PersonaServiceImpl implements PersonaService {
 
+    private static final Pattern EXTERNAL_PHOTO_URL = Pattern.compile("(?i)^https?://[^\\s]+$");
+
     private final PersonaRepository personaRepository;
+    private final PersonaPhotoService personaPhotoService;
     private final PersonaMapper personaMapper;
     private final EntityManager entityManager;
     private final UsuarioRepository usuarioRepository;
@@ -58,6 +64,7 @@ public class PersonaServiceImpl implements PersonaService {
     @Override
     @Transactional
     public PersonaResponse create(CreatePersonaRequest request, Authentication authentication) {
+        validateExternalPhoto(request.foto());
         if (personaRepository.existsByCi(request.ci().trim())) {
             throw new ConflictException("El CI ya está registrado.");
         }
@@ -116,6 +123,7 @@ public class PersonaServiceImpl implements PersonaService {
     @Override
     @Transactional
     public PersonaResponse update(Integer codper, UpdatePersonaRequest request, Authentication authentication) {
+        validateExternalPhoto(request.foto());
         if ("0".equals(request.estado())) {
             ownerProtectionService.assertCanDeactivatePerson(codper);
         }
@@ -125,6 +133,12 @@ public class PersonaServiceImpl implements PersonaService {
         }
         try {
             personaMapper.update(persona, request);
+            if (request.foto() != null) {
+                if (persona.getFoto() != null && persona.getFoto().startsWith("personas/")) {
+                    throw new InvalidPersonaPhotoException("El archivo interno se gestiona mediante el endpoint de foto.");
+                }
+                persona.setFoto(request.foto().trim());
+            }
             Persona saved = personaRepository.saveAndFlush(persona);
             revokeIfInactive(saved);
             return toResponse(saved, authentication);
@@ -162,7 +176,11 @@ public class PersonaServiceImpl implements PersonaService {
     @Transactional
     public void delete(Integer codper) {
         ownerProtectionService.assertCanDeactivatePerson(codper);
-        personaRepository.delete(find(codper));
+        Persona persona = find(codper);
+        String photoReference = persona.getFoto();
+        personaRepository.delete(persona);
+        personaRepository.flush();
+        personaPhotoService.deleteAfterPersonaRemoval(codper, photoReference);
     }
 
     private PersonaResponse changeStatus(Integer codper, short estado, Authentication authentication) {
@@ -192,7 +210,7 @@ public class PersonaServiceImpl implements PersonaService {
             PersonaUsuarioRow usuario = usuarios.get(persona.getCodper());
             PersonaUsuarioResponse usuarioResponse = usuario == null ? null
                     : new PersonaUsuarioResponse(usuario.login(), usuario.estado());
-            boolean canManage = owner;
+            boolean canManage = owner && authorizationService.canManagePerson(authentication, persona.getCodper());
             boolean active = Short.valueOf((short) 1).equals(persona.getEstado());
             boolean lastOwner = activeOwners.contains(persona.getCodper()) && lastOwnerInPage;
             boolean canChangePassword = usuario != null && authorizationService.isSelfOrOwner(authentication,
@@ -207,6 +225,12 @@ public class PersonaServiceImpl implements PersonaService {
         if (Short.valueOf((short) 0).equals(persona.getEstado())) {
             usuarioRepository.findByPersonaCodper(persona.getCodper())
                     .ifPresent(usuario -> sessionService.revokeAll(usuario.getLogin(), RevocationReason.PERSON_DISABLED));
+        }
+    }
+
+    private void validateExternalPhoto(String foto) {
+        if (foto != null && (foto.length() > 255 || !EXTERNAL_PHOTO_URL.matcher(foto).matches())) {
+            throw new InvalidPersonaPhotoException("La foto externa debe ser una URL HTTP o HTTPS válida.");
         }
     }
 

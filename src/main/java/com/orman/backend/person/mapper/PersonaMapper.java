@@ -17,13 +17,14 @@ public class PersonaMapper {
     public Persona toEntity(CreatePersonaRequest request) {
         Persona persona = new Persona();
         apply(persona, request.ci(), request.nombre(), request.ap(), request.am(), request.genero(),
-                request.estado(), request.correo(), request.telefono(), request.tipoPersona(), request.foto());
+                request.estado(), request.correo(), request.telefono(), request.tipoPersona());
+        persona.setFoto(blankToNull(request.foto()));
         return persona;
     }
 
     public void update(Persona persona, UpdatePersonaRequest request) {
         apply(persona, request.ci(), request.nombre(), request.ap(), request.am(), request.genero(),
-                request.estado(), request.correo(), request.telefono(), request.tipoPersona(), request.foto());
+                request.estado(), request.correo(), request.telefono(), request.tipoPersona());
     }
 
     public PersonaResponse toResponse(Persona persona) {
@@ -51,10 +52,10 @@ public class PersonaMapper {
     }
 
     private void apply(Persona persona, String ci, String nombre, String ap, String am, String genero, String estado,
-                       String correo, String telefono, String tipoPersona, String foto) {
+                       String correo, String telefono, String tipoPersona) {
         persona.setCi(trim(ci)); persona.setNombre(trim(nombre)); persona.setAp(blankToNull(ap)); persona.setAm(blankToNull(am));
         persona.setGenero(upper(genero)); persona.setEstado(estado == null ? null : Short.valueOf(estado));
-        persona.setCorreo(blankToNull(correo)); persona.setTelefono(trim(telefono)); persona.setTipoPersona(upper(tipoPersona)); persona.setFoto(blankToNull(foto));
+        persona.setCorreo(blankToNull(correo)); persona.setTelefono(trim(telefono)); persona.setTipoPersona(upper(tipoPersona));
     }
 
     private String trim(String value) {

@@ -2,16 +2,22 @@ package com.orman.backend.authorization.service.impl;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.authorization.service.AuthorizationService;
+import com.orman.backend.person.repository.PersonaRepository;
+import com.orman.backend.user.repository.UsuarioRepository;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service("authorizationService")
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class AuthorizationServiceImpl implements AuthorizationService {
 
     private static final String OWNER_AUTHORITY = "ROLE_PROPIETARIO";
+    private final UsuarioRepository usuarioRepository;
+    private final PersonaRepository personaRepository;
 
     @Override
     public boolean isOwner(Authentication authentication) {
@@ -30,7 +36,17 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     @Override
     public boolean canManagePerson(Authentication authentication, Integer codper) {
-        return isOwner(authentication);
+        if (codper == null || !isOwner(authentication)) {
+            return false;
+        }
+        return authenticatedLogin(authentication)
+                .flatMap(usuarioRepository::findByLoginWithPersona)
+                .map(usuario -> {
+                    Integer ownerCodper = usuario.getPersona().getCodper();
+                    return ownerCodper.equals(codper)
+                            || personaRepository.existsTenantLinkedToOwner(codper, ownerCodper);
+                })
+                .orElse(false);
     }
 
     private boolean hasAuthority(Authentication authentication, String authority) {

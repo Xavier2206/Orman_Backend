@@ -13,10 +13,12 @@ import com.orman.backend.person.dto.CreatePersonaRequest;
 import com.orman.backend.person.dto.PersonaResponse;
 import com.orman.backend.person.dto.PersonaResumenResponse;
 import com.orman.backend.person.dto.UpdatePersonaRequest;
+import com.orman.backend.person.exception.InvalidPersonaPhotoException;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.mapper.PersonaMapper;
 import com.orman.backend.person.repository.PersonaRepository;
 import com.orman.backend.person.repository.PersonaResumenProjection;
+import com.orman.backend.person.service.PersonaPhotoService;
 import com.orman.backend.user.repository.UsuarioRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +51,7 @@ import static org.mockito.Mockito.when;
 class PersonaServiceImplTest {
 
     @Mock private PersonaRepository personaRepository;
+    @Mock private PersonaPhotoService personaPhotoService;
     @Mock private PersonaMapper personaMapper;
     @Mock private EntityManager entityManager;
     @Mock private UsuarioRepository usuarioRepository;
@@ -170,6 +173,33 @@ class PersonaServiceImplTest {
     }
 
     @Test
+    void rejectsJsonChangeFromInternalPhotoToExternalUrl() {
+        Persona persona = persona(5, (short) 1);
+        String reference = "personas/5/00000000-0000-0000-0000-000000000001.jpg";
+        persona.setFoto(reference);
+        when(personaRepository.findById(5)).thenReturn(Optional.of(persona));
+        UpdatePersonaRequest request = new UpdatePersonaRequest("CI-005", "Nombre", null, null,
+                "F", "1", "persona.service@example.test", "70000000", "A", "https://example.test/photo.jpg");
+
+        assertThatThrownBy(() -> service.update(5, request)).isInstanceOf(InvalidPersonaPhotoException.class);
+        assertThat(persona.getFoto()).isEqualTo(reference);
+        verify(personaRepository, never()).saveAndFlush(persona);
+    }
+
+    @Test
+    void acceptsExternalPhotoUrlForPersonWithoutInternalFile() {
+        Persona persona = persona(5, (short) 1);
+        when(personaRepository.findById(5)).thenReturn(Optional.of(persona));
+        when(personaRepository.saveAndFlush(persona)).thenReturn(persona);
+        UpdatePersonaRequest request = new UpdatePersonaRequest("CI-005", "Nombre", null, null,
+                "F", "1", "persona.service@example.test", "70000000", "A", "https://example.test/photo.jpg");
+
+        service.update(5, request);
+
+        assertThat(persona.getFoto()).isEqualTo("https://example.test/photo.jpg");
+    }
+
+    @Test
     void rejectsDuplicateCiOnUpdateAndMissingPersona() {
         Persona persona = persona(6, (short) 1);
         UpdatePersonaRequest request = updateRequest("CI-006");
@@ -185,10 +215,13 @@ class PersonaServiceImplTest {
     @Test
     void deletesPhysicallyAndRejectsMissingPersona() {
         Persona persona = persona(8, (short) 1);
+        persona.setFoto("personas/8/00000000-0000-0000-0000-000000000001.jpg");
         when(personaRepository.findById(8)).thenReturn(Optional.of(persona));
 
         service.delete(8);
         verify(personaRepository).delete(persona);
+        verify(personaRepository).flush();
+        verify(personaPhotoService).deleteAfterPersonaRemoval(8, persona.getFoto());
         when(personaRepository.findById(9)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.delete(9)).isInstanceOf(ResourceNotFoundException.class);
     }
@@ -251,6 +284,7 @@ class PersonaServiceImplTest {
         when(usuarioRepository.findSummariesByPersonaCodperIn(any()))
                 .thenReturn(List.of(new PersonaUsuarioRow(20, "persona.20", (short) 1)));
         when(authorizationService.isOwner(authentication)).thenReturn(true);
+        when(authorizationService.canManagePerson(authentication, 20)).thenReturn(true);
         when(authorizationService.isSelfOrOwner(authentication, "persona.20")).thenReturn(true);
 
         PersonaResponse created = service.create(createRequest, authentication);

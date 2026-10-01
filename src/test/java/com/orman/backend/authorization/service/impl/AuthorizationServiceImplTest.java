@@ -1,31 +1,51 @@
 package com.orman.backend.authorization.service.impl;
 
 import com.orman.backend.auth.model.AuthenticatedUser;
+import com.orman.backend.person.entity.Persona;
+import com.orman.backend.person.repository.PersonaRepository;
+import com.orman.backend.user.entity.Usuario;
+import com.orman.backend.user.repository.UsuarioRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthorizationServiceImplTest {
 
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private PersonaRepository personaRepository;
     @InjectMocks private AuthorizationServiceImpl service;
 
     @Test
-    void ownerCanManageEveryTargetAndChangeAnyPassword() {
+    void ownerCanManageSelfAndLinkedTenantButNotUnrelatedPerson() {
         Authentication owner = authentication("owner", "ROLE_PROPIETARIO");
+        Usuario usuario = new Usuario();
+        Persona persona = new Persona();
+        ReflectionTestUtils.setField(persona, "codper", 7);
+        usuario.setPersona(persona);
+        when(usuarioRepository.findByLoginWithPersona("owner")).thenReturn(Optional.of(usuario));
+        when(personaRepository.existsTenantLinkedToOwner(10, 7)).thenReturn(true);
 
         assertThat(service.isOwner(owner)).isTrue();
         assertThat(service.canManageUser(owner, "another.owner")).isTrue();
-        assertThat(service.canManagePerson(owner, 99)).isTrue();
+        assertThat(service.canManagePerson(owner, 7)).isTrue();
+        assertThat(service.canManagePerson(owner, 10)).isTrue();
+        assertThat(service.canManagePerson(owner, 99)).isFalse();
         assertThat(service.isSelfOrOwner(owner, "another.user")).isTrue();
+        verify(personaRepository).existsTenantLinkedToOwner(99, 7);
     }
 
     @Test

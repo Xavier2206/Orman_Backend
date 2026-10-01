@@ -19,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -79,6 +80,26 @@ class PersonaPhotoServiceImplTest {
     }
 
     @Test
+    void removesNewPhotoOnLaterRollbackAndPreservesPreviousPhoto() throws Exception {
+        Path previous = storage.resolve("personas/8/00000000-0000-0000-0000-000000000001.jpg");
+        Files.createDirectories(previous.getParent());
+        Files.write(previous, jpeg(20, 20));
+        Persona persona = persona(8, "personas/8/00000000-0000-0000-0000-000000000001.jpg");
+        when(repository.findById(8)).thenReturn(Optional.of(persona));
+        when(repository.saveAndFlush(persona)).thenReturn(persona);
+        TransactionSynchronizationManager.initSynchronization();
+
+        service(2 * 1024 * 1024).upload(8, image("replacement.jpg", "image/jpeg", "jpg", 30, 30));
+        Path replacement = storage.resolve(persona.getFoto());
+        assertThat(replacement).exists();
+        TransactionSynchronizationManager.getSynchronizations().forEach(
+                sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+        assertThat(replacement).doesNotExist();
+        assertThat(previous).exists();
+    }
+
+    @Test
     void rejectsInvalidOversizedMissingAndTraversalReferencesWithoutLosingExistingPhoto() throws Exception {
         Persona persona = persona(9, "../../outside.jpg");
         when(repository.findById(9)).thenReturn(Optional.of(persona));
@@ -109,6 +130,46 @@ class PersonaPhotoServiceImplTest {
         assertThat(persona.getFoto()).isNull();
         TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
         assertThat(file).doesNotExist();
+        verify(repository).saveAndFlush(persona);
+    }
+
+    @Test
+    void removesPhotoOfDeletedPersonaOnlyAfterCommit() throws Exception {
+        String reference = "personas/12/00000000-0000-0000-0000-000000000001.jpg";
+        Path file = storage.resolve(reference);
+        Files.createDirectories(file.getParent());
+        Files.write(file, jpeg(20, 20));
+        TransactionSynchronizationManager.initSynchronization();
+
+        service(2 * 1024 * 1024).deleteAfterPersonaRemoval(12, reference);
+        assertThat(file).exists();
+        TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
+        assertThat(file).doesNotExist();
+    }
+
+    @Test
+    void keepsPhotoOfDeletedPersonaWhenTransactionRollsBack() throws Exception {
+        String reference = "personas/12/00000000-0000-0000-0000-000000000001.jpg";
+        Path file = storage.resolve(reference);
+        Files.createDirectories(file.getParent());
+        Files.write(file, jpeg(20, 20));
+        TransactionSynchronizationManager.initSynchronization();
+
+        service(2 * 1024 * 1024).deleteAfterPersonaRemoval(12, reference);
+        TransactionSynchronizationManager.getSynchronizations().forEach(
+                sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+        assertThat(file).exists();
+    }
+
+    @Test
+    void clearsExternalPhotoReferenceWithoutLookingForLocalFile() {
+        Persona persona = persona(13, "https://example.test/photo.jpg");
+        when(repository.findById(13)).thenReturn(Optional.of(persona));
+        when(repository.saveAndFlush(persona)).thenReturn(persona);
+
+        service(2 * 1024 * 1024).delete(13);
+
+        assertThat(persona.getFoto()).isNull();
         verify(repository).saveAndFlush(persona);
     }
 

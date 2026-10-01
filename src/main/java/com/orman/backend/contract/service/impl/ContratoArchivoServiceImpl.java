@@ -3,6 +3,11 @@ package com.orman.backend.contract.service.impl;
 import com.orman.backend.auth.model.AuthenticatedUser;
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
+import com.orman.backend.common.file.StorageException;
+import com.orman.backend.common.file.StorageInputStreamResource;
+import com.orman.backend.common.file.StorageObjectNotFoundException;
+import com.orman.backend.common.file.StoredObject;
 import com.orman.backend.config.OrmanTimeConfig;
 import com.orman.backend.contract.config.ContratoArchivoProperties;
 import com.orman.backend.contract.dto.response.ContratoArchivoResponse;
@@ -17,11 +22,8 @@ import com.orman.backend.contract.service.ContratoArchivoService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,7 +32,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
@@ -54,6 +55,7 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
     private final ContratoArchivoProperties properties;
     private final ContratoPdfProcessor pdfProcessor;
     private final Clock clock;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
@@ -74,7 +76,7 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
         Path root = storageRoot();
         Path original = null;
         Path processed = null;
-        Path stored = null;
+        String storedKey = null;
         try {
             Files.createDirectories(root);
             original = Files.createTempFile(root, ".contrato-upload-", ".tmp");
@@ -86,37 +88,37 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
             long tamanoFinal = Files.size(processed);
 
             String nombreAlmacenado = UUID.randomUUID() + ".pdf";
-            Path contractDirectory = root.resolve("contratos").resolve(codcon.toString()).normalize();
-            if (!contractDirectory.startsWith(root)) {
-                throw new IOException("Invalid contract storage path");
-            }
-            Files.createDirectories(contractDirectory);
-            stored = contractDirectory.resolve(nombreAlmacenado);
-            move(processed, stored);
             String rutaRef = "contratos/" + codcon + "/" + nombreAlmacenado;
+            storedKey = rutaRef;
+            try (InputStream input = Files.newInputStream(processed)) {
+                fileStorageService.put(storedKey, input, tamanoFinal, PDF_CONTENT_TYPE);
+            }
             ContratoArchivoEntity entity = contratoArchivoMapper.toEntity(contrato, nombreOriginal,
                     nombreAlmacenado, rutaRef, tamanoOriginal, tamanoFinal,
                     OrmanTimeConfig.businessNow(clock), authenticatedLogin(authentication), orden);
             try {
                 ContratoArchivoEntity saved = contratoArchivoRepository.saveAndFlush(entity);
-                deleteStoredFileOnRollback(stored);
+                deleteStoredFileOnRollback(storedKey);
                 return contratoArchivoMapper.toResponse(saved);
             } catch (DataIntegrityViolationException exception) {
-                deleteQuietly(stored);
+                deleteQuietly(storedKey);
                 throw duplicateOrden();
             } catch (RuntimeException exception) {
-                deleteQuietly(stored);
+                deleteQuietly(storedKey);
                 throw exception;
             }
         } catch (InvalidContratoArchivoException | ConflictException exception) {
+            throw exception;
+        } catch (StorageException exception) {
+            deleteQuietly(storedKey);
             throw exception;
         } catch (IOException exception) {
             LOGGER.error("No se pudo almacenar el documento de Contrato codcon={}", codcon,
                     exception.getClass().getSimpleName());
             throw new IllegalStateException("No fue posible almacenar el documento PDF.");
         } finally {
-            deleteQuietly(original);
-            deleteQuietly(processed);
+            deleteTemporaryQuietly(original);
+            deleteTemporaryQuietly(processed);
         }
     }
 
@@ -133,14 +135,15 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
     public ContratoArchivoContent download(Integer codcon, Integer codarc, Authentication authentication) {
         contractOwnershipService.findOwnedContrato(codcon, authentication);
         ContratoArchivoEntity archivo = findArchivo(codcon, codarc);
-        Path file = resolveStoredFile(archivo.getRutaRef());
-        if (file == null || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+        String key = resolveStoredKey(archivo.getRutaRef(), codcon);
+        if (key == null) {
             throw new ResourceNotFoundException("El documento del Contrato no está disponible.");
         }
         try {
-            return new ContratoArchivoContent(new FileSystemResource(file), archivo.getNombreArchivo(),
-                    Files.size(file));
-        } catch (IOException exception) {
+            StoredObject object = fileStorageService.get(key);
+            return new ContratoArchivoContent(new StorageInputStreamResource(object), archivo.getNombreArchivo(),
+                    object.contentLength());
+        } catch (StorageObjectNotFoundException exception) {
             throw new ResourceNotFoundException("El documento del Contrato no está disponible.");
         }
     }
@@ -150,10 +153,10 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
     public void delete(Integer codcon, Integer codarc, Authentication authentication) {
         contractOwnershipService.findOwnedContrato(codcon, authentication);
         ContratoArchivoEntity archivo = findArchivo(codcon, codarc);
-        Path file = resolveStoredFile(archivo.getRutaRef());
+        String key = resolveStoredKey(archivo.getRutaRef(), codcon);
         contratoArchivoRepository.delete(archivo);
         contratoArchivoRepository.flush();
-        deleteStoredFileAfterCommit(file);
+        deleteStoredFileAfterCommit(key);
     }
 
     private String validateMetadata(MultipartFile archivo) {
@@ -226,70 +229,63 @@ public class ContratoArchivoServiceImpl implements ContratoArchivoService {
         return Path.of(properties.root()).toAbsolutePath().normalize();
     }
 
-    private Path resolveStoredFile(String reference) {
-        if (reference == null || reference.isBlank()) {
+    private String resolveStoredKey(String reference, Integer codcon) {
+        if (reference == null || codcon == null
+                || !reference.matches("contratos/" + codcon + "/[0-9a-fA-F-]{36}\\.pdf")) {
             return null;
         }
-        Path root = storageRoot();
-        Path candidate = root.resolve(reference).normalize();
-        if (!candidate.startsWith(root)) {
-            return null;
-        }
-        try {
-            Path realRoot = root.toRealPath();
-            Path realCandidate = candidate.toRealPath();
-            return realCandidate.startsWith(realRoot) ? realCandidate : null;
-        } catch (IOException exception) {
-            return null;
-        }
+        return reference;
     }
 
-    private void move(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(source, target);
-        }
-    }
-
-    private void deleteStoredFileOnRollback(Path path) {
-        if (path == null || !TransactionSynchronizationManager.isSynchronizationActive()) {
+    private void deleteStoredFileOnRollback(String key) {
+        if (key == null || !TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
                 if (status != STATUS_COMMITTED) {
-                    deleteQuietly(path);
+                    deleteQuietly(key);
                 }
             }
         });
     }
 
-    private void deleteStoredFileAfterCommit(Path path) {
-        if (path == null) {
+    private void deleteStoredFileAfterCommit(String key) {
+        if (key == null) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(path);
+            deleteQuietly(key);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(path);
+                deleteQuietly(key);
             }
         });
     }
 
-    private void deleteQuietly(Path path) {
+    private void deleteQuietly(String key) {
+        if (key == null) {
+            return;
+        }
+        try {
+            fileStorageService.delete(key);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("No se pudo limpiar un archivo privado de Contrato.");
+        }
+    }
+
+    private void deleteTemporaryQuietly(Path path) {
         if (path == null) {
             return;
         }
         try {
             Files.deleteIfExists(path);
         } catch (IOException exception) {
-            LOGGER.warn("No se pudo limpiar un archivo privado de Contrato.");
+            LOGGER.warn("No se pudo limpiar un archivo temporal de Contrato.");
         }
     }
 

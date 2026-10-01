@@ -2,6 +2,9 @@ package com.orman.backend.property.service.impl;
 
 import com.orman.backend.common.exception.ConflictException;
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
+import com.orman.backend.common.file.StorageInputStreamResource;
+import com.orman.backend.common.file.StoredObject;
 import com.orman.backend.property.config.UnidadFotoProperties;
 import com.orman.backend.property.dto.request.UnidadFotoRequest;
 import com.orman.backend.property.dto.request.UnidadFotoMetadataRequest;
@@ -18,9 +21,8 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,8 +37,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -57,6 +57,7 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
     private final UnidadFotoMapper unidadFotoMapper;
     private final PropertyOwnershipService propertyOwnershipService;
     private final UnidadFotoProperties properties;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
@@ -78,18 +79,21 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         UnidadEntity unidad = findOwnedUnidad(coduni, authentication);
         assertAvailableOrden(coduni, request.orden(), null);
         BufferedImage image = validateAndRead(foto);
-        Path target = destination(coduni);
+        String target = destination(coduni);
         try {
-            Files.createDirectories(target.getParent());
-            writeJpeg(scaleForPhoto(image), target);
-        } catch (IOException exception) {
+            byte[] content = writeJpeg(scaleForPhoto(image));
+            fileStorageService.put(target, content, MediaType.IMAGE_JPEG_VALUE);
+        } catch (RuntimeException | IOException exception) {
             deleteQuietly(target);
+            if (exception instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
             throw new InvalidUnidadFotoException("No fue posible almacenar la fotografía de la Unidad.");
         }
 
         try {
             UnidadFotoEntity saved = unidadFotoRepository.saveAndFlush(
-                    unidadFotoMapper.toInternalEntity(request, unidad, reference(coduni, target)));
+                    unidadFotoMapper.toInternalEntity(request, unidad, target));
             registerReplacementLifecycle(target, null);
             return unidadFotoMapper.toResponse(saved);
         } catch (DataIntegrityViolationException exception) {
@@ -117,7 +121,7 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         findOwnedUnidad(coduni, authentication);
         UnidadFotoEntity foto = findFoto(coduni, id);
         assertAvailableOrden(coduni, request.orden(), id);
-        Path previous = resolveStoredFile(foto.getFotoRef(), coduni);
+        String previous = resolveStoredKey(foto.getFotoRef(), coduni);
         try {
             unidadFotoMapper.update(foto, request);
             UnidadFotoResponse response = unidadFotoMapper.toResponse(unidadFotoRepository.saveAndFlush(foto));
@@ -150,18 +154,21 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         findOwnedUnidad(coduni, authentication);
         UnidadFotoEntity foto = findFoto(coduni, id);
         BufferedImage image = validateAndRead(archivo);
-        Path target = destination(coduni);
+        String target = destination(coduni);
         try {
-            Files.createDirectories(target.getParent());
-            writeJpeg(scaleForPhoto(image), target);
-        } catch (IOException exception) {
+            byte[] content = writeJpeg(scaleForPhoto(image));
+            fileStorageService.put(target, content, MediaType.IMAGE_JPEG_VALUE);
+        } catch (RuntimeException | IOException exception) {
             deleteQuietly(target);
+            if (exception instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
             throw new InvalidUnidadFotoException("No fue posible almacenar la fotografía de la Unidad.");
         }
 
-        Path previous = resolveStoredFile(foto.getFotoRef(), coduni);
+        String previous = resolveStoredKey(foto.getFotoRef(), coduni);
         foto.setUrl(null);
-        foto.setFotoRef(reference(coduni, target));
+        foto.setFotoRef(target);
         try {
             UnidadFotoResponse response = unidadFotoMapper.toResponse(unidadFotoRepository.saveAndFlush(foto));
             registerReplacementLifecycle(target, previous);
@@ -177,12 +184,16 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
     public UnidadFotoResource getArchivo(Integer coduni, Integer id, Authentication authentication) {
         findOwnedUnidad(coduni, authentication);
         UnidadFotoEntity foto = findFoto(coduni, id);
-        Path file = resolveStoredFile(foto.getFotoRef(), coduni);
-        if (file == null || !Files.isRegularFile(file)) {
+        String key = resolveStoredKey(foto.getFotoRef(), coduni);
+        if (key == null) {
             throw new ResourceNotFoundException("El archivo interno de la fotografía de la Unidad no existe.");
         }
-        Resource resource = new FileSystemResource(file);
-        return new UnidadFotoResource(resource, MediaType.IMAGE_JPEG);
+        try {
+            StoredObject object = fileStorageService.get(key);
+            return new UnidadFotoResource(new StorageInputStreamResource(object), MediaType.IMAGE_JPEG);
+        } catch (com.orman.backend.common.file.StorageObjectNotFoundException exception) {
+            throw new ResourceNotFoundException("El archivo interno de la fotografía de la Unidad no existe.");
+        }
     }
 
     @Override
@@ -202,10 +213,10 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
     public void delete(Integer coduni, Integer id, Authentication authentication) {
         findOwnedUnidad(coduni, authentication);
         UnidadFotoEntity foto = findFoto(coduni, id);
-        Path file = resolveStoredFile(foto.getFotoRef(), coduni);
+        String key = resolveStoredKey(foto.getFotoRef(), coduni);
         unidadFotoRepository.delete(foto);
         unidadFotoRepository.flush();
-        deleteAfterCommit(file);
+        deleteAfterCommit(key);
     }
 
     private UnidadEntity findOwnedUnidad(Integer coduni, Authentication authentication) {
@@ -277,29 +288,15 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         return "jpeg".equals(format) ? MediaType.IMAGE_JPEG_VALUE : MediaType.IMAGE_PNG_VALUE;
     }
 
-    private Path destination(Integer coduni) {
-        Path root = storageRoot();
-        Path directory = root.resolve("unidades").resolve(String.valueOf(coduni)).normalize();
-        if (!directory.startsWith(root)) {
-            throw new InvalidUnidadFotoException("La ruta de fotografía no es válida.");
-        }
-        return directory.resolve(UUID.randomUUID() + ".jpg").normalize();
+    private String destination(Integer coduni) {
+        return "unidades/" + coduni + "/" + UUID.randomUUID() + ".jpg";
     }
 
-    private String reference(Integer coduni, Path target) {
-        return "unidades/" + coduni + "/" + target.getFileName();
-    }
-
-    private Path resolveStoredFile(String reference, Integer coduni) {
+    private String resolveStoredKey(String reference, Integer coduni) {
         if (reference == null || !reference.matches("unidades/" + coduni + "/[0-9a-fA-F-]+\\.jpg")) {
             return null;
         }
-        Path candidate = storageRoot().resolve(reference).normalize();
-        return candidate.startsWith(storageRoot()) ? candidate : null;
-    }
-
-    private Path storageRoot() {
-        return Path.of(properties.root()).toAbsolutePath().normalize();
+        return reference;
     }
 
     private BufferedImage scaleForPhoto(BufferedImage source) {
@@ -322,9 +319,10 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         return target;
     }
 
-    private void writeJpeg(BufferedImage image, Path target) throws IOException {
+    private byte[] writeJpeg(BufferedImage image) throws IOException {
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
-        try (ImageOutputStream output = ImageIO.createImageOutputStream(Files.newOutputStream(target))) {
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ImageOutputStream output = ImageIO.createImageOutputStream(bytes)) {
             writer.setOutput(output);
             ImageWriteParam parameters = writer.getDefaultWriteParam();
             if (parameters.canWriteCompressed()) {
@@ -332,12 +330,14 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
                 parameters.setCompressionQuality(0.85f);
             }
             writer.write(null, new javax.imageio.IIOImage(image, null, null), parameters);
+            output.flush();
+            return bytes.toByteArray();
         } finally {
             writer.dispose();
         }
     }
 
-    private void registerReplacementLifecycle(Path target, Path previous) {
+    private void registerReplacementLifecycle(String target, String previous) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             deleteQuietly(previous);
             return;
@@ -357,29 +357,29 @@ public class UnidadFotoServiceImpl implements UnidadFotoService {
         });
     }
 
-    private void deleteAfterCommit(Path path) {
-        if (path == null) {
+    private void deleteAfterCommit(String key) {
+        if (key == null) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(path);
+            deleteQuietly(key);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(path);
+                deleteQuietly(key);
             }
         });
     }
 
-    private void deleteQuietly(Path path) {
-        if (path == null) {
+    private void deleteQuietly(String key) {
+        if (key == null) {
             return;
         }
         try {
-            Files.deleteIfExists(path);
-        } catch (IOException exception) {
+            fileStorageService.delete(key);
+        } catch (RuntimeException exception) {
             LOGGER.warn("No se pudo eliminar una fotografía de Unidad almacenada.");
         }
     }

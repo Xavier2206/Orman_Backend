@@ -76,7 +76,8 @@ class ContratoArchivoServiceImplTest {
         properties = properties(20 * MB);
         processor = new ContratoPdfProcessor(properties);
         service = new ContratoArchivoServiceImpl(repository, new ContratoArchivoMapper(), ownershipService,
-                properties, processor, fixedClock());
+                properties, processor, fixedClock(), new com.orman.backend.common.file.LocalFileStorageService(
+                java.util.Map.of("contratos", storage.toString())));
 
         lenient().when(ownershipService.findOwnedContrato(42, authentication)).thenReturn(contrato);
         lenient().when(repository.existsByContratoCodconAndOrden(any(), any())).thenAnswer(invocation -> records.stream()
@@ -162,7 +163,9 @@ class ContratoArchivoServiceImplTest {
         byte[] pdf = pdf("Documento grande para el límite");
         ContratoArchivoProperties tinyLimit = properties(pdf.length - 1L);
         ContratoArchivoServiceImpl limited = new ContratoArchivoServiceImpl(repository, new ContratoArchivoMapper(),
-                ownershipService, tinyLimit, new ContratoPdfProcessor(tinyLimit), fixedClock());
+                ownershipService, tinyLimit, new ContratoPdfProcessor(tinyLimit), fixedClock(),
+                new com.orman.backend.common.file.LocalFileStorageService(
+                        java.util.Map.of("contratos", storage.toString())));
 
         assertThatThrownBy(() -> limited.create(42, upload("limite.pdf", "application/pdf", pdf), 0,
                 authentication)).isInstanceOf(InvalidContratoArchivoException.class)

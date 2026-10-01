@@ -174,7 +174,9 @@ class PersonaPhotoServiceImplTest {
     }
 
     private PersonaPhotoServiceImpl service(long maxFileSize) {
-        return new PersonaPhotoServiceImpl(repository, new PersonaPhotoProperties(storage.toString(), maxFileSize, 320));
+        return new PersonaPhotoServiceImpl(repository, new PersonaPhotoProperties(storage.toString(), maxFileSize, 320),
+                new com.orman.backend.common.file.LocalFileStorageService(
+                        java.util.Map.of("personas", storage.toString())));
     }
 
     private Persona persona(int codper, String foto) {

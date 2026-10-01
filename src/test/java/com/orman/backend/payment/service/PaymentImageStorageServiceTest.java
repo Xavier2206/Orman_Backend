@@ -27,7 +27,9 @@ class PaymentImageStorageServiceTest {
     @BeforeEach
     void setUp() {
         storage = new PaymentImageStorageService(new PaymentImageStorageProperties(tempDir.toString(),
-                5 * 1024 * 1024, 1920));
+                5 * 1024 * 1024, 1920),
+                new com.orman.backend.common.file.LocalFileStorageService(java.util.Map.of(
+                        "qr-cobro", tempDir.toString(), "comprobantes", tempDir.toString())));
     }
 
     @Test
@@ -42,7 +44,8 @@ class PaymentImageStorageServiceTest {
         assertThat(storage.loadQr(png.rutaArchivo(), 12).tipoContenido()).isEqualTo("image/png");
         assertThat(storage.loadQr(qrJpeg.rutaArchivo(), 13).tipoContenido()).isEqualTo("image/jpeg");
         assertThat(storage.loadProof(proofJpeg.rutaArchivo(), 44).tipoContenido()).isEqualTo("image/jpeg");
-        assertThat(storage.loadQr(png.rutaArchivo(), 12).resource().getFile().toPath()).startsWith(tempDir);
+        assertThat(Files.exists(tempDir.resolve(png.rutaArchivo()))).isTrue();
+        assertThat(storage.loadQr(png.rutaArchivo(), 12).resource().getInputStream().readAllBytes()).isNotEmpty();
     }
 
     @Test
@@ -64,7 +67,8 @@ class PaymentImageStorageServiceTest {
     @Test
     void normalizesOversizedImagesWithoutExceedingConfiguredDimension() throws Exception {
         StoredPaymentImage stored = storage.storeProof(image("proof.png", "image/png", "png", 2300, 100), 19);
-        BufferedImage normalized = ImageIO.read(storage.loadProof(stored.rutaArchivo(), 19).resource().getFile());
+        BufferedImage normalized = ImageIO.read(storage.loadProof(stored.rutaArchivo(), 19)
+                .resource().getInputStream());
         assertThat(normalized.getWidth()).isLessThanOrEqualTo(1920);
         assertThat(normalized.getHeight()).isLessThanOrEqualTo(1920);
         assertThat(normalized.getWidth()).isEqualTo(1920);

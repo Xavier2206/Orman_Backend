@@ -215,7 +215,9 @@ class UnidadFotoServiceImplTest {
 
     private UnidadFotoServiceImpl service(long maxFileSize, int maxDimension) {
         return new UnidadFotoServiceImpl(unidadRepository, unidadFotoRepository, new UnidadFotoMapper(),
-                ownershipService, new UnidadFotoProperties(storage.toString(), maxFileSize, maxDimension));
+                ownershipService, new UnidadFotoProperties(storage.toString(), maxFileSize, maxDimension),
+                new com.orman.backend.common.file.LocalFileStorageService(
+                        java.util.Map.of("unidades", storage.toString())));
     }
 
     private UnidadFotoMetadataRequest metadata() {

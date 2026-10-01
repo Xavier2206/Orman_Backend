@@ -160,12 +160,14 @@ class PropiedadPortadaServiceImplTest {
         Path rootFile = storage.resolve("not-a-directory");
         Files.writeString(rootFile, "file");
         PropiedadPortadaServiceImpl service = new PropiedadPortadaServiceImpl(propiedadRepository,
-                new PropiedadPortadaProperties(rootFile.toString(), 5 * 1024 * 1024, 1600), ownershipService);
+                new PropiedadPortadaProperties(rootFile.toString(), 5 * 1024 * 1024, 1600), ownershipService,
+                new com.orman.backend.common.file.LocalFileStorageService(
+                        java.util.Map.of("propiedades", rootFile.toString())));
         when(propiedadRepository.findById(7)).thenReturn(Optional.of(propiedad));
 
         assertThatThrownBy(() -> service.upload(7,
                 image("portada.jpg", "image/jpeg", "jpg", 20, 20), authentication))
-                .isInstanceOf(InvalidPropiedadPortadaException.class);
+                .isInstanceOf(com.orman.backend.common.file.StorageException.class);
         assertThat(propiedad.getPortadaRef()).isNull();
     }
 
@@ -196,7 +198,9 @@ class PropiedadPortadaServiceImplTest {
 
     private PropiedadPortadaServiceImpl service(long maxFileSize, int maxDimension) {
         return new PropiedadPortadaServiceImpl(propiedadRepository,
-                new PropiedadPortadaProperties(storage.toString(), maxFileSize, maxDimension), ownershipService);
+                new PropiedadPortadaProperties(storage.toString(), maxFileSize, maxDimension), ownershipService,
+                new com.orman.backend.common.file.LocalFileStorageService(
+                        java.util.Map.of("propiedades", storage.toString())));
     }
 
     private PropiedadEntity propiedad(int codprop, String portadaRef) {

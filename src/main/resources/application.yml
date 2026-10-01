@@ -73,6 +73,13 @@ notification:
     cron: ${NOTIFICATION_SCHEDULER_CRON:0 0 8 * * *}
 
 orman:
+  storage:
+    provider: ${ORMAN_STORAGE_PROVIDER:local}
+    r2:
+      endpoint: ${ORMAN_R2_ENDPOINT:}
+      bucket: ${ORMAN_R2_BUCKET:}
+      access-key-id: ${ORMAN_R2_ACCESS_KEY_ID:}
+      secret-access-key: ${ORMAN_R2_SECRET_ACCESS_KEY:}
   firebase:
     enabled: ${ORMAN_FIREBASE_ENABLED:false}
     project-id: ${ORMAN_FIREBASE_PROJECT_ID:${GOOGLE_CLOUD_PROJECT:}}

@@ -1,6 +1,10 @@
 package com.orman.backend.property.service.impl;
 
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
+import com.orman.backend.common.file.StorageInputStreamResource;
+import com.orman.backend.common.file.StorageObjectNotFoundException;
+import com.orman.backend.common.file.StoredObject;
 import com.orman.backend.property.config.PropiedadPortadaProperties;
 import com.orman.backend.property.entity.PropiedadEntity;
 import com.orman.backend.property.exception.InvalidPropiedadPortadaException;
@@ -11,9 +15,8 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -26,8 +29,6 @@ import javax.imageio.stream.ImageOutputStream;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -49,23 +50,27 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
     private final PropiedadRepository propiedadRepository;
     private final PropiedadPortadaProperties properties;
     private final PropertyOwnershipService propertyOwnershipService;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
     public void upload(Integer codprop, MultipartFile foto, Authentication authentication) {
         PropiedadEntity propiedad = findOwned(codprop, authentication);
         BufferedImage image = validateAndRead(foto);
-        Path target = destination(codprop);
+        String target = destination(codprop);
         try {
-            Files.createDirectories(target.getParent());
-            writeJpeg(scaleForCover(image), target);
-        } catch (IOException exception) {
+            byte[] content = writeJpeg(scaleForCover(image));
+            fileStorageService.put(target, content, MediaType.IMAGE_JPEG_VALUE);
+        } catch (RuntimeException | IOException exception) {
             deleteQuietly(target);
+            if (exception instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
             throw new InvalidPropiedadPortadaException("No fue posible almacenar la portada de la Propiedad.");
         }
 
-        Path previous = resolveStoredFile(propiedad.getPortadaRef(), codprop);
-        propiedad.setPortadaRef(reference(codprop, target));
+        String previous = resolveStoredKey(propiedad.getPortadaRef(), codprop);
+        propiedad.setPortadaRef(target);
         try {
             propiedadRepository.saveAndFlush(propiedad);
         } catch (RuntimeException exception) {
@@ -79,29 +84,33 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
     @Transactional(readOnly = true)
     public PropiedadPortadaResource get(Integer codprop, Authentication authentication) {
         PropiedadEntity propiedad = findOwned(codprop, authentication);
-        Path file = resolveStoredFile(propiedad.getPortadaRef(), codprop);
-        if (file == null || !Files.isRegularFile(file)) {
+        String key = resolveStoredKey(propiedad.getPortadaRef(), codprop);
+        if (key == null) {
             throw new ResourceNotFoundException("La portada de la Propiedad no existe.");
         }
-        MediaType mediaType = MEDIA_TYPES.get(extension(file));
+        MediaType mediaType = MEDIA_TYPES.get(extension(key));
         if (mediaType == null) {
             throw new ResourceNotFoundException("La portada de la Propiedad no existe.");
         }
-        Resource resource = new FileSystemResource(file);
-        return new PropiedadPortadaResource(resource, mediaType);
+        try {
+            StoredObject object = fileStorageService.get(key);
+            return new PropiedadPortadaResource(new StorageInputStreamResource(object), mediaType);
+        } catch (StorageObjectNotFoundException exception) {
+            throw new ResourceNotFoundException("La portada de la Propiedad no existe.");
+        }
     }
 
     @Override
     @Transactional
     public void delete(Integer codprop, Authentication authentication) {
         PropiedadEntity propiedad = findOwned(codprop, authentication);
-        Path file = resolveStoredFile(propiedad.getPortadaRef(), codprop);
-        if (file == null || !Files.isRegularFile(file)) {
+        String key = resolveStoredKey(propiedad.getPortadaRef(), codprop);
+        if (key == null || !fileStorageService.exists(key)) {
             throw new ResourceNotFoundException("La portada de la Propiedad no existe.");
         }
         propiedad.setPortadaRef(null);
         propiedadRepository.saveAndFlush(propiedad);
-        deleteAfterCommit(file);
+        deleteAfterCommit(key);
     }
 
     private PropiedadEntity findOwned(Integer codprop, Authentication authentication) {
@@ -151,29 +160,15 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
         return new InvalidPropiedadPortadaException("El archivo no contiene una imagen válida JPEG o PNG.");
     }
 
-    private Path destination(Integer codprop) {
-        Path root = storageRoot();
-        Path directory = root.resolve("propiedades").resolve(String.valueOf(codprop)).normalize();
-        if (!directory.startsWith(root)) {
-            throw new InvalidPropiedadPortadaException("La ruta de portada no es válida.");
-        }
-        return directory.resolve(UUID.randomUUID() + ".jpg").normalize();
+    private String destination(Integer codprop) {
+        return "propiedades/" + codprop + "/" + UUID.randomUUID() + ".jpg";
     }
 
-    private String reference(Integer codprop, Path target) {
-        return "propiedades/" + codprop + "/" + target.getFileName();
-    }
-
-    private Path resolveStoredFile(String reference, Integer codprop) {
+    private String resolveStoredKey(String reference, Integer codprop) {
         if (reference == null || !reference.matches("propiedades/" + codprop + "/[0-9a-fA-F-]+\\.jpg")) {
             return null;
         }
-        Path candidate = storageRoot().resolve(reference).normalize();
-        return candidate.startsWith(storageRoot()) ? candidate : null;
-    }
-
-    private Path storageRoot() {
-        return Path.of(properties.root()).toAbsolutePath().normalize();
+        return reference;
     }
 
     private BufferedImage scaleForCover(BufferedImage source) {
@@ -196,9 +191,10 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
         return target;
     }
 
-    private void writeJpeg(BufferedImage image, Path target) throws IOException {
+    private byte[] writeJpeg(BufferedImage image) throws IOException {
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
-        try (ImageOutputStream output = ImageIO.createImageOutputStream(Files.newOutputStream(target))) {
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ImageOutputStream output = ImageIO.createImageOutputStream(bytes)) {
             writer.setOutput(output);
             ImageWriteParam parameters = writer.getDefaultWriteParam();
             if (parameters.canWriteCompressed()) {
@@ -206,18 +202,21 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
                 parameters.setCompressionQuality(0.85f);
             }
             writer.write(null, new javax.imageio.IIOImage(image, null, null), parameters);
+            output.flush();
+            return bytes.toByteArray();
         } finally {
             writer.dispose();
         }
     }
 
-    private String extension(Path path) {
-        String name = path.getFileName().toString();
+    private String extension(String key) {
+        int slash = key.lastIndexOf('/');
+        String name = slash < 0 ? key : key.substring(slash + 1);
         int dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private void registerReplacementLifecycle(Path target, Path previous) {
+    private void registerReplacementLifecycle(String target, String previous) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             deleteQuietly(previous);
             return;
@@ -237,29 +236,29 @@ public class PropiedadPortadaServiceImpl implements PropiedadPortadaService {
         });
     }
 
-    private void deleteAfterCommit(Path path) {
-        if (path == null) {
+    private void deleteAfterCommit(String key) {
+        if (key == null) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(path);
+            deleteQuietly(key);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(path);
+                deleteQuietly(key);
             }
         });
     }
 
-    private void deleteQuietly(Path path) {
-        if (path == null) {
+    private void deleteQuietly(String key) {
+        if (key == null) {
             return;
         }
         try {
-            Files.deleteIfExists(path);
-        } catch (IOException exception) {
+            fileStorageService.delete(key);
+        } catch (RuntimeException exception) {
             LOGGER.warn("No se pudo eliminar una portada de Propiedad almacenada.");
         }
     }

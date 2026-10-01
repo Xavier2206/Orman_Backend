@@ -1,6 +1,11 @@
 package com.orman.backend.payment.service;
 
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
+import com.orman.backend.common.file.StorageException;
+import com.orman.backend.common.file.StorageInputStreamResource;
+import com.orman.backend.common.file.StorageObjectNotFoundException;
+import com.orman.backend.common.file.StoredObject;
 import com.orman.backend.payment.config.PaymentImageStorageProperties;
 import com.orman.backend.payment.exception.InvalidPaymentImageException;
 import java.awt.Color;
@@ -10,11 +15,8 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.UUID;
 import javax.imageio.IIOImage;
@@ -27,7 +29,6 @@ import javax.imageio.stream.ImageOutputStream;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class PaymentImageStorageService {
     private static final int DECODE_SIDE_LIMIT = 3840;
 
     private final PaymentImageStorageProperties properties;
+    private final FileStorageService fileStorageService;
 
     public StoredPaymentImage storeQr(MultipartFile file, Integer codperPropietaria) {
         return store(file, "qr-cobro", codperPropietaria, true);
@@ -62,11 +64,11 @@ public class PaymentImageStorageService {
     }
 
     public void deleteQrAfterCommit(String reference, Integer codperPropietaria) {
-        deleteAfterCommit(resolveStoredFile(reference, "qr-cobro", codperPropietaria));
+        deleteAfterCommit(resolveStoredKey(reference, "qr-cobro", codperPropietaria));
     }
 
     public void deleteProofAfterCommit(String reference, Integer codpag) {
-        deleteAfterCommit(resolveStoredFile(reference, "comprobantes", codpag));
+        deleteAfterCommit(resolveStoredKey(reference, "comprobantes", codpag));
     }
 
     private StoredPaymentImage store(MultipartFile file, String directoryName, Integer parentId, boolean qrImage) {
@@ -87,7 +89,7 @@ public class PaymentImageStorageService {
         Path root = storageRoot();
         Path upload = null;
         Path processed = null;
-        Path stored = null;
+        String storedKey = null;
         try {
             Files.createDirectories(root);
             upload = Files.createTempFile(root, ".payment-image-upload-", ".tmp");
@@ -95,30 +97,26 @@ public class PaymentImageStorageService {
             copyUpload(file, upload);
             ImageDetails image = normalize(upload, processed, originalName, suppliedType, qrImage);
 
-            Path directory = root.resolve(directoryName).resolve(parentId.toString()).normalize();
-            if (!directory.startsWith(root)) {
-                throw new InvalidPaymentImageException("La ruta de almacenamiento no es válida.");
-            }
-            Files.createDirectories(directory);
             String physicalName = UUID.randomUUID() + "." + image.extension();
-            stored = directory.resolve(physicalName).normalize();
-            if (!stored.startsWith(root)) {
-                throw new InvalidPaymentImageException("La ruta de almacenamiento no es válida.");
+            storedKey = directoryName + "/" + parentId + "/" + physicalName;
+            try (InputStream input = Files.newInputStream(processed)) {
+                fileStorageService.put(storedKey, input, Files.size(processed), image.contentType());
             }
-            move(processed, stored);
-            registerRollbackCleanup(stored);
-            return new StoredPaymentImage(directoryName + "/" + parentId + "/" + physicalName,
+            registerRollbackCleanup(storedKey);
+            return new StoredPaymentImage(storedKey,
                     originalName, image.contentType());
         } catch (InvalidPaymentImageException exception) {
-            deleteQuietly(stored);
+            throw exception;
+        } catch (StorageException exception) {
+            deleteQuietly(storedKey);
             throw exception;
         } catch (IOException | RuntimeException exception) {
-            deleteQuietly(stored);
+            deleteQuietly(storedKey);
             LOGGER.error("No se pudo procesar una imagen de pago: {}", exception.getClass().getSimpleName());
             throw new InvalidPaymentImageException("No fue posible validar o almacenar la imagen.");
         } finally {
-            deleteQuietly(upload);
-            deleteQuietly(processed);
+            deleteTemporaryQuietly(upload);
+            deleteTemporaryQuietly(processed);
         }
     }
 
@@ -296,57 +294,41 @@ public class PaymentImageStorageService {
     }
 
     private PaymentImageContent load(String reference, String directoryName, Integer parentId) {
-        Path file = resolveStoredFile(reference, directoryName, parentId);
-        if (file == null || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+        String key = resolveStoredKey(reference, directoryName, parentId);
+        if (key == null) {
             throw new ResourceNotFoundException("La imagen solicitada no está disponible.");
         }
         try {
-            String name = file.getFileName().toString();
+            int slash = key.lastIndexOf('/');
+            String name = key.substring(slash + 1);
             String extension = extension(name);
             String contentType = extension.equals("png") ? MediaType.IMAGE_PNG_VALUE
                     : extension.equals("jpg") ? MediaType.IMAGE_JPEG_VALUE : null;
             if (contentType == null) {
                 throw new ResourceNotFoundException("La imagen solicitada no está disponible.");
             }
-            return new PaymentImageContent(new FileSystemResource(file), name, contentType, Files.size(file));
-        } catch (IOException exception) {
+            StoredObject object = fileStorageService.get(key);
+            return new PaymentImageContent(new StorageInputStreamResource(object), name, contentType,
+                    object.contentLength());
+        } catch (StorageObjectNotFoundException exception) {
             throw new ResourceNotFoundException("La imagen solicitada no está disponible.");
         }
     }
 
-    private Path resolveStoredFile(String reference, String directoryName, Integer parentId) {
+    private String resolveStoredKey(String reference, String directoryName, Integer parentId) {
         if (reference == null || parentId == null || parentId <= 0
                 || !reference.matches(directoryName + "/" + parentId
                 + "/[0-9a-fA-F-]{36}\\.(png|jpg)")) {
             return null;
         }
-        Path root = storageRoot();
-        Path candidate = root.resolve(reference).normalize();
-        if (!candidate.startsWith(root)) {
-            return null;
-        }
-        try {
-            Path realRoot = root.toRealPath();
-            Path realCandidate = candidate.toRealPath();
-            return realCandidate.startsWith(realRoot) ? realCandidate : null;
-        } catch (IOException exception) {
-            return null;
-        }
+        return reference;
     }
 
     private Path storageRoot() {
         return Path.of(properties.root()).toAbsolutePath().normalize();
     }
 
-    private void move(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(source, target);
-        }
-    }
-
-    private void registerRollbackCleanup(Path stored) {
+    private void registerRollbackCleanup(String storedKey) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
@@ -354,36 +336,47 @@ public class PaymentImageStorageService {
             @Override
             public void afterCompletion(int status) {
                 if (status != STATUS_COMMITTED) {
-                    deleteQuietly(stored);
+                    deleteQuietly(storedKey);
                 }
             }
         });
     }
 
-    private void deleteAfterCommit(Path file) {
-        if (file == null) {
+    private void deleteAfterCommit(String key) {
+        if (key == null) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(file);
+            deleteQuietly(key);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(file);
+                deleteQuietly(key);
             }
         });
     }
 
-    private void deleteQuietly(Path file) {
-        if (file == null) {
+    private void deleteQuietly(String key) {
+        if (key == null) {
             return;
         }
         try {
-            Files.deleteIfExists(file);
-        } catch (IOException exception) {
+            fileStorageService.delete(key);
+        } catch (RuntimeException exception) {
             LOGGER.warn("No se pudo limpiar una imagen privada del módulo de pagos.");
+        }
+    }
+
+    private void deleteTemporaryQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException exception) {
+            LOGGER.warn("No se pudo limpiar un archivo temporal del módulo de pagos.");
         }
     }
 

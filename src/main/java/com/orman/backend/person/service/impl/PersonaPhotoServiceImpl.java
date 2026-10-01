@@ -1,6 +1,10 @@
 package com.orman.backend.person.service.impl;
 
 import com.orman.backend.common.exception.ResourceNotFoundException;
+import com.orman.backend.common.file.FileStorageService;
+import com.orman.backend.common.file.StorageInputStreamResource;
+import com.orman.backend.common.file.StorageObjectNotFoundException;
+import com.orman.backend.common.file.StoredObject;
 import com.orman.backend.person.config.PersonaPhotoProperties;
 import com.orman.backend.person.entity.Persona;
 import com.orman.backend.person.exception.InvalidPersonaPhotoException;
@@ -10,9 +14,8 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -25,7 +28,6 @@ import javax.imageio.stream.ImageOutputStream;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -44,65 +46,74 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
 
     private final PersonaRepository personaRepository;
     private final PersonaPhotoProperties properties;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
     public void upload(Integer codper, MultipartFile foto) {
         Persona persona = find(codper);
         BufferedImage image = validateAndRead(foto);
-        Path target = destination(codper);
+        String target = destination(codper);
         try {
-            Files.createDirectories(target.getParent());
-            writeJpeg(scaleForProfile(image), target);
-        } catch (IOException exception) {
+            byte[] content = writeJpeg(scaleForProfile(image));
+            fileStorageService.put(target, content, MediaType.IMAGE_JPEG_VALUE);
+        } catch (RuntimeException | IOException exception) {
             deleteQuietly(target);
+            if (exception instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
             throw new InvalidPersonaPhotoException("No fue posible almacenar la fotografía.");
         }
 
         String previousReference = persona.getFoto();
-        persona.setFoto("personas/" + codper + "/" + target.getFileName());
+        persona.setFoto(target);
         try {
             personaRepository.saveAndFlush(persona);
         } catch (RuntimeException exception) {
             deleteQuietly(target);
             throw exception;
         }
-        registerReplacementLifecycle(target, resolveStoredFile(previousReference, codper));
+        registerReplacementLifecycle(target, resolveStoredKey(previousReference, codper));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PersonaPhotoResource get(Integer codper) {
-        Path file = resolveStoredFile(find(codper).getFoto(), codper);
-        if (file == null || !Files.isRegularFile(file)) {
+        String key = resolveStoredKey(find(codper).getFoto(), codper);
+        if (key == null) {
             throw new ResourceNotFoundException("La fotografía de la Persona no existe.");
         }
-        MediaType mediaType = MEDIA_TYPES.get(extension(file));
+        MediaType mediaType = MEDIA_TYPES.get(extension(key));
         if (mediaType == null) {
             throw new ResourceNotFoundException("La fotografía de la Persona no existe.");
         }
-        Resource resource = new FileSystemResource(file);
-        return new PersonaPhotoResource(resource, mediaType);
+        try {
+            StoredObject object = fileStorageService.get(key);
+            Resource resource = new StorageInputStreamResource(object);
+            return new PersonaPhotoResource(resource, mediaType);
+        } catch (StorageObjectNotFoundException exception) {
+            throw new ResourceNotFoundException("La fotografía de la Persona no existe.");
+        }
     }
 
     @Override
     @Transactional
     public void delete(Integer codper) {
         Persona persona = find(codper);
-        Path file = resolveStoredFile(persona.getFoto(), codper);
+        String key = resolveStoredKey(persona.getFoto(), codper);
         boolean externalPhoto = persona.getFoto() != null
                 && persona.getFoto().matches("(?i)^https?://[^\\s]+$");
-        if (!externalPhoto && (file == null || !Files.isRegularFile(file))) {
+        if (!externalPhoto && (key == null || !fileStorageService.exists(key))) {
             throw new ResourceNotFoundException("La fotografía de la Persona no existe.");
         }
         persona.setFoto(null);
         personaRepository.saveAndFlush(persona);
-        deleteAfterCommit(file);
+        deleteAfterCommit(key);
     }
 
     @Override
     public void deleteAfterPersonaRemoval(Integer codper, String reference) {
-        deleteAfterCommit(resolveStoredFile(reference, codper));
+        deleteAfterCommit(resolveStoredKey(reference, codper));
     }
 
     private BufferedImage validateAndRead(MultipartFile foto) {
@@ -145,25 +156,15 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Persona no encontrada."));
     }
 
-    private Path destination(Integer codper) {
-        Path root = storageRoot();
-        Path directory = root.resolve("personas").resolve(String.valueOf(codper)).normalize();
-        if (!directory.startsWith(root)) {
-            throw new InvalidPersonaPhotoException("La ruta de fotografía no es válida.");
-        }
-        return directory.resolve(UUID.randomUUID() + ".jpg").normalize();
+    private String destination(Integer codper) {
+        return "personas/" + codper + "/" + UUID.randomUUID() + ".jpg";
     }
 
-    private Path resolveStoredFile(String reference, Integer codper) {
+    private String resolveStoredKey(String reference, Integer codper) {
         if (reference == null || !reference.matches("personas/" + codper + "/[0-9a-fA-F-]+\\.(jpg|png)")) {
             return null;
         }
-        Path candidate = storageRoot().resolve(reference).normalize();
-        return candidate.startsWith(storageRoot()) ? candidate : null;
-    }
-
-    private Path storageRoot() {
-        return Path.of(properties.root()).toAbsolutePath().normalize();
+        return reference;
     }
 
     private BufferedImage scaleForProfile(BufferedImage source) {
@@ -186,9 +187,10 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
         return target;
     }
 
-    private void writeJpeg(BufferedImage image, Path target) throws IOException {
+    private byte[] writeJpeg(BufferedImage image) throws IOException {
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
-        try (ImageOutputStream output = ImageIO.createImageOutputStream(Files.newOutputStream(target))) {
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ImageOutputStream output = ImageIO.createImageOutputStream(bytes)) {
             writer.setOutput(output);
             ImageWriteParam parameters = writer.getDefaultWriteParam();
             if (parameters.canWriteCompressed()) {
@@ -196,18 +198,21 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
                 parameters.setCompressionQuality(0.85f);
             }
             writer.write(null, new javax.imageio.IIOImage(image, null, null), parameters);
+            output.flush();
+            return bytes.toByteArray();
         } finally {
             writer.dispose();
         }
     }
 
-    private String extension(Path path) {
-        String name = path.getFileName().toString();
+    private String extension(String key) {
+        int slash = key.lastIndexOf('/');
+        String name = slash < 0 ? key : key.substring(slash + 1);
         int dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private void registerReplacementLifecycle(Path target, Path previous) {
+    private void registerReplacementLifecycle(String target, String previous) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             deleteQuietly(previous);
             return;
@@ -227,29 +232,29 @@ public class PersonaPhotoServiceImpl implements PersonaPhotoService {
         });
     }
 
-    private void deleteAfterCommit(Path path) {
-        if (path == null) {
+    private void deleteAfterCommit(String key) {
+        if (key == null) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deleteQuietly(path);
+            deleteQuietly(key);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(path);
+                deleteQuietly(key);
             }
         });
     }
 
-    private void deleteQuietly(Path path) {
-        if (path == null) {
+    private void deleteQuietly(String key) {
+        if (key == null) {
             return;
         }
         try {
-            Files.deleteIfExists(path);
-        } catch (IOException exception) {
+            fileStorageService.delete(key);
+        } catch (RuntimeException exception) {
             LOGGER.warn("No se pudo eliminar una fotografía de Persona almacenada.");
         }
     }

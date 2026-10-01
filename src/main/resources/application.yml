@@ -13,12 +13,12 @@ spring:
       max-file-size: ${ORMAN_MULTIPART_MAX_FILE_SIZE:20MB}
       max-request-size: ${ORMAN_MULTIPART_MAX_REQUEST_SIZE:21MB}
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orman}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:orman}?sslmode=${DB_SSL_MODE:disable}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      connection-init-sql: SET TIME ZONE 'America/La_Paz'
-  jpa:
+     connection-init-sql: SET TIME ZONE 'America/La_Paz'
+    jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false

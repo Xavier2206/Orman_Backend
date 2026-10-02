@@ -83,6 +83,7 @@ orman:
   firebase:
     enabled: ${ORMAN_FIREBASE_ENABLED:false}
     project-id: ${ORMAN_FIREBASE_PROJECT_ID:${GOOGLE_CLOUD_PROJECT:}}
+    service-account-json: ${ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON:}
 
 contract:
   scheduler:

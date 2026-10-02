@@ -4,6 +4,17 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ## Sin publicar
 
+### Agregado
+
+- Firebase Admin puede cargar credenciales desde `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` en memoria para Render; cuando la variable no existe conserva el fallback ADC. JSON vacío o inválido falla con un mensaje sanitizado, sin escribir archivos temporales ni registrar credenciales.
+
+### Verificación
+
+- Suite Firebase relacionada: 13 pruebas, 0 fallos, 0 errores y 0 omitidas.
+- `ORMAN_STORAGE_PROVIDER=local .\mvnw.cmd clean test`: 491 pruebas, 0 fallos, 0 errores y 0 omitidas contra PostgreSQL local desechable `orman_contract_fix_test_20261001`; Flyway validó V1–V25 con checksum V25 `1674304977` y Hibernate mantuvo `ddl-auto=validate`.
+- `.\mvnw.cmd clean package -DskipTests`: `BUILD SUCCESS`.
+- `git diff --check`: finalizó con código 0, sin errores de whitespace.
+
 ### Corregido
 
 - El almacenamiento de imágenes de cobro, comprobantes y documentos PDF de contratos entrega al proveedor R2 los bytes procesados, para que el cuerpo de `PutObject` se pueda leer más de una vez.

@@ -7,6 +7,7 @@ public class FirebaseProperties {
 
     private boolean enabled;
     private String projectId = "";
+    private String serviceAccountJson;
 
     public boolean isEnabled() {
         return enabled;
@@ -22,5 +23,13 @@ public class FirebaseProperties {
 
     public void setProjectId(String projectId) {
         this.projectId = projectId;
+    }
+
+    public String getServiceAccountJson() {
+        return serviceAccountJson;
+    }
+
+    public void setServiceAccountJson(String serviceAccountJson) {
+        this.serviceAccountJson = serviceAccountJson;
     }
 }

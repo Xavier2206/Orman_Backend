@@ -64,73 +64,82 @@ DELETE /api/v1/mobile/push-installation
 - Git para clonar el repositorio.
 - No se requiere una instalación global de Maven; el proyecto incluye Maven Wrapper.
 
-## 4. Instalación local
+## 4. DESARROLLO LOCAL
 
-1. Clona el repositorio y entra en su carpeta:
+El perfil `local` conecta por defecto con PostgreSQL en `localhost:5432/orman`, sin SSL. El backend escucha en `http://localhost:9090` y permite el origen Angular `http://localhost:4200`.
 
-```bash
-git clone <url-del-repositorio-backend>
-cd <carpeta-del-backend>
-```
-
-2. Crea una base de datos PostgreSQL llamada `orman` y prepara las credenciales de conexión.
-3. Copia `.env.example` como `.env` y completa los valores locales descritos en la sección 5. El archivo `.env` es opcional si configuras las mismas variables en el entorno del sistema.
-4. Desde la raíz del proyecto, inicia la aplicación:
-
-Windows:
+1. Instala JDK 21 y PostgreSQL. Crea la base local `orman` y configura un usuario local con permiso para que Flyway administre su esquema.
+2. Desde la raíz del repositorio, configura las variables del proceso en PowerShell. Sustituye los marcadores por los valores locales propios; no guardes contraseñas ni secretos en Git:
 
 ```powershell
+$env:SPRING_PROFILES_ACTIVE = "local"
+$env:DB_HOST = "localhost"
+$env:DB_PORT = "5432"
+$env:DB_NAME = "orman"
+$env:DB_SSL_MODE = "disable"
+$env:DB_USERNAME = "<usuario-postgresql-local>"
+$env:DB_PASSWORD = "<contraseña-postgresql-local>"
+$env:JWT_SECRET = "<secreto-local-estable-de-al-menos-32-bytes>"
+$env:ORMAN_FRONTEND_URL = "http://localhost:4200"
+$env:REFRESH_COOKIE_SECURE = "false"
 .\mvnw.cmd spring-boot:run
 ```
 
-Linux/macOS:
+`JWT_SECRET` local debe ser estable para ese entorno y distinto del secreto de producción. `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` son obligatorios; el perfil local aporta defaults seguros para host, puerto, base, SSL, puerto HTTP, cookie y CORS.
 
-```bash
-./mvnw spring-boot:run
-```
+Spring Boot no carga `.env` automáticamente. Antes, `application.yml` importaba explícitamente `./.env`; esa importación se retiró para evitar que el archivo local con destino Neon sobreescriba el perfil. `.env.example` sirve solo como plantilla de referencia; define los valores en el entorno del proceso.
 
-Flyway valida y aplica las migraciones pendientes al iniciar. El servidor queda disponible en `http://localhost:9090`; el prefijo de la API es `/api/v1`.
-
-Para generar el JAR:
-
-```text
-.\mvnw.cmd clean package
-./mvnw clean package
-```
-
-## 5. Variables de entorno
-
-`application.yml` importa opcionalmente el archivo local `.env`. Las variables del entorno del sistema tienen prioridad. Las variables requeridas para iniciar el backend son las credenciales de PostgreSQL y `JWT_SECRET`.
-
-| Variable | Requerida | Valor predeterminado o uso |
-|---|---|---|
-| `DB_HOST` | No | `localhost` |
-| `DB_PORT` | No | `5432` |
-| `DB_NAME` | No | `orman` |
-| `DB_USERNAME` | Sí | Usuario de PostgreSQL |
-| `DB_PASSWORD` | Sí | Contraseña de PostgreSQL |
-| `JWT_SECRET` | Sí | Secreto local para firmar JWT; usar al menos 32 bytes |
-| `JWT_ISSUER` | No | `orman-backend` |
-| `JWT_ACCESS_EXPIRATION_MINUTES` | No | `15` |
-| `JWT_REFRESH_EXPIRATION_DAYS` | No | `30` |
-| `REFRESH_COOKIE_NAME` | No | `orman_refresh` |
-| `REFRESH_COOKIE_SECURE` | No | `false` en configuración local |
-| `REFRESH_COOKIE_SAME_SITE` | No | `Lax` |
-| `ORMAN_FRONTEND_URL` | No | `http://localhost:4200`; origen WEB permitido por CORS |
-| `ORMAN_FIREBASE_ENABLED` | No | `false`; habilita el envío push |
-| `ORMAN_FIREBASE_PROJECT_ID` | Al habilitar Firebase | ID del proyecto; usa `GOOGLE_CLOUD_PROJECT` como alternativa |
-| `GOOGLE_CLOUD_PROJECT` | No | Alternativa para el ID de proyecto Firebase |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Al habilitar Firebase* | Ruta a credenciales de Google para Application Default Credentials |
-
-Además, `application.yml` define valores predeterminados para límites de carga y almacenamiento (`ORMAN_MULTIPART_MAX_*`, `PERSONA_PHOTO_*`, `PROPERTY_PHOTO_*`, `UNIT_PHOTO_*`, `CONTRACT_DOCUMENT_*`, `PAYMENT_IMAGE_*`) y para los programadores `NOTIFICATION_SCHEDULER_CRON` y `CONTRACT_SCHEDULER_CRON`.
-
-* Si se habilita Firebase, configura `GOOGLE_APPLICATION_CREDENTIALS` con un JSON de cuenta de servicio o proporciona otra fuente válida de Application Default Credentials. El JSON es privado: mantenlo fuera del repositorio, no lo copies a `src/main/resources` y no lo subas a GitHub. Por ejemplo, en PowerShell:
+Flyway valida y aplica migraciones al iniciar. Hibernate conserva `ddl-auto: validate`. Para compilar sin ejecutar pruebas ni iniciar una conexión a base de datos:
 
 ```powershell
-$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\ORMAN_SECRETS\firebase-service-account.json"
+.\mvnw.cmd -DskipTests compile
 ```
 
-Flyway administra el esquema y Hibernate usa `ddl-auto: validate`. La migración `V22__fijar_catalogo_roles.sql` fija el catálogo funcional en `PROPIETARIO` e `INQUILINO`; la migración `V23__retirar_otp_login.sql` retira la persistencia del mecanismo de segundo factor.
+## 5. PRODUCCIÓN Y VARIABLES DE ENTORNO
+
+Producción debe iniciar con `SPRING_PROFILES_ACTIVE=prod`. La plataforma debe proporcionar las variables requeridas desde su gestor de secretos; no se guardan valores de producción en YAML, `.env.example` ni en el repositorio. El perfil requiere host, puerto, base, usuario, contraseña, `DB_SSL_MODE`, secreto JWT, origen frontend, `REFRESH_COOKIE_SECURE` y proveedor de almacenamiento; si faltan, Spring falla al resolver la configuración en vez de usar defaults locales. Configura `DB_SSL_MODE=require` y `REFRESH_COOKIE_SECURE=true`.
+
+La plataforma debe exponer el frontend y el backend por HTTPS (normalmente mediante TLS en el ingress o proxy del despliegue); Spring escucha en el puerto `PORT` que le proporcione la plataforma.
+
+Ejemplo de nombres de variables para el entorno de despliegue (sin valores reales):
+
+```text
+SPRING_PROFILES_ACTIVE=prod
+DB_HOST=<host-postgresql-remoto>
+DB_PORT=<puerto-postgresql-remoto>
+DB_NAME=<base-postgresql-remota>
+DB_USERNAME=<usuario-de-produccion>
+DB_PASSWORD=<secreto-del-gestor-de-secretos>
+DB_SSL_MODE=require
+JWT_SECRET=<secreto-de-produccion-de-al-menos-32-bytes>
+ORMAN_FRONTEND_URL=https://<origen-frontend-produccion>
+REFRESH_COOKIE_SECURE=true
+REFRESH_COOKIE_SAME_SITE=<Strict-Lax-o-None-segun-el-dominio>
+ORMAN_STORAGE_PROVIDER=<r2-o-local-segun-el-despliegue>
+PORT=<puerto-proporcionado-por-la-plataforma>
+```
+
+`ORMAN_FRONTEND_URL` configura el único origen de CORS del perfil. No uses `*`; la configuración existente también rechaza ese valor. El origen de producción debe ser HTTPS. `SameSite` sigue siendo configurable (`Strict`, `Lax` o `None`); `None` requiere `Secure`.
+
+| Variable | Perfil local | Perfil prod |
+|---|---|---|
+| `DB_HOST` | `localhost` por defecto | Obligatoria, sin default local |
+| `DB_PORT` | `5432` por defecto | Obligatoria, sin default local |
+| `DB_NAME` | `orman` por defecto | Obligatoria, sin default local |
+| `DB_SSL_MODE` | `disable` por defecto | Obligatoria; debe ser `require` |
+| `DB_USERNAME`, `DB_PASSWORD` | Obligatoria desde el entorno local | Obligatoria desde la plataforma |
+| `JWT_SECRET` | Obligatoria, mínimo 32 bytes | Obligatoria, mínimo 32 bytes y distinta de local |
+| `ORMAN_FRONTEND_URL` | `http://localhost:4200` por defecto | Obligatoria; un origen HTTPS |
+| `REFRESH_COOKIE_SECURE` | `false` por defecto | Obligatoria; debe ser `true` |
+| `REFRESH_COOKIE_SAME_SITE` | `Lax` por defecto | Configurable; `Lax` por defecto |
+| `ORMAN_STORAGE_PROVIDER` | `local` por defecto | Obligatoria; configura `r2` o `local` según el despliegue |
+| `PORT` | `9090` por defecto | Opcional; `9090` si la plataforma no lo define |
+
+Si se utiliza Cloudflare R2, configura externamente `ORMAN_STORAGE_PROVIDER=r2`, `ORMAN_R2_ENDPOINT`, `ORMAN_R2_BUCKET`, `ORMAN_R2_ACCESS_KEY_ID` y `ORMAN_R2_SECRET_ACCESS_KEY`. Si se habilita Firebase, configura `ORMAN_FIREBASE_ENABLED=true`, `ORMAN_FIREBASE_PROJECT_ID` (o `GOOGLE_CLOUD_PROJECT`) y credenciales externas mediante `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` o Application Default Credentials con `GOOGLE_APPLICATION_CREDENTIALS`. No incluyas los JSON ni sus secretos en el repositorio.
+
+`JWT_ISSUER`, `JWT_ACCESS_EXPIRATION_MINUTES`, `JWT_REFRESH_EXPIRATION_DAYS`, `REFRESH_COOKIE_NAME`, límites de carga/almacenamiento y cron de tareas conservan sus defaults comunes, todos sobrescribibles mediante variables de entorno. Flyway sigue siendo la única fuente de evolución del esquema.
+
+La configuración sensible se obtiene del entorno del proceso o de la plataforma. Las variables `MAIL_*` y `OTP_*` que puedan existir en un `.env` local no se cargan desde ese archivo; no aparecen referenciadas en la configuración activa del backend.
 
 Las reglas funcionales de fechas y horas utilizan la zona `America/La_Paz`, correspondiente a la hora de Bolivia.
 

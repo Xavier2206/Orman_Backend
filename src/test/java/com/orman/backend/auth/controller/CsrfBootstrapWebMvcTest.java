@@ -24,10 +24,15 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +55,7 @@ class CsrfBootstrapWebMvcTest {
     private static final UUID SID = UUID.fromString("8acbc3d8-d7a8-49d1-a1b1-35cecc45ad21");
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private WebApplicationContext webApplicationContext;
     @MockitoBean private AuthService authService;
     @MockitoBean private AuthContextService authContextService;
     @MockitoBean private SessionService sessionService;
@@ -61,6 +67,10 @@ class CsrfBootstrapWebMvcTest {
 
     @BeforeEach
     void configureSecurityProperties() {
+        // Use the repository's serialized Set-Cookie path so MockMvc can inspect SameSite in the header.
+        if (webApplicationContext.getServletContext() instanceof MockServletContext context) {
+            context.setMajorVersion(5);
+        }
         when(cookieProperties.refreshName()).thenReturn("orman_refresh");
         when(cookieProperties.sameSite()).thenReturn("None");
         when(cookieProperties.secure()).thenReturn(true);
@@ -77,7 +87,16 @@ class CsrfBootstrapWebMvcTest {
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "X-XSRF-TOKEN"))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
+                        containsString("XSRF-TOKEN="),
+                        containsString("Path=/"),
+                        containsString("Secure"),
+                        containsString("SameSite=None"),
+                        not(containsString("HttpOnly")),
+                        not(containsString("Domain=")))))
                 .andExpect(cookie().exists("XSRF-TOKEN"))
+                .andExpect(cookie().secure("XSRF-TOKEN", true))
+                .andExpect(cookie().path("XSRF-TOKEN", "/"))
                 .andExpect(cookie().httpOnly("XSRF-TOKEN", false));
     }
 
@@ -107,6 +126,10 @@ class CsrfBootstrapWebMvcTest {
         when(authService.refresh("web-refresh-token", ClientType.WEB)).thenReturn(webAuthResult());
 
         mockMvc.perform(post(REFRESH_URL).cookie(refreshCookie, csrfCookie))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post(REFRESH_URL).cookie(refreshCookie)
+                        .header("X-XSRF-TOKEN", csrfToken))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post(REFRESH_URL).cookie(refreshCookie, csrfCookie)

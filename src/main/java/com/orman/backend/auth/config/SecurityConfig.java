@@ -47,8 +47,8 @@ public class SecurityConfig {
         return http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository)
-                        .spa()
+                .csrf(csrf -> csrf.spa()
+                        .csrfTokenRepository(csrfRepository)
                         .requireCsrfProtectionMatcher(webRefreshCookieRequest()))
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()

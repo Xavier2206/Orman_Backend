@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -56,6 +57,18 @@ public class AuthController {
         CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
         String csrfValue = csrfToken == null ? null : csrfToken.getToken();
         return response(authService.login(request), csrfValue);
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<Void> csrf(HttpServletRequest httpRequest) {
+        CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
+        if (csrfToken == null) {
+            throw new IllegalStateException("Spring Security no proporcionó el token CSRF.");
+        }
+        return ResponseEntity.noContent()
+                .cacheControl(CacheControl.noStore())
+                .header(csrfToken.getHeaderName(), csrfToken.getToken())
+                .build();
     }
 
     @PostMapping("/refresh")

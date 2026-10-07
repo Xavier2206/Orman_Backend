@@ -29,6 +29,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.DeferredCsrfToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,10 +62,12 @@ public class AuthController {
 
     @GetMapping("/csrf")
     public ResponseEntity<Void> csrf(HttpServletRequest httpRequest) {
-        CsrfToken csrfToken = (CsrfToken) httpRequest.getAttribute("_csrf");
-        if (csrfToken == null) {
+        DeferredCsrfToken deferredCsrfToken = (DeferredCsrfToken) httpRequest
+                .getAttribute(DeferredCsrfToken.class.getName());
+        if (deferredCsrfToken == null) {
             throw new IllegalStateException("Spring Security no proporcionó el token CSRF.");
         }
+        CsrfToken csrfToken = deferredCsrfToken.get();
         return ResponseEntity.noContent()
                 .cacheControl(CacheControl.noStore())
                 .header(csrfToken.getHeaderName(), csrfToken.getToken())

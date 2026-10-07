@@ -80,7 +80,7 @@ class CsrfBootstrapWebMvcTest {
 
     @Test
     void bootstrapsCsrfWithoutAccessTokenAndExposesItToAllowedOrigin() throws Exception {
-        mockMvc.perform(get(CSRF_URL).header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN))
+        var bootstrap = mockMvc.perform(get(CSRF_URL).header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN))
                 .andExpect(status().isNoContent())
                 .andExpect(header().exists("X-XSRF-TOKEN"))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONTEND_ORIGIN))
@@ -97,7 +97,12 @@ class CsrfBootstrapWebMvcTest {
                 .andExpect(cookie().exists("XSRF-TOKEN"))
                 .andExpect(cookie().secure("XSRF-TOKEN", true))
                 .andExpect(cookie().path("XSRF-TOKEN", "/"))
-                .andExpect(cookie().httpOnly("XSRF-TOKEN", false));
+                .andExpect(cookie().httpOnly("XSRF-TOKEN", false))
+                .andReturn();
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                bootstrap.getResponse().getCookie("XSRF-TOKEN").getValue(),
+                bootstrap.getResponse().getHeader("X-XSRF-TOKEN"));
     }
 
     @Test
@@ -122,6 +127,7 @@ class CsrfBootstrapWebMvcTest {
                 .andReturn();
         Cookie csrfCookie = bootstrap.getResponse().getCookie("XSRF-TOKEN");
         String csrfToken = bootstrap.getResponse().getHeader("X-XSRF-TOKEN");
+        org.junit.jupiter.api.Assertions.assertEquals(csrfCookie.getValue(), csrfToken);
         Cookie refreshCookie = new Cookie("orman_refresh", "web-refresh-token");
         when(authService.refresh("web-refresh-token", ClientType.WEB)).thenReturn(webAuthResult());
 

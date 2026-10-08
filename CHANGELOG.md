@@ -6,9 +6,13 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ### Agregado
 
+- CU-09 Dashboard financiero por propiedad: `GET /api/v1/dashboard/resumen-financiero`, con resumen histórico y mensual por propiedades de la propietaria autenticada; Flyway V27 incorpora DASHBOARD y RESUMEN FINANCIERO únicamente para `PROPIETARIO`. [Informe de fase](INFORME_CU09_DASHBOARD_FINANCIERO.md).
+
 - Firebase Admin puede cargar credenciales desde `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` en memoria para Render; cuando la variable no existe conserva el fallback ADC. JSON vacío o inválido falla con un mensaje sanitizado, sin escribir archivos temporales ni registrar credenciales.
 
 ### Verificación
+
+- CU-09: Dashboard/autorización/contexto pasan 16 pruebas; `CsrfBootstrapWebMvcTest` pasa 5; `.\mvnw.cmd clean test` pasa 504 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL aislado validó V1–V27 y Hibernate `ddl-auto=validate`; no se consultó ni modificó ninguna base real.
 
 - Suite Firebase relacionada: 13 pruebas, 0 fallos, 0 errores y 0 omitidas.
 - `ORMAN_STORAGE_PROVIDER=local .\mvnw.cmd clean test`: 491 pruebas, 0 fallos, 0 errores y 0 omitidas contra PostgreSQL local desechable `orman_contract_fix_test_20261001`; Flyway validó V1–V25 con checksum V25 `1674304977` y Hibernate mantuvo `ddl-auto=validate`.

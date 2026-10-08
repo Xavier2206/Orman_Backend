@@ -21,11 +21,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
@@ -44,8 +47,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AuthController.class)
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@WebMvcTest(value = AuthController.class, properties = "security.cors.allowed-origins=https://frontend.example.test")
+@Import({SecurityConfig.class, GlobalExceptionHandler.class, CsrfBootstrapWebMvcTest.WebSecurityTestConfiguration.class})
 class CsrfBootstrapWebMvcTest {
 
     private static final String CSRF_URL = "/api/v1/auth/csrf";
@@ -63,7 +66,6 @@ class CsrfBootstrapWebMvcTest {
     @MockitoBean private UserAuthorityService userAuthorityService;
     @MockitoBean private JwtProperties jwtProperties;
     @MockitoBean private RefreshCookieProperties cookieProperties;
-    @MockitoBean private CorsProperties corsProperties;
 
     @BeforeEach
     void configureSecurityProperties() {
@@ -75,7 +77,6 @@ class CsrfBootstrapWebMvcTest {
         when(cookieProperties.sameSite()).thenReturn("None");
         when(cookieProperties.secure()).thenReturn(true);
         when(jwtProperties.refreshTokenExpirationDays()).thenReturn(30L);
-        when(corsProperties.allowedOrigins()).thenReturn(List.of(FRONTEND_ORIGIN));
     }
 
     @Test
@@ -187,5 +188,11 @@ class CsrfBootstrapWebMvcTest {
         LoginResponse response = new LoginResponse("usuario.demo", 7, "access-token", null,
                 "Bearer", 900, SID);
         return new AuthResult(response, "rotated-refresh-token", ClientType.WEB);
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    @EnableWebSecurity
+    @EnableConfigurationProperties(CorsProperties.class)
+    static class WebSecurityTestConfiguration {
     }
 }

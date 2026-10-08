@@ -158,7 +158,7 @@ class AuthIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version::integer BETWEEN 1 AND 25 AND success",
                 Integer.class)).isEqualTo(25);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("25");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
         Map<String, Object> loginColumn = jdbcTemplate.queryForMap("""
                 SELECT data_type, character_maximum_length, is_nullable
                 FROM information_schema.columns

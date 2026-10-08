@@ -118,6 +118,34 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
+    void dashboardRequiresAuthenticationAndTheOwnerRole() throws Exception {
+        String dashboardUrl = "/api/v1/dashboard/resumen-financiero";
+        mockMvc.perform(get(dashboardUrl))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        UsuarioResponse owner = createUsuario("DASH-AUTH-O", "dashboard.auth.owner");
+        UsuarioResponse tenant = createUsuario("DASH-AUTH-T", "dashboard.auth.tenant");
+        rolUsuService.assign(owner.login(), activeRole("PROPIETARIO").getCodr());
+        rolUsuService.assign(tenant.login(), activeRole("INQUILINO").getCodr());
+        AuthResult ownerLogin = login(owner.login(), "dashboard-owner");
+        AuthResult tenantLogin = login(tenant.login(), "dashboard-tenant");
+
+        mockMvc.perform(get(dashboardUrl)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerLogin.response().accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.moneda").value("BOB"))
+                .andExpect(jsonPath("$.resumenGeneral.cantidadPropiedades").value(0))
+                .andExpect(jsonPath("$.resumenGeneral.porcentajeRecuperacion").value(org.hamcrest.Matchers.nullValue()));
+
+        mockMvc.perform(get(dashboardUrl)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tenantLogin.response().accessToken()))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
     void keepsPublicLoginAndUses401Before403() throws Exception {
         UsuarioResponse usuario = createUsuario("AUTHZ-111-D", "authz.roles.http");
 

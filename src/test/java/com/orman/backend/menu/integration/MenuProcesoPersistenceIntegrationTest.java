@@ -96,7 +96,7 @@ class MenuProcesoPersistenceIntegrationTest {
                 SELECT COUNT(*) FROM flyway_schema_history
                 WHERE version::integer BETWEEN 1 AND 25 AND success
                 """, Integer.class)).isEqualTo(25);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("25");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '7' AND success", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version = '8' AND success", Integer.class))

@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +62,7 @@ class AuthContextIntegrationTest {
     @Autowired private MenuRepository menuRepository;
     @Autowired private MeProRepository meProRepository;
     @Autowired private ProcesoRepository procesoRepository;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Test
     void rejectsUnauthenticatedContextRequests() throws Exception {
@@ -141,6 +143,56 @@ class AuthContextIntegrationTest {
         assertContextFor(normal.login(), true);
         assertContextFor(secondTenant.login(), false);
         assertContextFor(owner.login(), false);
+    }
+
+    @Test
+    void dashboardNavigationIsSeededOnceAndVisibleOnlyToTheOwnerRole() throws Exception {
+        UsuarioResponse owner = createUser("CTX-DASH-OWNER", "context.dashboard.owner", null);
+        UsuarioResponse tenant = createUser("CTX-DASH-TENANT", "context.dashboard.tenant", null);
+        assignRole(owner.login(), activeReservedRole("PROPIETARIO"));
+        assignRole(tenant.login(), activeReservedRole("INQUILINO"));
+
+        String ownerContext = mockMvc.perform(get(CONTEXT_URL)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(login(owner.login()))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String tenantContext = mockMvc.perform(get(CONTEXT_URL)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(login(tenant.login()))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(ownerContext).contains("DASHBOARD", "RESUMEN FINANCIERO", "dashboard/resumen-financiero");
+        assertThat(tenantContext).doesNotContain("DASHBOARD", "RESUMEN FINANCIERO",
+                "dashboard/resumen-financiero");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM menus m
+                JOIN mepro mp ON mp.codm = m.codm
+                JOIN procesos p ON p.codp = mp.codp
+                WHERE m.nombre = 'DASHBOARD'
+                  AND p.nombre = 'RESUMEN FINANCIERO'
+                  AND p.enlace = 'dashboard/resumen-financiero'
+                """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM rolme rm
+                JOIN menus m ON m.codm = rm.codm
+                JOIN roles r ON r.codr = rm.codr
+                WHERE m.nombre = 'DASHBOARD'
+                  AND r.nombre <> 'PROPIETARIO'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM rolme rm
+                JOIN menus m ON m.codm = rm.codm
+                JOIN roles r ON r.codr = rm.codr
+                WHERE m.nombre = 'DASHBOARD'
+                  AND r.nombre = 'PROPIETARIO'
+                """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM flyway_schema_history
+                WHERE version IN ('26', '27') AND success
+                """, Integer.class)).isEqualTo(2);
     }
 
     private void assertContextFor(String login, boolean expectNullPhoto) throws Exception {

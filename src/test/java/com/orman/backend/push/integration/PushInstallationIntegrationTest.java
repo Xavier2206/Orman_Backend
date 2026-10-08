@@ -87,7 +87,7 @@ class PushInstallationIntegrationTest {
 
     @Test
     void v21CreatesValidatedSchemaAndHibernateStartsWithValidate() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("25");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
         assertThat(jdbcTemplate.queryForList("""
                 SELECT column_name FROM information_schema.columns
                 WHERE table_schema = current_schema() AND table_name = 'dispositivos_push'

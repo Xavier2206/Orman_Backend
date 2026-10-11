@@ -6,6 +6,9 @@ docs/
 AGENTS.md
 HELP.md
 CHANGELOG.md
+ORMAN_Produccion_Verificaciones_2_8.postman_collection.json
+ORMAN_Produccion_Verificaciones_2_8.postman_environment.json
+performance/
 
 # ==========================================
 # Maven / compilados

@@ -25,15 +25,22 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 @Rollback
 class AuthIntegrationTest {
@@ -47,6 +54,7 @@ class AuthIntegrationTest {
     @Autowired private JwtService jwtService;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private Flyway flyway;
+    @Autowired private MockMvc mockMvc;
 
     @Test
     void revokesSessionsAfterPasswordAndAdministrativeDeactivations() {
@@ -151,6 +159,23 @@ class AuthIntegrationTest {
         assertThatThrownBy(() -> authService.login(new LoginRequest(usuario.login(), " clave-ficticia ",
                 "x", "Phone", ClientType.MOBILE))).isInstanceOf(InvalidCredentialsException.class);
         assertThat(usuarioRepository.findById(usuario.login()).orElseThrow().getUltimoAcceso()).isNull();
+    }
+
+    @Test
+    void inactiveAccountLoginIsRejectedOverHttpWithoutCreatingSession() throws Exception {
+        UsuarioResponse usuario = createUsuario("AUTH-107", "inactive.login", "clave-ficticia");
+        usuarioService.deactivate(usuario.login());
+        long sessionsBefore = sesionRepository.count();
+
+        mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"login\":\"inactive.login\",\"password\":\"clave-ficticia\","
+                                + "\"deviceId\":\"test-device\",\"deviceName\":\"JUnit\","
+                                + "\"clientType\":\"MOBILE\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_CREDENTIALS"));
+
+        assertThat(usuarioRepository.findById(usuario.login()).orElseThrow().getEstado()).isZero();
+        assertThat(sesionRepository.count()).isEqualTo(sessionsBefore);
     }
 
     @Test

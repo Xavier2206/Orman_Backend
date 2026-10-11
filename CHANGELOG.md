@@ -6,11 +6,22 @@ Este archivo registra cambios relevantes de ORMAN-BACKEND por fase, con una estr
 
 ### Agregado
 
+- `GET /api/v1/salud` público, sin JWT: confirma el estado del backend y
+  ejecuta `SELECT 1` en PostgreSQL; responde `200` si la base está disponible
+  y `503` si falla la consulta, con una respuesta genérica sin detalles
+  internos. Colección Postman en `postman/ORMAN_SALUD.postman_collection.json`.
+
 - CU-09 Dashboard financiero por propiedad: `GET /api/v1/dashboard/resumen-financiero`, con resumen histórico y mensual por propiedades de la propietaria autenticada; Flyway V27 incorpora DASHBOARD y RESUMEN FINANCIERO únicamente para `PROPIETARIO`. [Informe de fase](INFORME_CU09_DASHBOARD_FINANCIERO.md).
 
 - Firebase Admin puede cargar credenciales desde `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` en memoria para Render; cuando la variable no existe conserva el fallback ADC. JSON vacío o inválido falla con un mensaje sanitizado, sin escribir archivos temporales ni registrar credenciales.
 
 ### Verificación
+
+- `Salud API`: 6 pruebas enfocadas y `.\mvnw.cmd clean test` completo pasan;
+  527 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL 17.6 temporal y
+  aislado validó V1–V27; Hibernate mantuvo `ddl-auto=validate`. La base temporal
+  `orman_salud_test_20261011` se eliminó después de validar. Render aún requiere
+  el despliegue y la configuración del health check path.
 
 - CU-09: Dashboard/autorización/contexto pasan 16 pruebas; `CsrfBootstrapWebMvcTest` pasa 5; `.\mvnw.cmd clean test` pasa 504 pruebas, 0 fallos, 0 errores y 0 omitidas. PostgreSQL aislado validó V1–V27 y Hibernate `ddl-auto=validate`; no se consultó ni modificó ninguna base real.
 

@@ -36,6 +36,7 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,12 +44,17 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.Rollback;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 @Rollback
 class InquilinoPortalIntegrationTest {
@@ -63,6 +69,7 @@ class InquilinoPortalIntegrationTest {
     @Autowired private InquilinoPortalService portalService;
     @Autowired private PagoService pagoService;
     @Autowired private QrCobroService qrCobroService;
+    @Autowired private MockMvc mockMvc;
 
     @Test
     void listsEveryContractStateAndHidesContractsOfAnotherTenant() {
@@ -126,6 +133,39 @@ class InquilinoPortalIntegrationTest {
         assertThat(partialResponse.estado()).isEqualTo("PARCIAL");
         assertThatThrownBy(() -> portalService.getQuota(partial.getCodcuo(), contextForOtherTenant().authentication()))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void quotaHttpReturnsOwnPeriodAmountAndStateAndRejectsForeignResources() throws Exception {
+        Context own = context("HTTP-QUOTA-OWN");
+        Context foreign = context("HTTP-QUOTA-OTHER");
+        ContratoEntity ownContract = contract(own, ContratoEstado.VIGENTE, LocalDate.of(2026, 9, 1));
+        ContratoEntity foreignContract = contract(foreign, ContratoEstado.VIGENTE, LocalDate.of(2026, 9, 1));
+        CuotaEntity ownQuota = quota(ownContract, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE,
+                new BigDecimal("2500.00"));
+        CuotaEntity foreignQuota = quota(foreignContract, LocalDate.of(2026, 9, 1), CuotaEstado.PENDIENTE,
+                new BigDecimal("2500.00"));
+
+        mockMvc.perform(get("/api/v1/inquilino/contratos/{codcon}/cuotas", ownContract.getCodcon())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(own.authentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].periodo").value("2026-09-01"))
+                .andExpect(jsonPath("$[0].monto").value(2500.00))
+                .andExpect(jsonPath("$[0].estado").value("PENDIENTE"));
+
+        mockMvc.perform(get("/api/v1/inquilino/contratos/{codcon}/cuotas", foreignContract.getCodcon())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(own.authentication())))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/inquilino/cuotas/{codcuo}", foreignQuota.getCodcuo())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(own.authentication())))
+                .andExpect(status().isForbidden());
+
+        assertThat(cuotaRepository.findByCodcuo(ownQuota.getCodcuo())).isPresent();
+        assertThat(cuotaRepository.findByCodcuo(foreignQuota.getCodcuo())).isPresent();
     }
 
     private Context context(String prefix) {

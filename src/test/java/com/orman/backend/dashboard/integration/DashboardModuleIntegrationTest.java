@@ -32,6 +32,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,8 +42,12 @@ import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 @Rollback
 class DashboardModuleIntegrationTest {
@@ -55,6 +61,7 @@ class DashboardModuleIntegrationTest {
     @Autowired private CuotaRepository cuotaRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private Clock clock;
+    @Autowired private MockMvc mockMvc;
 
     @Test
     void totalsConfirmedPartialPaymentsPerPropertyAndDoesNotLeakAnotherOwner() {
@@ -116,6 +123,43 @@ class DashboardModuleIntegrationTest {
         assertThat(report.propiedades()).filteredOn(property -> property.nombre().startsWith("Recuperación superior"))
                 .singleElement().extracting(property -> property.porcentajeRecuperacion())
                 .isEqualTo(new BigDecimal("250.00"));
+    }
+
+    @Test
+    void financialReportHttpReturnsKnownInvestmentIncomeAndRecovery() throws Exception {
+        Owner owner = createOwner("http-known");
+        PropertyRoute property = createProperty(owner, "Reporte HTTP", "1000.00");
+        createPayment(property, owner.user(), "475.00", PagoEstado.CONFIRMADO, now());
+        createPayment(property, owner.user(), "250.00", PagoEstado.PENDIENTE_REVISION, null);
+
+        mockMvc.perform(get("/api/v1/dashboard/resumen-financiero")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(authentication(owner.user()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resumenGeneral.inversionInicialTotal").value(1000.00))
+                .andExpect(jsonPath("$.resumenGeneral.ingresosConfirmadosAcumulados").value(475.00))
+                .andExpect(jsonPath("$.resumenGeneral.porcentajeRecuperacion").value(47.50))
+                .andExpect(jsonPath("$.propiedades[0].nombre")
+                        .value(org.hamcrest.Matchers.startsWith("Reporte HTTP")));
+    }
+
+    @Test
+    void financialReportHttpReturnsNullForZeroInvestmentWithoutRequiredGuidance() throws Exception {
+        Owner owner = createOwner("http-zero");
+        createProperty(owner, "Inversión cero HTTP", "0.00");
+
+        var result = mockMvc.perform(get("/api/v1/dashboard/resumen-financiero")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(authentication(owner.user()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resumenGeneral.inversionInicialTotal").value(0.00))
+                .andReturn();
+
+        com.fasterxml.jackson.databind.JsonNode body = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(result.getResponse().getContentAsString());
+        com.fasterxml.jackson.databind.JsonNode percentage = body.at("/resumenGeneral/porcentajeRecuperacion");
+        assertThat(percentage.isMissingNode() || percentage.isNull()).isTrue();
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("inversión válida");
     }
 
     @Test

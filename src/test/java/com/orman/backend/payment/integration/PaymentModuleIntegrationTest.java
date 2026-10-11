@@ -46,23 +46,35 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockPart;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.Rollback;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.annotation.Transactional;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Import(PaymentModuleIntegrationTest.FixedClockConfiguration.class)
 @Transactional
 @Rollback
@@ -84,6 +96,7 @@ class PaymentModuleIntegrationTest {
     @Autowired private QrCobroService qrCobroService;
     @Autowired private Clock clock;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private MockMvc mockMvc;
 
     private String rolledBackProofPath;
     private Integer rolledBackProofPaymentId;
@@ -112,6 +125,221 @@ class PaymentModuleIntegrationTest {
         assertThat(storedPayment.getFechaRevision()).isEqualTo(LocalDateTime.of(2026, 9, 25, 12, 20));
         assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PARCIAL);
         assertThat(comprobanteRepository.existsByPagoCodpag(payment.codpag())).isFalse();
+    }
+
+    @Test
+    void ownerCashWithValidDateCanCompleteQuotaAndPersistsConfirmedPayment() {
+        Context context = context("CASHFULL", new BigDecimal("1000.00"));
+        LocalDateTime validPaymentDate = nowLaPaz();
+
+        PagoResponse payment = pagoService.create(context.quota().getCodcuo(),
+                request("1000.00", MetodoPago.EFECTIVO, validPaymentDate), null, context.ownerAuth());
+
+        assertThat(payment.estado()).isEqualTo("CONFIRMADO");
+        assertThat(payment.fechaPago()).isEqualTo(nowLaPaz().atZone(LA_PAZ).toOffsetDateTime());
+        assertThat(pagoRepository.findById(payment.codpag())).isPresent();
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+    }
+
+    @Test
+    void cashPaymentHttpRequestPersistsConfirmedPaymentAndUpdatesQuota() throws Exception {
+        Context context = context("CASHHTTP", new BigDecimal("1000.00"));
+        long paymentsBefore = pagoRepository.count();
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                        .part(paymentPart("1000.00", UUID.randomUUID()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.ownerAuth())))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Location"))
+                .andExpect(jsonPath("$.estado").value("CONFIRMADO"))
+                .andExpect(jsonPath("$.origenRegistro").value("PROPIETARIA"));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore + 1);
+        assertThat(pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo()))
+                .isEqualByComparingTo("1000.00");
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+    }
+
+    @Test
+    void cashPaymentHttpRejectsOverpaymentWithoutPersistingOrChangingQuota() throws Exception {
+        Context context = context("CASHHTTPERR", new BigDecimal("1000.00"));
+        long paymentsBefore = pagoRepository.count();
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                        .part(paymentPart("1000.01", UUID.randomUUID()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.ownerAuth())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("saldo")));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void cashPaymentHttpRejectsInvalidAmountsAndMissingQuotaWithoutPersistence() throws Exception {
+        Context context = context("CASHHTTPBAD", new BigDecimal("1000.00"));
+        long paymentsBefore = pagoRepository.count();
+
+        for (String amount : List.of("0.00", "-1.00")) {
+            mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                            .part(paymentPart(amount, UUID.randomUUID()))
+                            .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                    .authentication(context.ownerAuth())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("monto"))
+                    .andExpect(jsonPath("$.fieldErrors[0].message")
+                            .value(org.hamcrest.Matchers.containsString("mayor a cero")));
+            assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        }
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", Integer.MAX_VALUE)
+                        .part(paymentPart("10.00", UUID.randomUUID()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.ownerAuth())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no existe")));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void tenantQrHttpRequestPersistsPendingPaymentWithProof() throws Exception {
+        Context context = context("TENANTQRHTTP", new BigDecimal("1000.00"));
+        createQr(context, "tenant-qr-http.png");
+        long paymentsBefore = pagoRepository.count();
+        long proofsBefore = comprobanteRepository.count();
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                        .part(qrPaymentPart("250.00", UUID.randomUUID()))
+                        .file(proofPng("tenant-proof-http.png"))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.tenantAuth())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estado").value("PENDIENTE_REVISION"));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore + 1);
+        assertThat(comprobanteRepository.count()).isEqualTo(proofsBefore + 1);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+        Integer storedPaymentId = pagoRepository.findAllByCuotaOwned(context.quota().getCodcuo(),
+                context.owner().getPersona().getCodper()).getFirst().getCodpag();
+        rememberProof(pagoService.get(storedPaymentId, context.ownerAuth()));
+    }
+
+    @Test
+    void tenantQrHttpRejectsMissingProofWithoutPersistence() throws Exception {
+        Context context = context("TENANTQRNOPROOF", new BigDecimal("1000.00"));
+        createQr(context, "tenant-qr-no-proof.png");
+        long paymentsBefore = pagoRepository.count();
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                        .part(qrPaymentPart("250.00", UUID.randomUUID()))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.tenantAuth())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("comprobante")));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void tenantQrHttpRejectsOverpaymentWithoutPersistence() throws Exception {
+        Context context = context("TENANTQROVER", new BigDecimal("1000.00"));
+        createQr(context, "tenant-qr-over.png");
+        long paymentsBefore = pagoRepository.count();
+
+        mockMvc.perform(multipart("/api/v1/cuotas/{codcuo}/pagos", context.quota().getCodcuo())
+                        .part(qrPaymentPart("1000.01", UUID.randomUUID()))
+                        .file(proofPng("tenant-proof-over.png"))
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.tenantAuth())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("saldo")));
+
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void confirmationHttpUpdatesQuotaAndRejectsSecondProcessing() throws Exception {
+        Context context = context("CONFIRMHTTP", new BigDecimal("1000.00"));
+        createQr(context, "confirm-http-qr.png");
+        PagoResponse pending = presentQr(context, "1000.00");
+        rememberProof(pending);
+
+        mockMvc.perform(patch("/api/v1/pagos/{codpag}/confirmar", pending.codpag())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.ownerAuth())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("CONFIRMADO"));
+
+        var confirmedBalance = pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo());
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+
+        mockMvc.perform(patch("/api/v1/pagos/{codpag}/confirmar", pending.codpag())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(context.ownerAuth())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"));
+
+        assertThat(pagoRepository.findById(pending.codpag()).orElseThrow().getEstado())
+                .isEqualTo(com.orman.backend.payment.entity.PagoEstado.CONFIRMADO);
+        assertThat(pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo()))
+                .isEqualByComparingTo(confirmedBalance);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+    }
+
+    @Test
+    void ownerCashRejectsInvalidAmountsAndMissingQuotaWithoutPersistingPayments() {
+        Context context = context("CASHREJECT", new BigDecimal("1000.00"));
+        long paymentsBefore = pagoRepository.count();
+
+        assertThatThrownBy(() -> pagoService.create(context.quota().getCodcuo(),
+                request("0.00", MetodoPago.EFECTIVO, nowLaPaz()), null, context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+
+        assertThatThrownBy(() -> pagoService.create(context.quota().getCodcuo(),
+                request("-1.00", MetodoPago.EFECTIVO, nowLaPaz()), null, context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+
+        assertThatThrownBy(() -> pagoService.create(context.quota().getCodcuo(),
+                request("1000.01", MetodoPago.EFECTIVO, nowLaPaz()), null, context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("saldo");
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+
+        assertThatThrownBy(() -> pagoService.create(Integer.MAX_VALUE,
+                request("10.00", MetodoPago.EFECTIVO, nowLaPaz()), null, context.ownerAuth()))
+                .isInstanceOf(com.orman.backend.common.exception.ResourceNotFoundException.class);
+        assertThat(pagoRepository.count()).isEqualTo(paymentsBefore);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PENDIENTE);
+    }
+
+    @Test
+    void confirmingAnAlreadyConfirmedPaymentIsRejectedWithoutChangingQuotaOrBalance() throws Exception {
+        Context context = context("CONFIRMTWICE", new BigDecimal("1000.00"));
+        createQr(context, "confirm-twice-qr.png");
+        PagoResponse pending = presentQr(context, "1000.00");
+        rememberProof(pending);
+
+        PagoResponse confirmed = pagoService.confirm(pending.codpag(), context.ownerAuth());
+        assertThat(confirmed.estado()).isEqualTo("CONFIRMADO");
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
+        var confirmedBalance = pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo());
+
+        assertThatThrownBy(() -> pagoService.confirm(pending.codpag(), context.ownerAuth()))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("pendiente de revisión");
+
+        assertThat(pagoService.get(pending.codpag(), context.ownerAuth()).estado()).isEqualTo("CONFIRMADO");
+        assertThat(pagoRepository.sumConfirmedMontoByCuota(context.quota().getCodcuo()))
+                .isEqualByComparingTo(confirmedBalance);
+        assertThat(cuota(context).getEstado()).isEqualTo(CuotaEstado.PAGADA);
     }
 
     @Test
@@ -532,6 +760,11 @@ class PaymentModuleIntegrationTest {
         }
     }
 
+    private MockMultipartFile proofPng(String filename) throws java.io.IOException {
+        MockMultipartFile image = png(filename);
+        return new MockMultipartFile("comprobante", filename, image.getContentType(), image.getBytes());
+    }
+
     private LocalDateTime nowLaPaz() {
         return LocalDateTime.ofInstant(clock.instant(), LA_PAZ);
     }
@@ -622,6 +855,24 @@ class PaymentModuleIntegrationTest {
     private Authentication authentication(Usuario user, String role) {
         return new TestingAuthenticationToken(new AuthenticatedUser(user.getLogin(), UUID.randomUUID()), null,
                 List.of(new SimpleGrantedAuthority(role)));
+    }
+
+    private MockPart paymentPart(String amount, UUID idempotencyKey) {
+        String json = "{\"monto\":" + amount + ",\"metodo\":\"EFECTIVO\","
+                + "\"fechaPago\":\"2026-09-25T12:20:00\",\"idempotencyKey\":\""
+                + idempotencyKey + "\"}";
+        MockPart part = new MockPart("pago", json.getBytes(StandardCharsets.UTF_8));
+        part.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        return part;
+    }
+
+    private MockPart qrPaymentPart(String amount, UUID idempotencyKey) {
+        String json = "{\"monto\":" + amount + ",\"metodo\":\"QR\","
+                + "\"fechaPago\":\"2026-09-25T12:19:00\",\"idempotencyKey\":\""
+                + idempotencyKey + "\"}";
+        MockPart part = new MockPart("pago", json.getBytes(StandardCharsets.UTF_8));
+        part.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        return part;
     }
 
     @AfterTransaction

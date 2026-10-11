@@ -45,18 +45,25 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.Rollback;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 @Rollback
 class NotificationModuleIntegrationTest {
@@ -71,6 +78,7 @@ class NotificationModuleIntegrationTest {
     @Autowired private NotificacionMapper notificacionMapper;
     @Autowired private NotificacionService notificacionService;
     @Autowired private NotificacionGeneracionService notificacionGeneracionService;
+    @Autowired private MockMvc mockMvc;
     @Autowired private CuotaNotificacionScheduler cuotaNotificacionScheduler;
     @Autowired private PagoService pagoService;
     @Autowired private PagoRepository pagoRepository;
@@ -379,6 +387,53 @@ class NotificationModuleIntegrationTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> notificacionService.markAsRead(tenantBNotification.getCodnot(), tenantAAuthentication))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void notificationsHttpListsOwnMarksReadAndHidesForeignDetail() throws Exception {
+        Context ownContext = context("HTTP-NOT-OWN");
+        Usuario ownTenant = user("http.not.own." + UUID.randomUUID(), ownContext.contrato().getInquilino());
+        Context foreignContext = context("HTTP-NOT-FOREIGN");
+        Usuario foreignTenant = user("http.not.foreign." + UUID.randomUUID(),
+                foreignContext.contrato().getInquilino());
+        NotificacionEntity own = notification(ownTenant, NotificacionTipo.CUOTA_VENCIDA, 81);
+        own.setTitulo("Aviso propio de prueba");
+        own.setMensaje("Mensaje propio.");
+        notificacionRepository.saveAndFlush(own);
+        NotificacionEntity foreign = notification(foreignTenant, NotificacionTipo.CUOTA_VENCIDA, 82);
+        foreign.setTitulo("DATO_AJENO_NO_VISIBLE_82");
+        foreign.setMensaje("DETALLE_PRIVADO_AJENO_82");
+        notificacionRepository.saveAndFlush(foreign);
+        Authentication ownAuthentication = authentication(ownTenant, "ROLE_INQUILINO");
+
+        mockMvc.perform(get("/api/v1/notificaciones")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(ownAuthentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].codnot").value(own.getCodnot()))
+                .andExpect(jsonPath("$.content[0].leida").value(false));
+        mockMvc.perform(get("/api/v1/notificaciones/resumen")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(ownAuthentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noLeidas").value(1));
+
+        mockMvc.perform(patch("/api/v1/notificaciones/{codnot}/leer", own.getCodnot())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(ownAuthentication)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.leida").value(true));
+        assertThat(notificacionRepository.findById(own.getCodnot()).orElseThrow().getFechaLectura()).isNotNull();
+
+        var foreignResult = mockMvc.perform(get("/api/v1/notificaciones/{codnot}", foreign.getCodnot())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .authentication(ownAuthentication)))
+                .andExpect(status().isNotFound())
+                .andReturn();
+        assertThat(foreignResult.getResponse().getContentAsString())
+                .doesNotContain("DATO_AJENO_NO_VISIBLE_82", "DETALLE_PRIVADO_AJENO_82");
+        assertThat(notificacionRepository.findById(foreign.getCodnot()).orElseThrow().getFechaLectura()).isNull();
     }
 
     private void assertNotification(Usuario usuario, NotificacionTipo tipo, ReferenciaTipo referenciaTipo,

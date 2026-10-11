@@ -4,6 +4,7 @@ import com.orman.backend.common.dto.PageResponse;
 import com.orman.backend.common.error.GlobalExceptionHandler;
 import com.orman.backend.common.exception.BusinessRuleException;
 import com.orman.backend.common.exception.ConflictException;
+import com.orman.backend.common.exception.ResourceNotFoundException;
 import com.orman.backend.payment.dto.request.PagoMotivoRequest;
 import com.orman.backend.payment.dto.request.PagoRequest;
 import com.orman.backend.payment.dto.response.PagoResponse;
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -88,6 +90,39 @@ class PagoControllerWebMvcTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"))
                 .andExpect(jsonPath("$.stackTrace").doesNotExist());
+    }
+
+    @Test
+    void mapsMissingQuotaToNotFoundAndPaymentBusinessRuleToUnprocessable() throws Exception {
+        when(pagoService.create(any(), any(), nullable(org.springframework.web.multipart.MultipartFile.class), any()))
+                .thenThrow(new ResourceNotFoundException("La Cuota solicitada no existe."));
+
+        mockMvc.perform(multipart("/api/v1/cuotas/999999/pagos").part(jsonPart(validJson())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+
+        doThrow(new BusinessRuleException("El monto supera el saldo pendiente de la Cuota."))
+                .when(pagoService).create(any(), any(), nullable(org.springframework.web.multipart.MultipartFile.class), any());
+
+        mockMvc.perform(multipart("/api/v1/cuotas/8/pagos").part(jsonPart(validJson())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"));
+    }
+
+    @Test
+    void mapsPaymentConfirmationAndRejectedReprocessingToHttpResponses() throws Exception {
+        when(pagoService.confirm(eq(12), any())).thenReturn(response(12));
+
+        mockMvc.perform(patch("/api/v1/pagos/12/confirmar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("CONFIRMADO"));
+
+        when(pagoService.confirm(eq(12), any()))
+                .thenThrow(new BusinessRuleException("Solo se puede confirmar un Pago pendiente de revisión."));
+
+        mockMvc.perform(patch("/api/v1/pagos/12/confirmar"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errorCode").value("BUSINESS_RULE_VIOLATION"));
     }
 
     @Test

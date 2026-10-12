@@ -249,7 +249,7 @@ El Dockerfile construye con `./mvnw -B -ntp clean package -DskipTests`, copia `b
 
 ### Salud pública y alcance de la comprobación
 
-`GET /api/v1/salud` es público y no requiere autenticación. El servicio comprueba una consulta mínima a la base de datos. Según el controlador y el DTO actuales, devuelve JSON:
+`GET` y `HEAD /api/v1/salud` son públicos y no requieren autenticación; pueden utilizarse con monitores HTTP como UptimeRobot. Ambos comprueban el backend y el acceso a PostgreSQL mediante una consulta mínima, y responden `200` si está disponible o `503` si falla. `HEAD` no devuelve cuerpo; `GET` devuelve el siguiente JSON. Esta documentación describe el código y no confirma que la corrección esté desplegada:
 
 | Resultado de la comprobación | HTTP | Respuesta |
 |---|---|---|
@@ -260,6 +260,7 @@ Comprobación puntual desde PowerShell (comando documentado, no ejecutado aquí)
 
 ```powershell
 curl.exe -i https://orman-backend-e09w.onrender.com/api/v1/salud
+curl.exe -I https://orman-backend-e09w.onrender.com/api/v1/salud
 ```
 
 Una respuesta de salud describe ese instante y el acceso básico a PostgreSQL; no verifica R2, Firebase ni todos los flujos funcionales. No constituye monitoreo continuo ni demuestra RNF-05. Para evaluar disponibilidad se necesitan observaciones sostenidas y evidencia del periodo medido; no se confirma aquí un monitor activo.

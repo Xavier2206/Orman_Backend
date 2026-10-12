@@ -1,7 +1,7 @@
 # ORMAN
 
 > Trabajo Final · Diplomado en Desarrollo Web y Aplicaciones Móviles · UAJMS 2026<br>
-> Autor: `<Xavier Ortega Mancilla>` · Tutor: `<Nombre del tutor>`
+> Autor: Xavier Ortega Mancilla
 
 ## 1. Descripción
 
@@ -9,7 +9,16 @@ ORMAN es un sistema de gestión inmobiliaria para administrar propietarios, inqu
 
 Este repositorio contiene únicamente el Backend. Expone la API REST que utilizan el cliente Angular WEB y la aplicación Flutter para Android.
 
-**Sistema desplegado:** `<pendiente / URL pública del Backend>`
+**Direcciones públicas proporcionadas por el autor:**
+
+- [Backend](https://orman-backend-e09w.onrender.com).
+- [Salud pública](https://orman-backend-e09w.onrender.com/api/v1/salud).
+- [Aplicación web para el Propietario](https://orman-frontend.ortegaxavier75.workers.dev/).
+- [APK Android para el Inquilino](https://github.com/Xavier2206/Orman_Mobile/raw/refs/heads/main/build/entrega/ORMAN-1.0.0.apk), publicado en el repositorio móvil según confirmación del autor; no es una Release de GitHub.
+
+Estas direcciones se documentan sin afirmar una verificación de disponibilidad en esta actualización.
+
+**Repositorios relacionados:** [Backend](https://github.com/Xavier2206/Orman_Backend), [Frontend](https://github.com/Xavier2206/Orman_Frontend) y [Móvil](https://github.com/Xavier2206/Orman_Mobile).
 
 ## 2. Stack tecnológico
 
@@ -18,18 +27,23 @@ Este repositorio contiene únicamente el Backend. Expone la API REST que utiliza
 | Java | 21 | Plataforma de ejecución |
 | Spring Boot | 4.1.0 | Aplicación y dependencias base |
 | Maven / Maven Wrapper | Maven 3.9.16 · Wrapper 3.3.4 | Compilación y ejecución |
-| PostgreSQL | — | Base de datos relacional |
-| Spring Data JPA | — | Acceso a datos |
-| Hibernate | — | ORM y validación del esquema |
-| Flyway | — | Migraciones de base de datos |
-| Spring Security | — | Autenticación y autorización |
+| PostgreSQL | 18 en Neon (producción, dato proporcionado por el autor) | Base de datos relacional; el POM no fija la versión del servidor |
+| Spring Data JPA | Gestionada por Spring Boot | Acceso a datos |
+| Hibernate | Gestionada por Spring Boot | ORM y validación del esquema |
+| Flyway | Gestionada por Spring Boot | Migraciones de base de datos |
+| Spring Security | Gestionada por Spring Boot | Autenticación y autorización |
 | JWT (Nimbus JOSE JWT) | 10.8 | Tokens de acceso |
-| BCrypt | — | Verificación de contraseñas |
-| Bean Validation | — | Validación de solicitudes |
-| Lombok | — | Reducción de código repetitivo |
+| BCrypt / spring-security-crypto | Gestionada por Spring Boot | Verificación de contraseñas |
+| Bean Validation | Gestionada por Spring Boot | Validación de solicitudes |
+| Lombok | Gestionada por Spring Boot | Reducción de código repetitivo |
+| Driver JDBC PostgreSQL | Gestionada por Spring Boot | Conexión a PostgreSQL; su versión no es la del servidor |
+| AWS SDK S3 / url-connection-client | 2.55.8 | Integración con Cloudflare R2 |
+| Apache PDFBox | 3.0.8 | Procesamiento de documentos PDF |
 | API REST | — | Comunicación HTTP bajo `/api/v1` |
 | WebSocket / STOMP | — | Notificaciones en tiempo real para WEB |
 | Firebase Admin SDK / Firebase Cloud Messaging | 9.11.0 | Envío de notificaciones push a Android |
+
+Java, Spring Boot, Nimbus JOSE JWT, AWS SDK, PDFBox y Firebase Admin tienen versiones declaradas en `pom.xml`. Maven 3.9.16 y Wrapper 3.3.4 se declaran en `.mvn/wrapper/maven-wrapper.properties` (tipo `only-script`). Las dependencias gestionadas no tienen una versión propia fijada en el POM del proyecto; no se les atribuye aquí una versión exacta sin resolverlas. El empaquetado es JAR; el Dockerfile utiliza Eclipse Temurin 21, con JDK para construir y JRE para ejecutar.
 
 ### Seguridad y sesiones
 
@@ -68,8 +82,15 @@ DELETE /api/v1/mobile/push-installation
 
 El perfil `local` conecta por defecto con PostgreSQL en `localhost:5432/orman`, sin SSL. El backend escucha en `http://localhost:9090` y permite el origen Angular `http://localhost:4200`.
 
-1. Instala JDK 21 y PostgreSQL. Crea la base local `orman` y configura un usuario local con permiso para que Flyway administre su esquema.
-2. Desde la raíz del repositorio, configura las variables del proceso en PowerShell. Sustituye los marcadores por los valores locales propios; no guardes contraseñas ni secretos en Git:
+1. Instala JDK 21, PostgreSQL y Git. Crea la base local `orman` y configura un usuario local con permiso para que Flyway administre su esquema.
+2. Clona el backend y entra en su directorio:
+
+```powershell
+git clone https://github.com/Xavier2206/Orman_Backend.git
+cd Orman_Backend
+```
+
+3. Desde la raíz del repositorio, configura las variables del proceso en PowerShell. Sustituye los marcadores por los valores locales propios; no guardes contraseñas ni secretos en Git:
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "local"
@@ -87,7 +108,7 @@ $env:REFRESH_COOKIE_SECURE = "false"
 
 `JWT_SECRET` local debe ser estable para ese entorno y distinto del secreto de producción. `DB_USERNAME`, `DB_PASSWORD` y `JWT_SECRET` son obligatorios; el perfil local aporta defaults seguros para host, puerto, base, SSL, puerto HTTP, cookie y CORS.
 
-Spring Boot no carga `.env` automáticamente. Antes, `application.yml` importaba explícitamente `./.env`; esa importación se retiró para evitar que el archivo local con destino Neon sobreescriba el perfil. `.env.example` sirve solo como plantilla de referencia; define los valores en el entorno del proceso.
+La configuración actual no importa `.env`; Spring Boot no lo carga automáticamente. `.env.example` sirve solo como plantilla de referencia; define los valores en el entorno del proceso. Si ese proceso ya contiene variables de producción, sustitúyelas por los valores locales antes de iniciar.
 
 Flyway valida y aplica migraciones al iniciar. Hibernate conserva `ddl-auto: validate`. Para compilar sin ejecutar pruebas ni iniciar una conexión a base de datos:
 
@@ -112,14 +133,16 @@ DB_USERNAME=<usuario-de-produccion>
 DB_PASSWORD=<secreto-del-gestor-de-secretos>
 DB_SSL_MODE=require
 JWT_SECRET=<secreto-de-produccion-de-al-menos-32-bytes>
-ORMAN_FRONTEND_URL=https://<origen-frontend-produccion>
+ORMAN_FRONTEND_URL=https://orman-frontend.ortegaxavier75.workers.dev
 REFRESH_COOKIE_SECURE=true
-REFRESH_COOKIE_SAME_SITE=<Strict-Lax-o-None-segun-el-dominio>
-ORMAN_STORAGE_PROVIDER=<r2-o-local-segun-el-despliegue>
-PORT=<puerto-proporcionado-por-la-plataforma>
+REFRESH_COOKIE_SAME_SITE=None
+ORMAN_STORAGE_PROVIDER=r2
+PORT=10000
 ```
 
-`ORMAN_FRONTEND_URL` configura el único origen de CORS del perfil. No uses `*`; la configuración existente también rechaza ese valor. El origen de producción debe ser HTTPS. `SameSite` sigue siendo configurable (`Strict`, `Lax` o `None`); `None` requiere `Secure`.
+`ORMAN_FRONTEND_URL` configura el único origen de CORS del perfil: debe coincidir exactamente, sin barra final, con `https://orman-frontend.ortegaxavier75.workers.dev`. No uses `*`; el código lo rechaza. CORS permite credenciales y el encabezado `X-XSRF-TOKEN`, que también expone al cliente.
+
+El frontend en `workers.dev` y el backend en `onrender.com` están en sitios distintos. Para enviar la cookie de refresh en solicitudes entre estos sitios, configura `REFRESH_COOKIE_SAME_SITE=None` y `REFRESH_COOKIE_SECURE=true`, además de credenciales en el cliente. El default común del código es `Lax`, no `None`; `local` aporta `secure=false`, mientras que `prod` exige un valor explícito. El código rechaza `None` sin `Secure`. Estos valores son requisitos para los dominios publicados, no una confirmación de las variables guardadas en Render. Las políticas del navegador sobre cookies de terceros pueden seguir bloqueándolas; debe comprobarse login, renovación y XSRF desde el frontend público. Véase la [documentación de cookies de MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie).
 
 | Variable | Perfil local | Perfil prod |
 |---|---|---|
@@ -131,15 +154,23 @@ PORT=<puerto-proporcionado-por-la-plataforma>
 | `JWT_SECRET` | Obligatoria, mínimo 32 bytes | Obligatoria, mínimo 32 bytes y distinta de local |
 | `ORMAN_FRONTEND_URL` | `http://localhost:4200` por defecto | Obligatoria; un origen HTTPS |
 | `REFRESH_COOKIE_SECURE` | `false` por defecto | Obligatoria; debe ser `true` |
-| `REFRESH_COOKIE_SAME_SITE` | `Lax` por defecto | Configurable; `Lax` por defecto |
-| `ORMAN_STORAGE_PROVIDER` | `local` por defecto | Obligatoria; configura `r2` o `local` según el despliegue |
+| `REFRESH_COOKIE_SAME_SITE` | `Lax` por defecto | Default común `Lax`; requiere `None` para los sitios públicos indicados |
+| `ORMAN_STORAGE_PROVIDER` | `local` por defecto | Obligatoria; utiliza `r2` para persistir archivos en Render Free |
 | `PORT` | `9090` por defecto | Opcional; `9090` si la plataforma no lo define |
 
 Si se utiliza Cloudflare R2, configura externamente `ORMAN_STORAGE_PROVIDER=r2`, `ORMAN_R2_ENDPOINT`, `ORMAN_R2_BUCKET`, `ORMAN_R2_ACCESS_KEY_ID` y `ORMAN_R2_SECRET_ACCESS_KEY`. Si se habilita Firebase, configura `ORMAN_FIREBASE_ENABLED=true`, `ORMAN_FIREBASE_PROJECT_ID` (o `GOOGLE_CLOUD_PROJECT`) y credenciales externas mediante `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` o Application Default Credentials con `GOOGLE_APPLICATION_CREDENTIALS`. No incluyas los JSON ni sus secretos en el repositorio.
 
+El endpoint R2 debe ser HTTPS y el bucket debe estar configurado. Ambas integraciones están disponibles en el código, pero su activación y funcionamiento en Render quedan pendientes de confirmar. Firebase está deshabilitado por defecto (`ORMAN_FIREBASE_ENABLED=false`); si se usa ADC, no definas `ORMAN_FIREBASE_SERVICE_ACCOUNT_JSON` vacío, pues el código lo considera una configuración inválida. Firebase se utiliza para notificaciones push Android; ORMAN autentica a sus usuarios mediante su propio backend, no mediante Firebase Authentication.
+
+### Neon PostgreSQL 18
+
+Para producción se utiliza Neon PostgreSQL 18, según la información proporcionada por el autor. Obtén del panel privado de Neon los datos de conexión del proyecto y rama correspondientes y configúralos únicamente en el gestor de secretos de Render: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` y `DB_PASSWORD`. El backend construye la URL JDBC con esas variables y `DB_SSL_MODE`; no requiere publicar una cadena real de conexión. La cuenta debe permitir a Flyway aplicar las migraciones en el esquema de destino.
+
+Configura `DB_SSL_MODE=require`: exige cifrado de la conexión, pero no verifica la identidad ni el nombre del servidor. No equivale a `verify-full`, según la [documentación oficial de pgJDBC](https://jdbc.postgresql.org/documentation/ssl/). No publiques host privado, usuarios, contraseñas ni cadenas de conexión. Confirma privadamente la versión del servidor y el destino configurado en Neon/Render; estos datos no se deducen del POM.
+
 `JWT_ISSUER`, `JWT_ACCESS_EXPIRATION_MINUTES`, `JWT_REFRESH_EXPIRATION_DAYS`, `REFRESH_COOKIE_NAME`, límites de carga/almacenamiento y cron de tareas conservan sus defaults comunes, todos sobrescribibles mediante variables de entorno. Flyway sigue siendo la única fuente de evolución del esquema.
 
-La configuración sensible se obtiene del entorno del proceso o de la plataforma. Las variables `MAIL_*` y `OTP_*` que puedan existir en un `.env` local no se cargan desde ese archivo; no aparecen referenciadas en la configuración activa del backend.
+La configuración sensible se obtiene del entorno del proceso o de la plataforma.
 
 Las reglas funcionales de fechas y horas utilizan la zona `America/La_Paz`, correspondiente a la hora de Bolivia.
 
@@ -154,9 +185,14 @@ Las reglas funcionales de fechas y horas utilizan la zona `America/La_Paz`, corr
 │   │   ├── java/com/orman/backend/
 │   │   └── resources/
 │   │       ├── application.yml
+│   │       ├── application-local.yml
+│   │       ├── application-prod.yml
 │   │       └── db/migration/
 │   └── test/
+│       ├── java/
+│       └── resources/application.yml
 ├── .env.example
+├── Dockerfile
 ├── mvnw
 ├── mvnw.cmd
 ├── pom.xml
@@ -169,14 +205,13 @@ Se conservan los módulos de roles, asignación de roles, menús, procesos y sus
 
 ## 7. Roles y credenciales de prueba
 
-| Rol | Usuario | Contraseña |
-|---|---|---|
-| PROPIETARIO | `<usuario de prueba>` | `<ver documento entregado a la coordinación>` |
-| INQUILINO | `<usuario de prueba>` | `<ver documento entregado a la coordinación>` |
-
-Las credenciales de prueba se entregan por un canal privado. No se incluyen contraseñas ni secretos en este repositorio.
+Las cuentas de prueba para la evaluación académica se proporcionan en el apartado A4.4 del documento entregado al tribunal. La aplicación web corresponde al Propietario y la aplicación móvil al Inquilino.
 
 ## 8. Pruebas
+
+Requieren JDK 21, Maven Wrapper (y acceso a sus descargas si no están en caché) y PostgreSQL real accesible. `src/test/resources/application.yml` toma `DB_HOST`, `DB_PORT` y `DB_NAME` con defaults `localhost`, `5432` y `orman`; `DB_USERNAME` y `DB_PASSWORD` son obligatorias. Esa URL de pruebas no incluye `DB_SSL_MODE`; se recomienda una base local dedicada a pruebas, con permiso para aplicar migraciones Flyway, nunca la base de producción. La suite escribe datos de prueba y archivos bajo `target/test-*`.
+
+Configura esas variables de proceso apuntando a la base de pruebas antes de ejecutar los comandos. El YAML de pruebas aporta configuración JWT y cookies propia; evita heredar `SPRING_PROFILES_ACTIVE=prod` o variables de producción. No se usan H2 ni Testcontainers y no se requiere Docker para ejecutar la suite con PostgreSQL instalado. Docker solo es necesario si decides construir la imagen localmente. Las pruebas de Firebase y R2 utilizan dobles de prueba; no requieren credenciales reales de esos servicios.
 
 Windows:
 
@@ -198,11 +233,46 @@ La suite cubre lógica de negocio, persistencia y restricciones de base de datos
 
 Spring Boot puede empaquetarse como un JAR con Maven Wrapper. En el entorno de destino deben configurarse PostgreSQL y las variables necesarias; los secretos y las credenciales de Firebase se administran fuera del JAR.
 
-Las direcciones públicas se completarán cuando se realice el despliegue:
+### Render con el Dockerfile existente
 
-- Backend público: `<pendiente / URL>`
-- Frontend web: `<pendiente / URL>`
-- Aplicación móvil: `<pendiente / enlace APK>`
+Los siguientes pasos son instrucciones para el operador; no se ejecutaron durante esta actualización del README.
+
+1. En Render, crea un **Web Service**, conecta la cuenta de GitHub y selecciona `Xavier2206/Orman_Backend`, rama `main`. Si el servicio ya existe, revisa su repositorio y rama en Settings.
+2. Selecciona **Docker** como runtime. Mantén la raíz del repositorio como contexto (Root Directory sin subdirectorio), Dockerfile Path `./Dockerfile`. No se necesita un comando Maven adicional de construcción ni sustituir el arranque del contenedor. Véase [Docker en Render](https://render.com/docs/docker).
+3. En Environment, configura `SPRING_PROFILES_ACTIVE=prod` y todas las variables de la sección 5: conexión privada a Neon, SSL, secreto JWT, origen web, cookies y R2 con sus cuatro variables. Si se activa Firebase, añade sus variables y credenciales externas; no guardes archivos privados en Git.
+4. Configura `PORT=10000` para alinear el puerto de escucha con `EXPOSE 10000`. Render proporciona `PORT` (10000 por defecto); los perfiles usan `${PORT:9090}`. `EXPOSE` declara el puerto de la imagen, pero no cambia el de Spring. Localmente el default sigue siendo 9090. El proxy de Render proporciona el acceso público HTTPS. Véase [puertos de Web Services](https://render.com/docs/web-services#port-binding).
+5. Define Health Check Path `/api/v1/salud`. Inicia el despliegue y revisa el arranque y las migraciones en los logs sin divulgar información sensible. Flyway aplica las migraciones al iniciar; Hibernate valida el esquema.
+6. Espera el estado **Live** y comprueba la ruta pública de salud con el comando documentado abajo. Si el servicio gratuito estaba inactivo, espera su arranque y repite la consulta. El estado Live por sí solo no verifica login, cookies, archivos ni notificaciones.
+7. Para futuras actualizaciones, **Auto-Deploy: On Commit** despliega los cambios publicados en `main` si está habilitado con el proveedor Git conectado. **After CI Checks Pass** depende de checks configurados; no demuestra que este Dockerfile ejecute pruebas. Para actualizar manualmente, usa **Manual Deploy → Deploy latest commit**. Confirma la opción vigente en el panel; no se afirma conocerla. Véase [despliegues de Render](https://render.com/docs/deploys).
+
+El Dockerfile construye con `./mvnw -B -ntp clean package -DskipTests`, copia `backend-0.0.1-SNAPSHOT.jar` a `/app/app.jar` y arranca `java -jar /app/app.jar` como usuario sin privilegios. **La construcción omite la ejecución de las pruebas**; no se afirma que se hayan ejecutado por separado ni se aportan resultados nuevos.
+
+### Salud pública y alcance de la comprobación
+
+`GET /api/v1/salud` es público y no requiere autenticación. El servicio comprueba una consulta mínima a la base de datos. Según el controlador y el DTO actuales, devuelve JSON:
+
+| Resultado de la comprobación | HTTP | Respuesta |
+|---|---|---|
+| Base de datos disponible | `200 OK` | `{"estado":"UP","baseDatos":"UP"}` |
+| Comprobación fallida o error de acceso a datos | `503 Service Unavailable` | `{"estado":"DOWN","baseDatos":"DOWN"}` |
+
+Comprobación puntual desde PowerShell (comando documentado, no ejecutado aquí):
+
+```powershell
+curl.exe -i https://orman-backend-e09w.onrender.com/api/v1/salud
+```
+
+Una respuesta de salud describe ese instante y el acceso básico a PostgreSQL; no verifica R2, Firebase ni todos los flujos funcionales. No constituye monitoreo continuo ni demuestra RNF-05. Para evaluar disponibilidad se necesitan observaciones sostenidas y evidencia del periodo medido; no se confirma aquí un monitor activo.
+
+### Limitaciones de Render Free y persistencia
+
+Render Free suspende el servicio tras 15 minutos sin tráfico y el siguiente acceso puede tardar aproximadamente un minuto en reactivarlo. Comparte 750 horas gratuitas por workspace al mes; agotar esa cuota suspende los servicios gratuitos hasta el mes siguiente. También existen límites de ancho de banda y minutos de construcción. Estas condiciones afectan las respuestas y la ejecución de tareas programadas durante la suspensión. Véase [Render Free](https://render.com/docs/free).
+
+El sistema de archivos local es efímero: los archivos escritos se pierden al desplegar, reiniciar o suspender el servicio; Free no admite discos persistentes. Aunque el Dockerfile crea `/app/storage` y el código admite almacenamiento `local`, no es una solución persistente de producción en ese plan. Las fotos, documentos y comprobantes que deban conservarse requieren almacenamiento externo, mediante la integración R2 disponible. Los datos relacionales se almacenan en Neon, fuera del contenedor.
+
+### Datos pendientes de confirmar en el entorno
+
+Revisar privadamente en Render la rama y commit desplegados, perfil `prod`, `PORT`, origen CORS, `REFRESH_COOKIE_SECURE=true`, `REFRESH_COOKIE_SAME_SITE=None`, conexión a Neon y versión PostgreSQL 18, configuración de R2, activación y credenciales de Firebase, modalidad Auto-Deploy y ruta de salud. Confirmar desde el navegador público login, renovación y XSRF, y comprobar persistencia de archivos y entrega push si se habilitó Firebase. El código y estas instrucciones no acreditan los valores actualmente guardados en el panel ni la disponibilidad continua.
 
 ## 10. Licencia
 
